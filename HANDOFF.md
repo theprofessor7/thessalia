@@ -40,7 +40,8 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
 | Tesseract 5 | 13 % | 16 % | 88,5 % | 53 % |
 | RapidOCR (PP-OCR) | 24 % | 26 % | 94,6 % | 71 % |
 | TrOCR base (`microsoft/trocr-base-handwritten`) | 24,7 % | 33,8 % | 95,4 % | 74,5 % |
-| TrOCR base, nombres libres en revue (réglage actuel) | 24,7 % | 26,9 % | 99,4 % | 74,5 % |
+| TrOCR base, nombres libres en revue | 24,7 % | 26,9 % | 99,4 % | 74,5 % |
+| TrOCR base, + point final retiré (réglage actuel, 4 octobre) | 32,8 % | 31,2 % | 99,5 % | 77,9 % |
 
   → insuffisant : ces moteurs sont faits pour l'imprimé. Les erreurs restantes sont des chiffres mal lus
   avec une confiance élevée (15 → 45, 22 → 27) : les seuils de confiance de ces moteurs ne sont pas fiables.
@@ -55,6 +56,11 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
   (opt-in). Reste 1 erreur acceptée : c07_q2.1, `int` lu `list`. Deux causes vues sur les vignettes
   nettoyées, côté `ocr_prep` : résidus du soulignement lus comme un point décimal (22 → 2.2, 11 → 1.1)
   et bas d'un chiffre effacé avec la ligne (42 → 49).
+- **Point final parasite retiré depuis le 4 octobre** (`vocab.normalize`, champs `enum` et `number`) : TrOCR
+  termine presque toutes ses lectures par « . ». Mesure sur les 754 lectures base : 173 → 200 acceptées,
+  172 → 199 justes, même unique erreur (c07_q2.1).
+- **TrOCR large** essayé le 4 octobre, arrêté après 40 vignettes (~11 s/vignette, soit ~2 h 30 pour le lot) :
+  sur ces 39 réponses, 15 acceptées contre 12 pour base, mêmes fautes sur les nombres. Pas retenu.
 - `ocr` enregistre chaque lot lu dans `ocr_lectures_<moteur>.json` : une commande interrompue reprend où
   elle s'était arrêtée (option `--batch` pour réduire la mémoire).
 - **Vérité terrain** : `data/truth/python_core_EN_examen_blanc.short_truth.json` (777 réponses, lues par

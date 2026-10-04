@@ -35,3 +35,14 @@ def test_free_number_is_reviewed():
 def test_text_always_reviewed():
     r = snap([("Hello Alice", 0.99)], {"kind": "text", "values": ["Hello Alice"]})
     assert r["status"] == "review"
+
+
+def test_trailing_dot_is_ignored():
+    # les moteurs entraînés sur des phrases ajoutent un point final (« int . », « 15 . »)
+    assert normalize("int .") == "int"
+    assert normalize("str.") == "str"
+    assert parse_number("15 .") == "15"
+    assert parse_number("2. 5 .") == "2.5"
+    assert snap([("float .", 0.9)], TYPES)["status"] == "ok"
+    # le texte libre garde sa ponctuation
+    assert normalize("A-B-C.", "text") == "A-B-C."

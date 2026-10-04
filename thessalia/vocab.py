@@ -12,7 +12,7 @@ Règle d'or : le vocabulaire contient toutes les réponses PLAUSIBLES, justes ou
 fausses (ici tous les types Python, pas seulement le bon). Sinon le snapping
 transformerait l'erreur d'un étudiant en bonne réponse.
 
-Normalisation : casse, espaces, guillemets, et formes équivalentes
+Normalisation : casse, espaces, guillemets, point final parasite, et formes équivalentes
 (« <class 'int'> » -> « int »). Distance : Levenshtein où les confusions
 classiques de l'écriture manuscrite coûtent moins cher (0/O, 1/l/I, 5/S…).
 
@@ -43,6 +43,9 @@ def normalize(s: str, kind="enum") -> str:
     if m:
         s = m.group(1)
     if kind in ("enum", "number"):
+        # point final parasite : les moteurs entraînés sur des phrases terminent presque toujours
+        # par « . » (« int . », « 15 . ») ; aucune réponse courte attendue ne finit par un point
+        s = re.sub(r"[\s.]+$", "", s)
         s = re.sub(r"\(\s*\)$", "", s.strip())  # print() -> print
         s = s.strip("'\" ").lower()
         s = re.sub(r"\s+", "", s)
