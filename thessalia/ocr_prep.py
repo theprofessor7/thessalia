@@ -36,6 +36,10 @@ class PrepConfig:
     above_mm: float = 4.5        # bas du tracé au plus 4,5 mm au-dessus du soulignement
     center_mm: float = 4.2       # ... et centre du tracé au plus 4,2 mm au-dessus
     clip_mm: float = 6.0         # rien au-delà de 6 mm au-dessus du soulignement (ligne du dessus)
+    # recoller les tracés coupés par le soulignement : désactivé par défaut. Mesuré sur le lot EN
+    # (TrOCR base) : 200 -> 227 réponses acceptées mais 1 -> 3 erreurs acceptées (cf. HANDOFF §3)
+    bridge_line: bool = False
+    bridge_mm: float = 0.4       # tracé qui traverse la ligne : décalage toléré entre l'entrée et la sortie
 
 
 def mark_stacking(fields):
@@ -48,6 +52,47 @@ def mark_stacking(fields):
             and min(x + w, g["line_mm"][0] + g["line_mm"][2]) - max(x, g["line_mm"][0]) > 5
             for g in shorts)
     return fields
+
+
+def _grow_vertical(seed, allowed, steps, down=True):
+    """Prolonge `seed` colonne par colonne (vers le bas ou le haut) tant qu'on reste dans `allowed`."""
+    out = seed.copy()
+    for _ in range(steps):
+        nxt = np.zeros_like(out)
+        if down:
+            nxt[1:] = out[:-1]
+        else:
+            nxt[:-1] = out[1:]
+        nxt &= allowed
+        if not (nxt & ~out).any():
+            break
+        out |= nxt
+    return out
+
+
+def _bridge_line(ink, scan_ink, printed_raw, printed, r, k, cfg):
+    """Recolle les tracés qui croisent l'impression (le soulignement surtout).
+
+    Le masque de l'impression est dilaté de 0,5 mm : un jambage qui traverse la ligne est coupé
+    sur ~1,3 mm et son bout reste détaché dessous (lu comme un point), le bas d'un chiffre posé
+    sur la ligne est rogné. On rend à l'étudiant, colonne par colonne :
+      - l'encre du scan dans la marge de dilatation, dans le prolongement d'un tracé ;
+      - l'épaisseur de la ligne elle-même, seulement là où un tracé arrive dessus ET repart dessous.
+    """
+    ink = ink.astype(bool)
+    core = cv2.dilate(printed_raw.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0  # impression ± 1 px
+    halo = (printed > 0) & ~core & scan_ink
+    steps = 2 * r + 2
+    ext = _grow_vertical(ink, halo | ink, steps, True) | _grow_vertical(ink, halo | ink, steps, False)
+    thick = int(round(1.0 * k)) + 2  # une ligne imprimée fait moins de 1 mm
+    inside = core & scan_ink
+    down = _grow_vertical(ext, inside | ext, thick, True) & inside
+    up = _grow_vertical(ext, inside | ext, thick, False) & inside
+    t = max(1, int(round(cfg.bridge_mm * k)))
+    kh = np.ones((1, 2 * t + 1), np.uint8)
+    wide = lambda m: cv2.dilate(m.astype(np.uint8), kh) > 0  # un jambage oblique ne ressort pas à la verticale
+    bridge = (down & wide(up)) | (up & wide(down))
+    return (ext | bridge).astype(np.uint8)
 
 
 def prepare_field(aligned_img, blank_img, field, dpi, cfg: PrepConfig | None = None, norm_scan=None,
@@ -81,6 +126,8 @@ def prepare_field(aligned_img, blank_img, field, dpi, cfg: PrepConfig | None = N
     printed = cv2.dilate(printed, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1)))
     ink = (scan_n < cfg.ink_level) & (printed == 0)
     ink = ink.astype(np.uint8)
+    if cfg.bridge_line and "line_mm" in field:
+        ink = _bridge_line(ink, scan_n < cfg.ink_level, blank_n < 0.8, printed, r, k, cfg)
     # bruit isolé (poussière, grain) : composantes minuscules
     n, lab, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
     min_area = max(2, int(0.04 * k * k))  # 0,04 mm²

@@ -30,6 +30,8 @@ def main(argv=None):
     p.add_argument("--no-overlays", action="store_true")
     p.add_argument("--no-crops", action="store_true")
     p.add_argument("--full-policy", choices=["auto", "checked", "cancelled", "review"])
+    p.add_argument("--bridge-line", action="store_true",
+                   help="Niveau 2 (expérimental) : recoller les tracés coupés par le soulignement")
 
     s = sub.add_parser("simulate", help="copies synthétiques pour tester")
     s.add_argument("-t", "--template", required=True)
@@ -67,7 +69,8 @@ def main(argv=None):
         cfg = OMRConfig.from_dict(load_json(a.template).get("omr"))
         if a.full_policy:
             cfg.full_policy = a.full_policy
-        proc = Processor(a.template, a.blank, a.dpi, cfg, a.key, not a.no_overlays, not a.no_crops)
+        proc = Processor(a.template, a.blank, a.dpi, cfg, a.key, not a.no_overlays, not a.no_crops,
+                         bridge_line=a.bridge_line)
         copies = proc.run(a.scans, a.out)
         n_rev = sum(len(c["review"]) for c in copies)
         print(f"{len(copies)} copie(s) traitée(s), {n_rev} point(s) à revoir -> {a.out}")

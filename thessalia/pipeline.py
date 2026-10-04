@@ -19,7 +19,7 @@ from .common import RESULT_SCHEMA, load_json, normalize_background, px_per_mm, r
 from .extract import save_crops
 from .grade import grade_copy
 from .loader import load_scans
-from .ocr_prep import mark_stacking, prepare_field
+from .ocr_prep import PrepConfig, mark_stacking, prepare_field
 from .omr import OMRConfig, read_page
 from .report import draw_overlay, write_batch_csv, write_review_csv
 
@@ -42,7 +42,7 @@ def _is_blank(gray, px_mm, max_ink=0.002):
 
 class Processor:
     def __init__(self, template_path, blank_pdf, dpi=200, omr_cfg: OMRConfig | None = None,
-                 answer_key=None, overlays=True, crops=True, log=print):
+                 answer_key=None, overlays=True, crops=True, log=print, bridge_line=False):
         self.template = load_json(template_path)
         self.dpi = dpi
         self.cfg = omr_cfg or OMRConfig.from_dict(self.template.get("omr"))
@@ -55,6 +55,7 @@ class Processor:
         self._bn = {}
         self.key = load_json(answer_key) if answer_key else None
         self.overlays, self.crops, self.log = overlays, crops, log
+        self.prep_cfg = PrepConfig(bridge_line=bridge_line)
 
     def _check_sha(self, blank_pdf):
         import hashlib
@@ -127,7 +128,7 @@ class Processor:
             for f in fields:
                 if f["type"] != "short_text":
                     continue
-                r = prepare_field(al.image, self.ref.pages[page - 1], f, self.dpi,
+                r = prepare_field(al.image, self.ref.pages[page - 1], f, self.dpi, self.prep_cfg,
                                   norm_scan=norm, norm_blank=blank_n)
                 info = cur["fields"].setdefault(f["id"], {"type": "short_text"})
                 info.update({"blank": r["blank"], "suspect": r.get("suspect", False), "ink_mm2": r["ink_mm2"]})

@@ -61,6 +61,22 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
   172 → 199 justes, même unique erreur (c07_q2.1).
 - **TrOCR large** essayé le 4 octobre, arrêté après 40 vignettes (~11 s/vignette, soit ~2 h 30 pour le lot) :
   sur ces 39 réponses, 15 acceptées contre 12 pour base, mêmes fautes sur les nombres. Pas retenu.
+- **Petit modèle de vision local** (Ollama, `qwen3-vl:4b-instruct`, CPU sans GPU) essayé le 4 octobre sur
+  12 vignettes de la copie 1 : ~46 s/vignette (~10 h pour le lot), donc inutilisable sur cette machine.
+  Qualité : nombres lus justes là où TrOCR se trompe (1024, 2.5, 14), mots mal lus (`float` → `22at`).
+  La version avec réflexion (`qwen3-vl:4b`) ne rend rien d'exploitable. À réessayer seulement avec un GPU.
+- **Tracés coupés par le soulignement** (4 octobre) : `ocr_prep` sait les recoller, option
+  `process --bridge-line`, **désactivée par défaut**. Mesure sur le lot EN (TrOCR base, lot retraité dans
+  `sorties/EN_blanc_prep2`) : 200 → 227 acceptées, 199 → 224 justes, mais 1 → 3 erreurs acceptées
+  (c18_q2.2 `float` → `bool`, c16_q14.3 `Zero` → `ERROR` : lectures TrOCR fausses que le rapprochement
+  accepte). Gardée pour voir si le lecteur de chiffres en profite.
+- **Nombres : le plafond est TrOCR**, pas le nettoyage. Sur 250 réponses numériques, la 1ʳᵉ lecture de
+  TrOCR base est le bon nombre 114 fois, un autre nombre valide 104 fois (chiffre isolé lu en double :
+  `3` → `3 3`). Élargir la vignette en format « ligne » empire (25 exactes contre 34 sur 107).
+- **Prototype de lecteur de chiffres** (4 octobre, hors dépôt, non intégré) : découpage en chiffres +
+  petit CNN. Entraîné sur MNIST seul : 140/250 (`1` à la française lus `7`). Affiné sur les chiffres des
+  copies, validation croisée par copie : **195/250**. Accord lecteur + TrOCR : 92 acceptées dont 87 justes,
+  donc pas encore assez sûr pour accepter seul. Dépend de la vérité terrain non validée.
 - `ocr` enregistre chaque lot lu dans `ocr_lectures_<moteur>.json` : une commande interrompue reprend où
   elle s'était arrêtée (option `--batch` pour réduire la mémoire).
 - **Vérité terrain** : `data/truth/python_core_EN_examen_blanc.short_truth.json` (777 réponses, lues par
