@@ -7,8 +7,8 @@
    donnent des chiffres étiquetés (l'écriture des étudiants : « 1 » à la française, « 7 » barré…).
 3. Mesure en validation croisée PAR COPIE : chaque copie est lue par un modèle qui n'a jamais vu son
    écriture. C'est ce chiffre qui compte, pas le score sur les copies d'entraînement.
-4. Le modèle affiné sur tout le lot est écrit dans data/models/digits.npz (HORS dépôt : il est dérivé
-   de copies d'étudiants). `--base-only` régénère le modèle MNIST fourni avec le paquet.
+4. Le modèle affiné sur tout le lot est écrit dans data/models/digits.npz (local, hors dépôt par défaut ;
+   il a priorité sur les modèles fournis). `--base-only` régénère le modèle MNIST fourni avec le paquet.
 
 La vérité doit être validée par l'enseignant : une étiquette fausse apprend une erreur au modèle.
 """

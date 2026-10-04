@@ -5,12 +5,16 @@ lu en double (« 3 » -> « 3 3 ») et la première lecture n'est le bon nombre 
 Ici la vignette nettoyée est découpée en glyphes (chiffres, séparateur décimal, signe), puis chaque
 chiffre est classé par un petit réseau de convolution.
 
-    lecteur = DigitReader()                 # modèle local affiné s'il existe, sinon modèle MNIST fourni
+    lecteur = DigitReader()                 # modèle local s'il existe, sinon le modèle affiné fourni
     texte, confiance = lecteur.read(img)    # ("2.5", 0.93) ou (None, 0.0)
 
-L'inférence n'utilise que numpy (aucune dépendance en plus). Le modèle fourni est entraîné sur MNIST
-seul : il confond les « 1 » à la française avec des « 7 ». `python -m thessalia digits-train` l'affine
-sur les chiffres d'un lot dont la vérité est validée (voir digits_train).
+L'inférence n'utilise que numpy (aucune dépendance en plus). Deux modèles sont fournis (0,85 Mo chacun) :
+    digits_mnist.npz    entraîné sur MNIST seul : confond les « 1 » à la française avec des « 7 » ;
+    digits_affine.npz   le même, affiné sur les chiffres du lot EN (examen blanc, 21 copies). Il ne
+                        contient que des poids, aucune image : partage entre collègues autorisé par
+                        l'enseignant. Utilisé par défaut.
+`python -m thessalia digits-train` affine sur un autre lot dont la vérité est validée et écrit un
+modèle local (data/models/digits.npz), prioritaire sur les modèles fournis.
 
 La lecture n'est qu'une PROPOSITION pour la revue : un nombre libre n'est jamais accepté seul.
 """
@@ -21,8 +25,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-PACKAGED = Path(__file__).parent / "data" / "digits_mnist.npz"
-LOCAL = Path("data") / "models" / "digits.npz"   # modèle affiné sur vos lots (hors dépôt)
+PACKAGED = Path(__file__).parent / "data" / "digits_mnist.npz"      # base MNIST (point de départ de l'affinage)
+TUNED = Path(__file__).parent / "data" / "digits_affine.npz"       # affiné sur le lot EN, utilisé par défaut
+LOCAL = Path("data") / "models" / "digits.npz"   # modèle affiné sur vos propres lots (hors dépôt)
 
 
 def segment(img):
@@ -121,7 +126,7 @@ def _pool2(x):
 
 class DigitReader:
     def __init__(self, model=None):
-        path = Path(model) if model else (LOCAL if LOCAL.exists() else PACKAGED)
+        path = Path(model) if model else next(p for p in (LOCAL, TUNED, PACKAGED) if p.exists())
         self.path = path
         self.w = {k: v.astype(np.float32) for k, v in np.load(path).items()}
 

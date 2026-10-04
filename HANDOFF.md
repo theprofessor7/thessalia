@@ -74,8 +74,8 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
   TrOCR base est le bon nombre 114 fois, un autre nombre valide 104 fois (chiffre isolé lu en double :
   `3` → `3 3`). Élargir la vignette en format « ligne » empire (25 exactes contre 34 sur 107).
 - **Lecteur de chiffres** (`digits`, `digits_train`, intégré le 4 octobre) : la vignette d'un champ
-  `number` est découpée en chiffres, chacun classé par un petit réseau (inférence numpy, modèle MNIST de
-  0,8 Mo fourni dans `thessalia/data/`). `ocr` s'en sert pour la **proposition** des nombres en revue ;
+  `number` est découpée en chiffres, chacun classé par un petit réseau (inférence numpy, modèles de
+  0,85 Mo fournis dans `thessalia/data/`). `ocr` s'en sert pour la **proposition** des nombres en revue ;
   il ne change jamais un statut (`--no-digits` pour s'en passer). Un mot du vocabulaire (« ERROR ») est
   gardé si le moteur de texte en est proche et que les chiffres sont peu sûrs.
   - Modèle MNIST seul : 135/250 nombres justes (`1` à la française lus `7`).
@@ -85,9 +85,10 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
     le lecteur affiné (validation croisée) ; réponses non numériques préservées (46 justes contre 48).
   - Accord des deux lectures : 111 cas dont 102 justes ; avec confiance ≥ 0,95 : 62 dont 60. Pas encore
     assez sûr pour accepter seul.
-  - Un modèle affiné sur tout le lot EN est dans `data/models/digits.npz` (hors dépôt, dérivé de copies ;
-    étiquettes issues de la vérité **non validée**). Sur ce même lot il donne 269/304 : chiffre optimiste,
-    à ne pas citer comme mesure.
+  - Le modèle affiné sur tout le lot EN est fourni avec le paquet (`thessalia/data/digits_affine.npz`,
+    0,85 Mo, utilisé par défaut) : il ne contient que des poids, l'enseignant a autorisé son partage entre
+    collègues. Ses étiquettes viennent de la vérité **non validée**. Sur le lot EN lui-même il donne
+    269/304 : chiffre optimiste (copies vues à l'affinage), à ne pas citer comme mesure.
 - `ocr` enregistre chaque lot lu dans `ocr_lectures_<moteur>.json` : une commande interrompue reprend où
   elle s'était arrêtée (option `--batch` pour réduire la mémoire).
 - **Vérité terrain** : `data/truth/python_core_EN_examen_blanc.short_truth.json` (777 réponses, lues par
