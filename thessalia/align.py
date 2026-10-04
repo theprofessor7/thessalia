@@ -61,7 +61,9 @@ def detect_fiducials(gray: np.ndarray, px_mm: float, size_mm: float = 5.0,
     small = cv2.resize(gray, None, fx=s, fy=s, interpolation=cv2.INTER_AREA) if s < 1 else gray
     k = px_mm * s
     paper = float(np.percentile(small, 95))
-    thr = 0.5 * paper
+    # 0,62 et non 0,5 : certains scanners (lots Booster) rendent un aplat en gris uniforme à 128 sur
+    # un papier à 255, soit exactement 50 % ; le repère était manqué d'un niveau de gris
+    thr = 0.62 * paper
     binary = (small < thr).astype(np.uint8)
     ker = max(3, int(round(0.6 * size_mm * k)))
     opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (ker, ker)))

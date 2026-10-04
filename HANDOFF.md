@@ -120,9 +120,17 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
 2. **Lots Booster** (`scans/Copies Booster Python 2627/`, 26 PDF, une classe par PDF). Les classes
    « sup nb » et « supNA » ont passé le **sujet EN**, les autres le sujet FR (indication de l'enseignant).
    `supA 1` est dans `sorties/supA_1_v3` ; les 25 autres sont traités dans `sorties/booster/<classe>/`
-   (Niveau 1 + vignettes, lancé le 4 octobre). **Non résolu** : la page 1 du PDF supA 1 est illisible
-   (fiducials introuvables), et `align.py` / `omr.py` ont été modifiés le 1ᵉʳ octobre au soir sans trace
-   écrite — seuls leurs effets sont mesurés (§6 toujours respecté).
+   (Niveau 1 + vignettes, relancé le 5 octobre après la correction ci-dessous).
+   **Page 1 « illisible » expliquée** : la première page de chaque PDF de classe est la feuille de
+   présence (liste d'émargement, avec des noms), pas une copie. Elle reste signalée « page illisible ».
+   **Seuil des repères relevé de 0,50 à 0,62 le 5 octobre** (`align.detect_fiducials`) : sur ces scans un
+   repère est parfois rendu en gris uniforme à 128 sur papier à 255, soit exactement 50 %, et était manqué
+   d'un niveau de gris (page 17 surtout : 30 manquantes sur 144 copies FR, ~235 « fiducial reconstruit »).
+   Validation : supB 2 passe de 13 points en revue (5 pages illisibles) à 6 (seule la feuille de
+   présence illisible) ; simulé difficile graine 7 : 0 FAUSSES, 17,7 % en revue ; lot réel EN :
+   `results.csv` et `review.csv` identiques.
+   `align.py` / `omr.py` ont aussi été modifiés le 1ᵉʳ octobre au soir sans trace écrite (avant le dépôt
+   git) — seuls leurs effets sont mesurés (§6 toujours respecté).
    **Garde-fou ajouté le 4 octobre** : un lot EN lu avec le gabarit FR passait sans aucune alerte (pages
    alignées, 3 à 11 points en revue) ; `process` signale maintenant « GABARIT DOUTEUX » en tête de
    `review.csv` quand le score de reconnaissance médian est < 0,85.
