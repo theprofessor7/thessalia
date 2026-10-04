@@ -33,9 +33,14 @@ def test_digits_only_propose():
     assert r["status"] == "review" and r["value"] == "3" and r["suggestions"][0] == "3"
     assert r["digits"]["agree"] is False
     assert propose_digits(snap([("15 .", 0.9)], NUM), NUM, "15", 0.99)["digits"]["agree"] is True
-    # décimal : les deux séparateurs sont proposés, la raison le dit
+    # décimal, une seule lecture voit une virgule : le doute profite à l'étudiant, point proposé
     r = propose_digits(snap([("2 2", 0.9)], NUM), NUM, "2,5", 0.99)
-    assert r["value"] == "2.5" and r["suggestions"][:2] == ["2.5", "2,5"] and "virgule" in r["reason"]
+    assert r["value"] == "2.5" and r["suggestions"][:2] == ["2.5", "2,5"] and "incertain" in r["reason"]
+    r = propose_digits(snap([("2,5", 0.9)], NUM), NUM, "2.5", 0.99)
+    assert r["value"] == "2.5" and r["status"] == "review"
+    # les deux lectures voient une virgule : elle est détectée, on la garde
+    r = propose_digits(snap([("2,5", 0.9)], NUM), NUM, "2,5", 0.99)
+    assert r["value"] == "2,5" and r["suggestions"][:2] == ["2,5", "2.5"] and "détectée" in r["reason"]
     # un mot du vocabulaire accepté n'est pas remplacé par des chiffres
     r = propose_digits(snap([("ERROR", 0.8)], NUM), NUM, "68808", 0.3)
     assert r["status"] == "ok" and r["value"] == "ERROR"

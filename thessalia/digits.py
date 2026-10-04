@@ -90,8 +90,8 @@ def segment(img):
     for c in out:
         c["box"] = (c["x0"], c["y0"], c["x1"], c["y1"])
         # virgule si le séparateur est nettement plus haut que large. Indication FAIBLE : sur le lot EN
-        # les formes des points et des virgules se recouvrent (25 bons choix sur 35). `ocr` n'en tient
-        # pas compte : il propose toujours le point d'abord (vocab.favor_point).
+        # les formes des points et des virgules se recouvrent (25 bons choix sur 35). `ocr` ne retient la
+        # virgule que si le moteur de texte la lit aussi (vocab.propose_digits).
         c["char"] = "," if c["kind"] == "sep" and H(c) >= 1.1 * W(c) else "."
         c["mask"] = np.isin(lab[c["y0"]:c["y1"], c["x0"]:c["x1"]], c["ids"])
     return out

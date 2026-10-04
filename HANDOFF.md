@@ -106,11 +106,12 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
   199 justes (même erreur c07_q2.1) ; lecteur de chiffres en validation croisée par copie : 200/275
   (MNIST seul : 143/275). Le modèle fourni `digits_affine.npz` est réaffiné sur cette vérité.
 - **Point et virgule distingués** (décision de l'enseignant, 4 octobre : `2,5` est une faute courante en
-  Python). `parse_number` conserve le séparateur écrit ; un nombre décimal n'est **jamais accepté seul**.
-  **Le doute profite à l'étudiant** : la proposition est toujours l'écriture avec point, la virgule en
-  second choix (un clic dans la page de validation) ; compter à tort une virgule serait l'erreur grave.
-  Raison de cette règle : à 100 dpi les formes se recouvrent (lot EN, 45 réponses décimales : la forme du
-  séparateur ne donne le bon choix que 25 fois sur 35). Acceptations inchangées : 200 dont 199 justes.
+  Python). `parse_number` conserve le séparateur écrit ; un nombre décimal n'est **jamais accepté seul**
+  et les deux écritures sont proposées. Règle de l'enseignant : **une virgule détectée est gardée ; quand
+  la machine n'est pas sûre, le doute profite à l'étudiant** (point proposé, virgule en second choix).
+  « Détectée » = le moteur de texte ET la forme du séparateur (plus haut que large) voient une virgule :
+  sur le lot EN, 4 vraies virgules sur 5 ; une seule lecture est trop peu fiable (texte 6/8, forme 10/14).
+  Sans lecteur de chiffres (`--no-digits`), la virgule lue par le moteur de texte est conservée.
   Statistiques d'erreurs par question pour l'enseignant : souhaitées, reportées à plus tard.
 
 ## 4. Prochaines étapes, dans l'ordre

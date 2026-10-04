@@ -98,20 +98,21 @@ def other_separator(number: str):
     return None
 
 
-DECIMAL_REASON = "nombre décimal : point proposé par défaut, virgule à vérifier"
+DECIMAL_COMMA = "nombre décimal : virgule détectée, à vérifier"
+DECIMAL_POINT = "nombre décimal : point ou virgule à vérifier"
+DECIMAL_UNSURE = "nombre décimal : séparateur incertain, point proposé (virgule à vérifier)"
 
 
 def favor_point(number: str):
-    """Le doute profite à l'étudiant (décision de l'enseignant) : les moteurs ne distinguent pas
-    fiablement un point d'une virgule, on propose donc le point, et la virgule en second choix.
-    Compter à tort une virgule serait une erreur au détriment de l'étudiant."""
+    """Séparateur incertain : le doute profite à l'étudiant (décision de l'enseignant), on propose le
+    point. Compter à tort une virgule serait une erreur au détriment de l'étudiant. Une virgule
+    détectée (les deux lectures concordent) est en revanche conservée."""
     return number.replace(",", ".")
 
 
 def _both_separators(sugg, number):
-    """Propositions d'un nombre décimal : écriture avec point, puis avec virgule, puis le reste."""
-    pt = favor_point(number)
-    return ([pt, pt.replace(".", ",")] + [s for s in sugg if favor_point(s) != pt])[:3]
+    """Propositions d'un nombre décimal : l'écriture retenue, l'autre séparateur, puis le reste."""
+    return ([number, other_separator(number)] + [s for s in sugg if favor_point(s) != favor_point(number)])[:3]
 
 
 def snap(candidates, spec, accept=0.34, margin=0.25):
@@ -159,15 +160,14 @@ def snap(candidates, spec, accept=0.34, margin=0.25):
         min_conf = spec.get("min_conf")
         ok = min_conf is not None and conf >= min_conf
     # point ou virgule : les moteurs ne les distinguent pas de façon fiable (lot EN : formes qui se
-    # recouvrent à 100 dpi). Un nombre décimal part donc toujours en revue, point proposé d'abord.
+    # recouvrent à 100 dpi). Un nombre décimal part donc toujours en revue, avec les deux écritures.
     decimal = kind == "number" and parse_number(best) is not None and other_separator(best) is not None
     if decimal:
         ok = False
         sugg = _both_separators(sugg, best)
-        best = favor_point(best)
     return {"value": best, "status": "ok" if ok else "review",
             "reason": None if ok else ("hors vocabulaire" if d1 > accept else
-                                       DECIMAL_REASON if decimal else
+                                       (DECIMAL_COMMA if "," in best else DECIMAL_POINT) if decimal else
                                        "nombre libre : lecture à confirmer" if free
                                        else "hésitation entre propositions"),
             "distance": round(d1, 3), "second": round(d2, 3), "confidence": round(conf, 3),
@@ -191,13 +191,20 @@ def propose_digits(r, spec, number, conf, accept=0.34):
         if number not in r["suggestions"]:
             r["suggestions"] = r["suggestions"][:2] + [number]
         return r
-    number = favor_point(number)
-    r["digits"]["agree"] = r.get("value") is not None and parse_number(r["value"]) == number
+    text = parse_number(r["value"]) if r.get("value") is not None else None
+    r["digits"]["agree"] = text is not None and favor_point(text) == favor_point(number)
+    decimal = other_separator(number) is not None
+    # virgule « détectée » seulement si les DEUX lectures la voient (lot EN : 4 vraies virgules sur 5 ;
+    # une seule lecture : 6 sur 8 pour le texte, 10 sur 14 pour la forme). Sinon le doute profite à
+    # l'étudiant : point proposé, virgule en second choix.
+    comma = decimal and "," in number and text is not None and "," in text
+    if decimal and not comma:
+        number = favor_point(number)
     r["value"] = number
     r["suggestions"] = [number] + [s for s in r["suggestions"] if s != number][:2]
-    if other_separator(number) is not None:
+    if decimal:
         r["suggestions"] = _both_separators(r["suggestions"], number)
-    r["reason"] = (DECIMAL_REASON if other_separator(number) is not None else
+    r["reason"] = ((DECIMAL_COMMA if comma else DECIMAL_UNSURE) if decimal else
                    "nombre : les deux lectures concordent, à confirmer" if r["digits"]["agree"]
                    else "nombre : lecture à confirmer")
     return r
