@@ -19,12 +19,13 @@ from pathlib import Path
 import cv2
 
 from .common import load_json, save_json
-from .evaluate_ocr import evaluate, report
+from .evaluate_ocr import evaluate, proposals, report
 from .ocr import get_backend
-from .vocab import snap
+from .vocab import parse_number, propose_digits, snap
 
 
-def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, log=print, batch=4):
+def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, log=print, batch=4,
+        digits=True):
     results_dir = Path(results_dir)
     vocab = load_json(vocab_path)["fields"]
     copies = sorted(results_dir.glob("copy_*/result.json"))
@@ -76,12 +77,25 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
             log(f"  {done}/{len(rest)} vignettes lues, {dt / done:.1f} s/vignette, "
                 f"reste ~{(len(rest) - done) * dt / done / 60:.0f} min")
 
-    # 3) rapprochement + écriture
-    ocr_by_key = {}
+    # 3) rapprochement + écriture ; pour les nombres, le lecteur de chiffres fournit la proposition
+    #    (jamais d'acceptation : il ne change pas le statut)
+    reader = None
+    if digits:
+        from .digits import DigitReader
+        reader = DigitReader()
+        log(f"lecteur de chiffres : {reader.path}")
+    ocr_by_key, text_only, proposed = {}, {}, {}
     for (rp, fid, info), key in zip(todo, keys):
         c = [(t, s) for t, s in cache[key]["candidates"]]
         spec = vocab.get(fid, {"kind": "text"})
         r = snap(c, spec)
+        text_only[key] = r["value"]
+        if reader is not None and spec.get("kind") == "number":
+            txt, conf = reader.read(cv2.imread(str(results_dir / info["clean"]), cv2.IMREAD_GRAYSCALE))
+            num = parse_number(txt) if txt else None
+            if num is not None:
+                propose_digits(r, spec, num, conf)
+        proposed[key] = r["value"]
         r["engine"] = eng.name
         r["candidates"] = [[t, round(float(s), 3)] for t, s in c]
         info["ocr"] = r
@@ -117,5 +131,10 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
     if truth:
         st, by_q, errors = evaluate(ocr_by_key, load_json(truth), vocab)
         txt = report(eng.name, st, by_q, errors)
+        truth_d = load_json(truth)
+        n, a = proposals(text_only, truth_d, vocab)
+        txt += f"\n  champs numériques : proposition juste {a}/{n} avec le moteur de texte seul"
+        if reader is not None:
+            txt += f", {proposals(proposed, truth_d, vocab)[1]}/{n} avec le lecteur de chiffres"
         (results_dir / f"ocr_eval_{tag}.txt").write_text(txt, encoding="utf-8")
         log(txt)

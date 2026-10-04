@@ -29,6 +29,7 @@ pytest -q                                                # ~1 min, inclut un tes
 python -m thessalia template templates/<sujet>.pdf -o templates/<sujet>.json --merge templates/<sujet>.json
 python -m thessalia process scans/<classe>.pdf -t templates/<gabarit>.json -b templates/<sujet>.pdf -k keys/<x>.key.json -o sorties/<classe>
 python -m thessalia ocr sorties/<classe> -v keys/<x>.vocab.json --backend trocr [--truth data/truth/<x>.json]
+python -m thessalia digits-train sorties/<classe> -v keys/<x>.vocab.json --truth data/truth/<x>.json   # vérité validée
 python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m thessalia evaluate out/lot sim/lot/truth.json
 ```
 
@@ -36,13 +37,15 @@ python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m 
 
 - Niveau 1 (QCM) : `simulate --hard` (≥ 12 copies) + `evaluate` → **0 « FAUSSES »** exigé ; puis repasser le
   lot réel EN et vérifier `review.csv` (8 cas attendus, cf. HANDOFF).
-- Niveau 2 : `ocr … --truth data/truth/…` → suivre « acceptés auto » et surtout « dont justes ».
+- Niveau 2 : `ocr … --truth data/truth/…` → suivre « acceptés auto » et surtout « dont justes » ; pour les
+  nombres, « proposition juste ». Le lecteur de chiffres se mesure en validation croisée par copie
+  (`digits-train`), jamais sur les copies qui ont servi à l'affiner.
 
 ## Carte du code (thessalia/)
 
 `template_builder` PDF → gabarit · `loader` scans → pages · `align` fiducials, homographie, identification
 de page · `omr` cases à cocher · `extract` vignettes · `ocr_prep` nettoyage des réponses courtes ·
-`ocr` moteurs · `vocab` rapprochement · `ocr_run` commande ocr · `pipeline` orchestration · `report` sorties ·
+`ocr` moteurs · `digits` lecteur de chiffres (nombres) · `vocab` rapprochement · `ocr_run` commande ocr · `pipeline` orchestration · `report` sorties ·
 `grade` notation QCM · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
 
 ## Pièges connus

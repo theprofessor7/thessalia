@@ -7,6 +7,8 @@ out/
 crops/
 # vérités terrain transcrites depuis des copies réelles (réponses d'étudiants, anonymisées mais personnelles)
 data/truth/*
+# modèles affinés sur des copies réelles (dérivés de l'écriture des étudiants)
+data/models/
 !data/truth/README.md
 
 # Python

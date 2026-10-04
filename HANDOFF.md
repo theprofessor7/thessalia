@@ -73,10 +73,21 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
 - **Nombres : le plafond est TrOCR**, pas le nettoyage. Sur 250 réponses numériques, la 1ʳᵉ lecture de
   TrOCR base est le bon nombre 114 fois, un autre nombre valide 104 fois (chiffre isolé lu en double :
   `3` → `3 3`). Élargir la vignette en format « ligne » empire (25 exactes contre 34 sur 107).
-- **Prototype de lecteur de chiffres** (4 octobre, hors dépôt, non intégré) : découpage en chiffres +
-  petit CNN. Entraîné sur MNIST seul : 140/250 (`1` à la française lus `7`). Affiné sur les chiffres des
-  copies, validation croisée par copie : **195/250**. Accord lecteur + TrOCR : 92 acceptées dont 87 justes,
-  donc pas encore assez sûr pour accepter seul. Dépend de la vérité terrain non validée.
+- **Lecteur de chiffres** (`digits`, `digits_train`, intégré le 4 octobre) : la vignette d'un champ
+  `number` est découpée en chiffres, chacun classé par un petit réseau (inférence numpy, modèle MNIST de
+  0,8 Mo fourni dans `thessalia/data/`). `ocr` s'en sert pour la **proposition** des nombres en revue ;
+  il ne change jamais un statut (`--no-digits` pour s'en passer). Un mot du vocabulaire (« ERROR ») est
+  gardé si le moteur de texte en est proche et que les chiffres sont peu sûrs.
+  - Modèle MNIST seul : 135/250 nombres justes (`1` à la française lus `7`).
+  - Affiné sur les chiffres du lot (`digits-train`), validation croisée par copie : 190/250
+    (195/250 avec `--bridge-line`).
+  - De bout en bout, proposition juste sur les 304 champs numériques : 163 avec TrOCR seul, **235** avec
+    le lecteur affiné (validation croisée) ; réponses non numériques préservées (46 justes contre 48).
+  - Accord des deux lectures : 111 cas dont 102 justes ; avec confiance ≥ 0,95 : 62 dont 60. Pas encore
+    assez sûr pour accepter seul.
+  - Un modèle affiné sur tout le lot EN est dans `data/models/digits.npz` (hors dépôt, dérivé de copies ;
+    étiquettes issues de la vérité **non validée**). Sur ce même lot il donne 269/304 : chiffre optimiste,
+    à ne pas citer comme mesure.
 - `ocr` enregistre chaque lot lu dans `ocr_lectures_<moteur>.json` : une commande interrompue reprend où
   elle s'était arrêtée (option `--batch` pour réduire la mémoire).
 - **Vérité terrain** : `data/truth/python_core_EN_examen_blanc.short_truth.json` (777 réponses, lues par
@@ -84,14 +95,15 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
 
 ## 4. Prochaines étapes, dans l'ordre
 
-1. **Installer et vérifier** : `pip install -e ".[ocr-light,trocr,dev]"` puis `pytest -q` (8 tests, ~1 min).
+1. **Installer et vérifier** : `pip install -e ".[ocr-light,trocr,dev]"` puis `pytest -q` (12 tests, ~1 min).
 2. **Nouveaux lots** reçus dans `scans/Copies Booster Python 2627/` (27 PDF, une classe par PDF). Seul
    `supA 1` a été traité (`sorties/supA_1_v3`, 9 copies, 7 points en revue). **Non résolu** : la page 1 du
    PDF est illisible (fiducials introuvables), et `align.py` / `omr.py` ont été modifiés le 1ᵉʳ octobre au
    soir sans trace écrite (pas de dépôt git) — seuls leurs effets sont mesurés (§6 toujours respecté).
-3. **TrOCR sur le lot EN** : base mesuré (§3), insuffisant. Reste à essayer
-   `--model microsoft/trocr-large-handwritten` (plus lent). Pour réaccepter des nombres sans erreur :
-   accord de deux moteurs indépendants, ou corriger les artefacts de `ocr_prep` (cf. §3).
+3. **Nombres** : TrOCR large essayé, non retenu (§3). Le lecteur de chiffres fournit la proposition ;
+   pour **accepter** des nombres sans erreur il reste à traiter les résidus pris pour un point décimal
+   (`22` lu `2.2`), les ratures, puis à remesurer l'accord des deux lectures sur une vérité validée et
+   sur un deuxième lot (Booster).
 4. **Faire valider la vérité terrain** par l'enseignant (page HTML : vignette + transcription éditable,
    export JSON), surtout les 37 `?`.
 5. Si TrOCR reste insuffisant : **affiner TrOCR** sur ces vignettes validées (quelques centaines suffisent

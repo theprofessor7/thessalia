@@ -72,6 +72,18 @@ def evaluate(ocr: dict, truth: dict, vocab: dict, accept=0.34, margin=0.25, verb
     return st, by_q, errors
 
 
+def proposals(values: dict, truth: dict, vocab: dict):
+    """Champs `number` : (n, justes) — la valeur proposée (acceptée ou en revue) est-elle la bonne ?"""
+    n = good = 0
+    for key, t in truth.items():
+        spec = vocab.get(key.split("_", 1)[1], {})
+        if spec.get("kind") != "number" or t.endswith("?") or t == "" or key not in values:
+            continue
+        n += 1
+        good += values[key] is not None and same(str(values[key]), t, "number")
+    return n, good
+
+
 def report(name, st, by_q, errors, show=12):
     n, sn = st["n"], st["snap_n"]
     lines = [f"== {name}",

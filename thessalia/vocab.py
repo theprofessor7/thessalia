@@ -137,3 +137,28 @@ def snap(candidates, spec, accept=0.34, margin=0.25):
                                        else "hésitation entre propositions"),
             "distance": round(d1, 3), "second": round(d2, 3), "confidence": round(conf, 3),
             "suggestions": sugg, "raw": raw}
+
+
+def propose_digits(r, spec, number, conf, accept=0.34):
+    """Ajoute à un résultat de `snap` (champ `number`) la lecture du lecteur de chiffres.
+
+    Elle ne change JAMAIS le statut : elle devient la proposition d'un champ en revue, sauf si le
+    moteur de texte a reconnu un mot du vocabulaire (« ERROR »). `agree` signale que les deux
+    lectures donnent le même nombre.
+    """
+    r["digits"] = {"value": number, "confidence": round(conf, 3)}
+    # le moteur de texte penche pour un mot (« ERROR ») : on le garde s'il est accepté, ou s'il est
+    # assez proche alors que les « chiffres » sont peu sûrs (des lettres découpées en chiffres).
+    # Mesuré sur le lot EN : mots lus avec une confiance chiffres <= 0,57, distance <= 0,60.
+    d = r.get("distance", 1.0)
+    word = r.get("value") in spec.get("values", []) and (d <= accept or (d <= 0.6 and conf < 0.6))
+    if r["status"] == "ok" or word:
+        if number not in r["suggestions"]:
+            r["suggestions"] = r["suggestions"][:2] + [number]
+        return r
+    r["digits"]["agree"] = r.get("value") is not None and parse_number(r["value"]) == number
+    r["value"] = number
+    r["suggestions"] = [number] + [s for s in r["suggestions"] if s != number][:2]
+    r["reason"] = ("nombre : les deux lectures concordent, à confirmer" if r["digits"]["agree"]
+                   else "nombre : lecture à confirmer")
+    return r

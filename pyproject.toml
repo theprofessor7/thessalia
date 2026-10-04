@@ -30,5 +30,8 @@ thessalia = "thessalia.__main__:main"
 [tool.setuptools.packages.find]
 include = ["thessalia*"]
 
+[tool.setuptools.package-data]
+thessalia = ["data/*.npz"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

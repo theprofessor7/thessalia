@@ -3,6 +3,7 @@
     template   PDF vierge -> gabarit JSON
     process    scans -> résultats (JSON, CSV, overlays, vignettes)
     ocr        Niveau 2 : lecture des réponses courtes (après process)
+    digits-train  Niveau 2 : affiner le lecteur de chiffres sur un lot dont la vérité est validée
     simulate   génère des copies remplies + scannées synthétiques (tests)
     evaluate   compare des résultats à une vérité terrain
 """
@@ -50,6 +51,16 @@ def main(argv=None):
     o.add_argument("--batch", type=int, default=4,
                    help="vignettes lues à la fois (défaut 4 ; plus petit = moins de mémoire)")
 
+    o.add_argument("--no-digits", action="store_true",
+                   help="ne pas utiliser le lecteur de chiffres pour proposer les nombres")
+
+    d = sub.add_parser("digits-train", help="Niveau 2 : affiner le lecteur de chiffres sur un lot validé")
+    d.add_argument("results_dir", nargs="?")
+    d.add_argument("-v", "--vocab")
+    d.add_argument("--truth", help="vérité terrain VALIDÉE (format cNN_qX.Y)")
+    d.add_argument("-o", "--out", help="modèle affiné (défaut : data/models/digits.npz, hors dépôt)")
+    d.add_argument("--base-only", action="store_true", help="réentraîner le modèle MNIST fourni avec le paquet")
+
     e = sub.add_parser("evaluate", help="résultats vs vérité terrain")
     e.add_argument("results_dir")
     e.add_argument("truth")
@@ -78,7 +89,16 @@ def main(argv=None):
         from .ocr_run import run
 
         run(a.results_dir, a.vocab, a.backend, a.truth, {"model": a.model} if a.model else None,
-            batch=max(1, a.batch))
+            batch=max(1, a.batch), digits=not a.no_digits)
+    elif a.cmd == "digits-train":
+        from . import digits_train
+
+        if a.base_only:
+            digits_train.train_base()
+        elif not (a.results_dir and a.vocab and a.truth):
+            ap.error("digits-train : results_dir, --vocab et --truth sont requis (ou --base-only)")
+        else:
+            digits_train.run(a.results_dir, a.vocab, a.truth, **({"out": a.out} if a.out else {}))
     elif a.cmd == "simulate":
         from .simulate import main as smain
 
