@@ -89,6 +89,13 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
     0,85 Mo, utilisé par défaut) : il ne contient que des poids, l'enseignant a autorisé son partage entre
     collègues. Ses étiquettes viennent de la vérité **non validée**. Sur le lot EN lui-même il donne
     269/304 : chiffre optimiste (copies vues à l'affinage), à ne pas citer comme mesure.
+  - **Contrôle sur un autre lot** (Booster supA 1, 9 copies, sujet FR, `sorties/supA_1_v3`, 4 octobre) ;
+    référence = lecture de Claude, non validée (`data/truth/booster_supA1.numbers_truth.json`, hors dépôt) :
+    108 nombres lisibles, proposition juste 51 avec TrOCR seul, **90** avec le lecteur ; les 19 `ERREUR`
+    sont tous conservés (14 acceptés, 5 en revue) ; aucune acceptation fausse sur ces champs.
+    Accord des deux lectures : 54 dont 48 justes ; avec confiance ≥ 0,95 : 28 dont 27. Les deux moteurs
+    se trompent ensemble sur les `1` à la française lus `7` (copie 5 : `1024` → `7024`) : l'accord
+    n'est pas une preuve indépendante.
 - `ocr` enregistre chaque lot lu dans `ocr_lectures_<moteur>.json` : une commande interrompue reprend où
   elle s'était arrêtée (option `--batch` pour réduire la mémoire).
 - **Vérité terrain** : `data/truth/python_core_EN_examen_blanc.short_truth.json` (777 réponses, lues par
