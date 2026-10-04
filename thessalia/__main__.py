@@ -4,6 +4,7 @@
     process    scans -> résultats (JSON, CSV, overlays, vignettes)
     ocr        Niveau 2 : lecture des réponses courtes (après process)
     digits-train  Niveau 2 : affiner le lecteur de chiffres sur un lot dont la vérité est validée
+    truth-page    Niveau 2 : page HTML locale pour valider la vérité terrain des réponses courtes
     simulate   génère des copies remplies + scannées synthétiques (tests)
     evaluate   compare des résultats à une vérité terrain
 """
@@ -61,6 +62,12 @@ def main(argv=None):
     d.add_argument("-o", "--out", help="modèle affiné (défaut : data/models/digits.npz, hors dépôt)")
     d.add_argument("--base-only", action="store_true", help="réentraîner le modèle MNIST fourni avec le paquet")
 
+    v = sub.add_parser("truth-page", help="Niveau 2 : page HTML locale pour valider la vérité terrain")
+    v.add_argument("results_dir")
+    v.add_argument("-t", "--template", help="gabarit JSON (affiche la consigne de chaque blanc)")
+    v.add_argument("--truth", help="vérité existante à relire (sinon : propositions de `ocr`)")
+    v.add_argument("-o", "--out", help="défaut : <results_dir>/validation.html")
+
     e = sub.add_parser("evaluate", help="résultats vs vérité terrain")
     e.add_argument("results_dir")
     e.add_argument("truth")
@@ -99,6 +106,10 @@ def main(argv=None):
             ap.error("digits-train : results_dir, --vocab et --truth sont requis (ou --base-only)")
         else:
             digits_train.run(a.results_dir, a.vocab, a.truth, **({"out": a.out} if a.out else {}))
+    elif a.cmd == "truth-page":
+        from .truth_page import build
+
+        build(a.results_dir, a.template, a.truth, a.out)
     elif a.cmd == "simulate":
         from .simulate import main as smain
 

@@ -10,7 +10,7 @@
 | 1 — QCM / V-F | **Opérationnel** | 160/168 questions décidées automatiquement, **0 erreur** (validé par l'enseignant), 8 en revue |
 | 2 — réponses courtes | **Chaîne en place, moteur à choisir** | nettoyage + rapprochement OK ; moteurs locaux testés trop faibles (cf. §3), **TrOCR base compris** (mesuré le 3 octobre) |
 | 3 — code manuscrit | Non commencé | vignettes des cadres déjà découpées par `process` |
-| 4 — interface de validation | Non commencé | une page HTML de vérification statique a servi pour le Niveau 1 |
+| 4 — interface de validation | Amorcé | page locale de validation de la vérité des réponses courtes (`truth-page`) ; pas encore de file de revue ni d'export de notes |
 
 ## 2. Décisions de l'enseignant (à respecter)
 
@@ -103,7 +103,7 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
 
 ## 4. Prochaines étapes, dans l'ordre
 
-1. **Installer et vérifier** : `pip install -e ".[ocr-light,trocr,dev]"` puis `pytest -q` (12 tests, ~1 min).
+1. **Installer et vérifier** : `pip install -e ".[ocr-light,trocr,dev]"` puis `pytest -q` (13 tests, ~1 min).
 2. **Nouveaux lots** reçus dans `scans/Copies Booster Python 2627/` (27 PDF, une classe par PDF). Seul
    `supA 1` a été traité (`sorties/supA_1_v3`, 9 copies, 7 points en revue). **Non résolu** : la page 1 du
    PDF est illisible (fiducials introuvables), et `align.py` / `omr.py` ont été modifiés le 1ᵉʳ octobre au
@@ -112,8 +112,11 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
    pour **accepter** des nombres sans erreur il reste à traiter les résidus pris pour un point décimal
    (`22` lu `2.2`), les ratures, puis à remesurer l'accord des deux lectures sur une vérité validée et
    sur un deuxième lot (Booster).
-4. **Faire valider la vérité terrain** par l'enseignant (page HTML : vignette + transcription éditable,
-   export JSON), surtout les 37 `?`.
+4. **Faire valider la vérité terrain** par l'enseignant : la page existe (`truth-page`, 4 octobre).
+   `sorties/EN_blanc/validation.html` (777 réponses, pré-remplies avec la vérité lue par Claude, 37 `?`) et
+   `sorties/supA_1_v3/validation.html` sont générées. Réponses groupées par question, Entrée pour valider,
+   export JSON au format `--truth` (non validée = `?`). Une fois validé : copier l'export dans `data/truth/`,
+   relancer `ocr --truth` et `digits-train`.
 5. Si TrOCR reste insuffisant : **affiner TrOCR** sur ces vignettes validées (quelques centaines suffisent
    pour un vocabulaire aussi restreint), ou tester un modèle de vision local (option GPU).
 6. Puis, selon l'enseignant : revue par question (Niveau 4), diagnostic automatique de lot, Niveau 3.
