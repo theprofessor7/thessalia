@@ -32,6 +32,16 @@ def test_free_number_is_reviewed():
     assert snap([("ERROR", 0.6)], NUM)["status"] == "ok"
 
 
+def test_comma_is_not_a_point():
+    # « 2,5 » est une faute courante en Python : la virgule est conservée, jamais convertie en point
+    assert parse_number("2,5") == "2,5" and parse_number("2.5") == "2.5"
+    r = snap([("2,5", 0.99)], {**NUM, "min_conf": 0.5})
+    # un nombre décimal n'est jamais accepté seul ; le doute profite à l'étudiant : point proposé
+    # d'abord, virgule en second choix
+    assert r["status"] == "review" and r["value"] == "2.5" and r["suggestions"][:2] == ["2.5", "2,5"]
+    assert snap([("3", 0.99)], {**NUM, "min_conf": 0.5})["status"] == "ok"
+
+
 def test_text_always_reviewed():
     r = snap([("Hello Alice", 0.99)], {"kind": "text", "values": ["Hello Alice"]})
     assert r["status"] == "review"

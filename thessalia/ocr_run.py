@@ -133,7 +133,7 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
         txt = report(eng.name, st, by_q, errors)
         truth_d = load_json(truth)
         n, a = proposals(text_only, truth_d, vocab)
-        txt += f"\n  champs numériques : proposition juste {a}/{n} avec le moteur de texte seul"
+        txt += f"\n  champs numériques (point et virgule distingués) : proposition juste {a}/{n} avec le moteur de texte seul"
         if reader is not None:
             txt += f", {proposals(proposed, truth_d, vocab)[1]}/{n} avec le lecteur de chiffres"
         (results_dir / f"ocr_eval_{tag}.txt").write_text(txt, encoding="utf-8")

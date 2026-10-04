@@ -163,12 +163,15 @@ def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, 
         raise SystemExit("Aucune réponse numérique avec vérité dans ce lot.")
     segs = {k: segment(img) for k, _, img in items}
     glyphs = {}  # copie -> [(28×28, chiffre)] ; seulement quand le découpage a la forme de la vérité
+    def conform(k, t):  # le découpage a la forme de la vérité (point et virgule confondus ici)
+        return shape(segs[k]) == "".join("d" if ch.isdigit() else ch for ch in t.replace(",", "."))
+
     for k, t, _ in items:
-        if shape(segs[k]) == "".join("d" if ch.isdigit() else ch for ch in t):
+        if conform(k, t):
             for g, ch in zip(segs[k], t):
                 if g["kind"] == "digit":
                     glyphs.setdefault(k[:3], []).append((to_mnist(g["mask"]), int(ch)))
-    n_ok = sum(shape(segs[k]) == "".join("d" if ch.isdigit() else ch for ch in t) for k, t, _ in items)
+    n_ok = sum(conform(k, t) for k, t, _ in items)
     log(f"{len(items)} réponses numériques ; découpage conforme : {n_ok} ; "
         f"{sum(len(v) for v in glyphs.values())} chiffres étiquetés sur {len(glyphs)} copies")
     xm, ym = _mnist(torch)
@@ -177,9 +180,10 @@ def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, 
         gl = [g for c in copies for g in glyphs.get(c, [])]
         return torch.tensor(np.stack([g[0] for g in gl]))[:, None], torch.tensor([g[1] for g in gl])
 
-    def score(read, keys):
+    def score(read, keys):  # chiffres justes, sans tenir compte du choix point / virgule (toujours en revue)
         return sum(1 for k, t, img in items if k in keys and (r := read(img, segs[k])[0]) is not None
-                   and parse_number(r) is not None and same(parse_number(r), t, "number"))
+                   and parse_number(r) is not None
+                   and same(parse_number(r).replace(",", "."), t.replace(",", "."), "number"))
 
     copies = sorted({k[:3] for k, _, _ in items})
     all_keys = {k for k, _, _ in items}

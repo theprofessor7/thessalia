@@ -57,5 +57,8 @@ de page · `omr` cases à cocher · `extract` vignettes · `ocr_prep` nettoyage 
 - Réponses courtes : lignes espacées de 8 mm, l'écriture déborde sur la ligne voisine → `ocr_prep`
   ne garde que les tracés qui reposent sur leur soulignement ; une zone vide contenant de l'écriture écartée
   est `suspect` (jamais déclarée vide).
+- Nombres : `2,5` n'est pas `2.5` (faute courante en Python). Un nombre décimal part toujours en revue ;
+  le doute profite à l'étudiant : point proposé d'abord, virgule en second choix. Ne jamais proposer la
+  virgule par défaut (un faux « virgule » pénalise l'étudiant à tort).
 - Le vocabulaire d'un champ doit contenir les mauvaises réponses plausibles, sinon le rapprochement
   « corrige » l'étudiant.

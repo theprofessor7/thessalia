@@ -89,6 +89,10 @@ def segment(img):
     out.sort(key=lambda c: c["x0"])
     for c in out:
         c["box"] = (c["x0"], c["y0"], c["x1"], c["y1"])
+        # virgule si le séparateur est nettement plus haut que large. Indication FAIBLE : sur le lot EN
+        # les formes des points et des virgules se recouvrent (25 bons choix sur 35). `ocr` n'en tient
+        # pas compte : il propose toujours le point d'abord (vocab.favor_point).
+        c["char"] = "," if c["kind"] == "sep" and H(c) >= 1.1 * W(c) else "."
         c["mask"] = np.isin(lab[c["y0"]:c["y1"], c["x0"]:c["x1"]], c["ids"])
     return out
 
@@ -149,5 +153,6 @@ class DigitReader:
             return None, 0.0
         p = self.proba(np.stack([to_mnist(g["mask"]) for g in dig]))
         it = iter(p.argmax(1).tolist())
-        text = "".join(str(next(it)) if g["kind"] == "digit" else "." if g["kind"] == "sep" else "-" for g in glyphs)
+        text = "".join(str(next(it)) if g["kind"] == "digit" else g["char"] if g["kind"] == "sep" else "-"
+                       for g in glyphs)
         return text, float(p.max(1).min())

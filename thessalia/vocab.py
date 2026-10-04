@@ -76,15 +76,42 @@ def rel(a, b):
     return wdist(a, b) / max(len(a), len(b), 1)
 
 
-NUM_FIX = str.maketrans({"o": "0", "O": "0", "l": "1", "I": "1", "|": "1", "S": "5", "s": "5", ",": ".",
+NUM_FIX = str.maketrans({"o": "0", "O": "0", "l": "1", "I": "1", "|": "1", "S": "5", "s": "5",
                          "B": "8", "Z": "2", "z": "2", "—": "-", "–": "-", "_": "-"})
 
 
 def parse_number(s: str):
+    """Nombre tel qu'écrit, séparateur décimal compris : « 2,5 » reste « 2,5 » et n'est PAS « 2.5 »
+    (écrire une virgule est une faute courante en Python, que l'enseignant veut voir)."""
     t = normalize(s, "number").translate(NUM_FIX)
-    if re.fullmatch(r"-?\d+(\.\d+)?", t):
+    if re.fullmatch(r"-?\d+([.,]\d+)?", t):
         return t
     return None
+
+
+def other_separator(number: str):
+    """« 2.5 » -> « 2,5 » et inversement ; None pour un entier."""
+    if "." in number:
+        return number.replace(".", ",")
+    if "," in number:
+        return number.replace(",", ".")
+    return None
+
+
+DECIMAL_REASON = "nombre décimal : point proposé par défaut, virgule à vérifier"
+
+
+def favor_point(number: str):
+    """Le doute profite à l'étudiant (décision de l'enseignant) : les moteurs ne distinguent pas
+    fiablement un point d'une virgule, on propose donc le point, et la virgule en second choix.
+    Compter à tort une virgule serait une erreur au détriment de l'étudiant."""
+    return number.replace(",", ".")
+
+
+def _both_separators(sugg, number):
+    """Propositions d'un nombre décimal : écriture avec point, puis avec virgule, puis le reste."""
+    pt = favor_point(number)
+    return ([pt, pt.replace(".", ",")] + [s for s in sugg if favor_point(s) != pt])[:3]
 
 
 def snap(candidates, spec, accept=0.34, margin=0.25):
@@ -131,8 +158,16 @@ def snap(candidates, spec, accept=0.34, margin=0.25):
     if ok and free:
         min_conf = spec.get("min_conf")
         ok = min_conf is not None and conf >= min_conf
+    # point ou virgule : les moteurs ne les distinguent pas de façon fiable (lot EN : formes qui se
+    # recouvrent à 100 dpi). Un nombre décimal part donc toujours en revue, point proposé d'abord.
+    decimal = kind == "number" and parse_number(best) is not None and other_separator(best) is not None
+    if decimal:
+        ok = False
+        sugg = _both_separators(sugg, best)
+        best = favor_point(best)
     return {"value": best, "status": "ok" if ok else "review",
             "reason": None if ok else ("hors vocabulaire" if d1 > accept else
+                                       DECIMAL_REASON if decimal else
                                        "nombre libre : lecture à confirmer" if free
                                        else "hésitation entre propositions"),
             "distance": round(d1, 3), "second": round(d2, 3), "confidence": round(conf, 3),
@@ -156,9 +191,13 @@ def propose_digits(r, spec, number, conf, accept=0.34):
         if number not in r["suggestions"]:
             r["suggestions"] = r["suggestions"][:2] + [number]
         return r
+    number = favor_point(number)
     r["digits"]["agree"] = r.get("value") is not None and parse_number(r["value"]) == number
     r["value"] = number
     r["suggestions"] = [number] + [s for s in r["suggestions"] if s != number][:2]
-    r["reason"] = ("nombre : les deux lectures concordent, à confirmer" if r["digits"]["agree"]
+    if other_separator(number) is not None:
+        r["suggestions"] = _both_separators(r["suggestions"], number)
+    r["reason"] = (DECIMAL_REASON if other_separator(number) is not None else
+                   "nombre : les deux lectures concordent, à confirmer" if r["digits"]["agree"]
                    else "nombre : lecture à confirmer")
     return r

@@ -105,8 +105,13 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
   Mesures refaites sur la vérité validée (TrOCR base, 754 réponses non vides) : 200 acceptées dont
   199 justes (même erreur c07_q2.1) ; lecteur de chiffres en validation croisée par copie : 200/275
   (MNIST seul : 143/275). Le modèle fourni `digits_affine.npz` est réaffiné sur cette vérité.
-  **À trancher** : `2,5` et `2.5` sont confondus par `parse_number` et par le lecteur de chiffres
-  (21 réponses avec virgule, 24 avec point dans ce lot).
+- **Point et virgule distingués** (décision de l'enseignant, 4 octobre : `2,5` est une faute courante en
+  Python). `parse_number` conserve le séparateur écrit ; un nombre décimal n'est **jamais accepté seul**.
+  **Le doute profite à l'étudiant** : la proposition est toujours l'écriture avec point, la virgule en
+  second choix (un clic dans la page de validation) ; compter à tort une virgule serait l'erreur grave.
+  Raison de cette règle : à 100 dpi les formes se recouvrent (lot EN, 45 réponses décimales : la forme du
+  séparateur ne donne le bon choix que 25 fois sur 35). Acceptations inchangées : 200 dont 199 justes.
+  Statistiques d'erreurs par question pour l'enseignant : souhaitées, reportées à plus tard.
 
 ## 4. Prochaines étapes, dans l'ordre
 
