@@ -98,8 +98,15 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
     n'est pas une preuve indépendante.
 - `ocr` enregistre chaque lot lu dans `ocr_lectures_<moteur>.json` : une commande interrompue reprend où
   elle s'était arrêtée (option `--batch` pour réduire la mémoire).
-- **Vérité terrain** : `data/truth/python_core_EN_examen_blanc.short_truth.json` (777 réponses, lues par
-  Claude, 37 incertaines marquées `?`), **pas encore validée par l'enseignant**. Hors dépôt (.gitignore).
+- **Vérité terrain validée par l'enseignant le 4 octobre** : `data/truth/EN_blanc.short_truth.json`
+  (777 réponses, aucune incertaine ; hors dépôt). Par rapport à la lecture de Claude : 28 incertaines
+  confirmées, 14 confusions point / virgule, 13 autres erreurs. L'ancien fichier
+  `python_core_EN_examen_blanc.short_truth.json` est conservé mais ne doit plus servir de référence.
+  Mesures refaites sur la vérité validée (TrOCR base, 754 réponses non vides) : 200 acceptées dont
+  199 justes (même erreur c07_q2.1) ; lecteur de chiffres en validation croisée par copie : 200/275
+  (MNIST seul : 143/275). Le modèle fourni `digits_affine.npz` est réaffiné sur cette vérité.
+  **À trancher** : `2,5` et `2.5` sont confondus par `parse_number` et par le lecteur de chiffres
+  (21 réponses avec virgule, 24 avec point dans ce lot).
 
 ## 4. Prochaines étapes, dans l'ordre
 
@@ -112,11 +119,8 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
    pour **accepter** des nombres sans erreur il reste à traiter les résidus pris pour un point décimal
    (`22` lu `2.2`), les ratures, puis à remesurer l'accord des deux lectures sur une vérité validée et
    sur un deuxième lot (Booster).
-4. **Faire valider la vérité terrain** par l'enseignant : la page existe (`truth-page`, 4 octobre).
-   `sorties/EN_blanc/validation.html` (777 réponses, pré-remplies avec la vérité lue par Claude, 37 `?`) et
-   `sorties/supA_1_v3/validation.html` sont générées. Réponses groupées par question, Entrée pour valider,
-   export JSON au format `--truth` (non validée = `?`). Une fois validé : copier l'export dans `data/truth/`,
-   relancer `ocr --truth` et `digits-train`.
+4. **Vérité terrain** : lot EN validé (§3). Reste à valider le lot Booster supA 1
+   (`sorties/supA_1_v3/validation.html`, commande `truth-page`).
 5. Si TrOCR reste insuffisant : **affiner TrOCR** sur ces vignettes validées (quelques centaines suffisent
    pour un vocabulaire aussi restreint), ou tester un modèle de vision local (option GPU).
 6. Puis, selon l'enseignant : revue par question (Niveau 4), diagnostic automatique de lot, Niveau 3.

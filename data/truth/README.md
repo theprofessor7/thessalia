@@ -10,3 +10,10 @@
 - On note la réponse FINALE de l'étudiant (les mots barrés sont ignorés), telle qu'écrite (fautes comprises).
 
 Usage : `python -m thessalia ocr <dossier_resultats> -v keys/python_core_EN.vocab.json --truth data/truth/python_core_EN_examen_blanc.short_truth.json`
+
+## Mise à jour du 4 octobre 2026
+
+- `EN_blanc.short_truth.json` : **vérité validée par l'enseignant** (page `truth-page`), 777 réponses, aucune
+  incertaine. C'est la référence pour le lot EN ; `python_core_EN_examen_blanc.short_truth.json` (lecture de
+  Claude) n'est gardé que pour mémoire.
+- `booster_supA1.numbers_truth.json` : champs numériques du lot Booster supA 1, lecture de Claude, non validée.
