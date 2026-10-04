@@ -1,0 +1,18 @@
+# Données d'étudiants : JAMAIS dans le dépôt ni dans un partage entre collègues
+scans/
+sorties/
+out/
+*.pdf
+!templates/*.pdf
+crops/
+# vérités terrain transcrites depuis des copies réelles (réponses d'étudiants, anonymisées mais personnelles)
+data/truth/*
+!data/truth/README.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+sim/
