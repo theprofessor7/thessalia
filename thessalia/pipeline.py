@@ -57,6 +57,22 @@ class Processor:
         self.overlays, self.crops, self.log = overlays, crops, log
         self.prep_cfg = PrepConfig(bridge_line=bridge_line)
 
+    def _check_template(self, copies, min_median=0.85):
+        """Mauvais gabarit (sujet FR lu avec le gabarit EN ou l'inverse) : les deux sujets ont la même
+        mise en page, tout s'aligne et rien n'échoue. Seul le score de reconnaissance des pages le
+        trahit : médiane 0,96-0,97 avec le bon gabarit (lots EN et supA 1), 0,75 avec le mauvais
+        (lots « sup nb » lus en FR). Sous 0,85 : alerte visible, en tête de la revue."""
+        scores = sorted(p["match_score"] for c in copies for p in c["pages"].values())
+        if not scores:
+            return
+        med = scores[len(scores) // 2]
+        if med < min_median:
+            msg = (f"GABARIT DOUTEUX : score de reconnaissance médian {med:.2f} (attendu > 0,9). "
+                   f"Le sujet scanné n'est probablement pas « {self.template['exam_id']} » (FR / EN ?) : "
+                   f"résultats à ne pas utiliser.")
+            copies[0]["review"].insert(0, {"item": "lot", "reason": msg})
+            self.log("  !! " + msg)
+
     def _check_sha(self, blank_pdf):
         import hashlib
 
@@ -97,6 +113,7 @@ class Processor:
                 copies.append(cur)
             last = al.page
             self._process_page(cur, sp, al, out_dir)
+        self._check_template(copies)
         for c in copies:
             self._finalize(c, out_dir)
         save_json({"schema": RESULT_SCHEMA + "/batch", "exam_id": self.template["exam_id"],

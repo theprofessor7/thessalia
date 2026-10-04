@@ -51,6 +51,9 @@ de page · `omr` cases à cocher · `extract` vignettes · `ocr_prep` nettoyage 
 
 ## Pièges connus
 
+- Mauvais gabarit (sujet EN lu avec le gabarit FR ou l'inverse) : même mise en page, donc rien n'échoue.
+  `process` alerte « GABARIT DOUTEUX » si le score de reconnaissance médian est < 0,85 (bon gabarit :
+  0,96 ; mauvais : 0,75). Booster 2627 : classes « sup nb » et « supNA » = sujet EN, les autres = FR.
 - Scans réels : A3 avec la feuille dans la moitié haute, 100 dpi, rotations 90/270, pages blanches → gérés.
 - Cases : ratures débordantes (halo), cases noircies pour cocher OU annuler (`full_policy: auto`),
   cases redessinées après correcteur (cœur vide). Voir ARCHITECTURE §5.
