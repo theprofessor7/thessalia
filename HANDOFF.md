@@ -112,7 +112,39 @@ Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté i
   à réécrire (TrOCR base, AdamW 2e-5, étiquettes = vérité validée, vignettes `.clean.png` avec `_pad(12)`,
   `config.pad_token_id = 1`, `config.decoder_start_token_id = 2`).
   Page de validation de supA 2 prête : `sorties/booster/supA_2/validation.html`.
-- Vérité supA 1 : `c01_q8.6` vaut `list`, la vignette montre plutôt `bool` — à revoir par l'enseignant.
+- **Affinage complet réussi le 5 octobre au soir** (3ᵉ tentative, reprise après la 2ᵉ passe) : TrOCR base,
+  754 vignettes EN, 3 passes, lots de 2 avec cumul sur 2, ~21 min par passe ; modèle dans
+  `data/models/trocr_en` (hors dépôt, 1,3 Go ; `etat.json` = passes faites). Utilisable avec
+  `ocr … --model data/models/trocr_en` (fichier de lectures distinct, lié au chemin : le supprimer si on
+  réentraîne au même endroit). Mémoire : ~6 Go quel que soit le lot (modèle + optimiseur).
+  **Test sur les 9 copies de supA 1** (325 vignettes, jamais vues, sujet FR), origine → affiné :
+  lecture brute exacte 91 → 211 (enum 28 → 101/149, nombres 59 → 102/140, texte libre 4 → 8/36) ;
+  bonne réponse dans le top 3 : 222 → 269/289 ; acceptées 82 → 125, dont « justes » 82 → 120.
+  Les 5 « fausses » : 3 sont des **erreurs de la vérité** (vignettes relues par Claude : c01_q8.4 = `float`,
+  c01_q8.6 = `bool`, c07_q8.6 = `bool`) et 2 de vraies erreurs sur des mots français (`Grand`, `Petit`
+  lus `bool` / `print` puis rapprochés de `ERREUR` par la 2ᵉ lecture « Error »).
+  **Le modèle a appris le vocabulaire du sujet EN** : `Zéro` → « Zero », `Négatif` → « Negative »,
+  « Bonjour Alice » → « Error » (9 fois sur 9), `Total : 8` → « Total: 8 » ; et il se trompe parfois avec
+  une confiance de 1,00 sur un mot connu (c08_q8.4 `float` lu `bool`, c07_q8.5 `str` lu `14`). Donc :
+  bon pour les types et les nombres, **inutilisable tel quel sur les classes du sujet FR** ; sa confiance
+  ne vaut rien. Exiger que la 1ʳᵉ lecture soit celle rapprochée : 117 acceptées dont 114 « justes ».
+  Suite prévue (étape 2) : entraîner sur EN + supA 1, tester sur supA 2 validée.
+- **Commande `trocr-train`** (`thessalia/trocr_train.py`, ajoutée le 5 octobre au soir) : le script d'essai
+  intégré au projet — plusieurs lots (`--also`), sauvegarde à chaque passe, reprise, `--limit` pour un essai
+  court, pas de mise en veille sous Windows pendant le calcul. Vérifiée sur 8 vignettes (entraînement,
+  reprise, refus d'écraser un modèle fait sur d'autres données) ; pas de test automatique. Le modèle
+  `data/models/trocr_en` vient du script d'essai : son `etat.json` n'a pas le champ `lots`, ne pas le
+  reprendre avec la commande.
+- **Plan convenu avec l'enseignant (5 octobre au soir), l'affinage est borné à un entraînement de plus** :
+  (1) l'enseignant revalide supA 1 (questions 2, 6, 8, 14) et valide supA 2 ; (2) corriger la règle
+  d'acceptation qui a laissé passer `Grand` / `Petit` → `ERREUR` (acceptation fondée sur une lecture
+  secondaire peu sûre), mesurée sur les deux lots ; (3) un seul entraînement commun EN + supA 1 (~1 h 30,
+  un soir, machine libre), test sur supA 2 ; (4) choisir le modèle sur ce test (affiné seulement s'il lit
+  nettement mieux sans acceptation fausse), puis lire les 25 classes (~7 h 30, une nuit) ; (5) page de
+  revue et de notation (Niveau 4). Un modèle commun à tous les sujets, pas un par sujet.
+- **Vérité supA 1 à revalider par l'enseignant avant l'étape 2** (elle sert d'étiquettes) : au moins
+  c01_q8.4, c01_q8.6, c07_q8.6, c03_q6.2 (`print`, vignette « input »), c07_q14.2 (`rien`, vignette
+  « Petit ») ; relire les questions 2, 6, 8 et 14 en entier.
 
 ## 1. En bref
 

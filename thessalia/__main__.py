@@ -4,6 +4,7 @@
     process    scans -> résultats (JSON, CSV, overlays, vignettes)
     ocr        Niveau 2 : lecture des réponses courtes (après process)
     digits-train  Niveau 2 : affiner le lecteur de chiffres sur un lot dont la vérité est validée
+    trocr-train   Niveau 2 : affiner TrOCR sur des lots validés (long, ~6 Go de mémoire)
     truth-page    Niveau 2 : page HTML locale pour valider la vérité terrain des réponses courtes
     simulate   génère des copies remplies + scannées synthétiques (tests)
     evaluate   compare des résultats à une vérité terrain
@@ -64,6 +65,16 @@ def main(argv=None):
     d.add_argument("--also", nargs=3, action="append", default=[], metavar=("DOSSIER", "VOCAB", "VERITE"),
                    help="autre lot validé à ajouter (répétable) : dossier de résultats, vocabulaire, vérité")
 
+    tt = sub.add_parser("trocr-train", help="Niveau 2 : affiner TrOCR sur des lots validés (long, ~6 Go de mémoire)")
+    tt.add_argument("results_dir")
+    tt.add_argument("-v", "--vocab", required=True)
+    tt.add_argument("--truth", required=True, help="vérité terrain VALIDÉE (format cNN_qX.Y)")
+    tt.add_argument("--also", nargs=3, action="append", default=[], metavar=("DOSSIER", "VOCAB", "VERITE"),
+                    help="autre lot validé à ajouter (répétable) : dossier de résultats, vocabulaire, vérité")
+    tt.add_argument("-o", "--out", default="data/models/trocr", help="modèle affiné (hors dépôt, ~1,3 Go)")
+    tt.add_argument("--passes", type=int, default=3)
+    tt.add_argument("--limit", type=int, help="essai court : n'utiliser que N vignettes tirées au hasard")
+
     v = sub.add_parser("truth-page", help="Niveau 2 : page HTML locale pour valider la vérité terrain")
     v.add_argument("results_dir")
     v.add_argument("-t", "--template", help="gabarit JSON (affiche la consigne de chaque blanc)")
@@ -108,6 +119,10 @@ def main(argv=None):
             ap.error("digits-train : results_dir, --vocab et --truth sont requis (ou --base-only)")
         else:
             digits_train.run(a.results_dir, a.vocab, a.truth, also=a.also, **({"out": a.out} if a.out else {}))
+    elif a.cmd == "trocr-train":
+        from . import trocr_train
+
+        trocr_train.run([(a.results_dir, a.vocab, a.truth), *a.also], out=a.out, passes=a.passes, limit=a.limit)
     elif a.cmd == "truth-page":
         from .truth_page import build
 

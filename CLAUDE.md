@@ -31,6 +31,7 @@ python -m thessalia process scans/<classe>.pdf -t templates/<gabarit>.json -b te
 python -m thessalia ocr sorties/<classe> -v keys/<x>.vocab.json --backend trocr [--truth data/truth/<x>.json]
 python -m thessalia truth-page sorties/<classe> -t templates/<gabarit>.json [--truth data/truth/<x>.json]   # validation.html, local
 python -m thessalia digits-train sorties/<classe> -v keys/<x>.vocab.json --truth data/truth/<x>.json   # vérité validée
+python -m thessalia trocr-train sorties/<classe> -v keys/<x>.vocab.json --truth data/truth/<x>.json [--also …] [--limit 160]   # long, ~6 Go ; mesurer ensuite avec ocr --model data/models/trocr sur un lot jamais vu
 python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m thessalia evaluate out/lot sim/lot/truth.json
 ```
 
