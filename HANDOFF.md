@@ -53,7 +53,8 @@ Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté i
   scan ») : ce qui est hors du scan serait sinon lu vide. Essai sur supE 2 copie 1 : pages 1 et 2
   identifiées (score 0,96), cases et lignes bien calées à l'œil, 4 % hors du scan. Simulé difficile
   graine 7, 12 copies : 0 FAUSSES, 17,7 % en revue (inchangé). Lot réel EN : `results.csv` et `review.csv`
-  identiques. Le lot `sorties/booster/supE_2` n'a pas été retraité.
+  identiques. Lot `sorties/booster/supE_2` retraité le 5 octobre : copie 1 complète (17 pages, QCM de la
+  page 2 lus), 6 points en revue au lieu de 8, les 15 autres copies inchangées dans `results.csv`.
 - **Propositions prises pour des « traductions »** (remarque de l'enseignant sur la page de validation de
   supA 1) : une lecture TrOCR illisible était remplacée par le mot du vocabulaire le plus proche (`input`
   lu « im-ment » → proposé « lire », `str` lu « crn. » → « chaîne »). Jamais accepté seul, mais trompeur.
@@ -61,8 +62,10 @@ Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté i
   84/108 ; 0,55-0,65 : 30/52 ; 0,65-0,75 : 10/28 ; > 0,75 : 2/20. Depuis le 5 octobre, au-delà de 0,75
   (`vocab.snap`, `far`) la proposition est la lecture brute (« hors vocabulaire : aucun mot proche, lecture
   brute »), les mots proches restent en suggestions. Acceptés inchangés (supA 1 : 82 dont 82 ; EN : 200
-  dont 199). **Partiel** : « lire » et « chaîne » sont vers 0,6 et restent proposés ; abaisser `far` à 0,65
-  ou 0,55 se décide avec l'enseignant (on perd autant de bonnes propositions qu'on en retire de mauvaises).
+  dont 199). **Seuil abaissé à 0,65 le 5 octobre, choix de l'enseignant** (36 mauvaises propositions
+  retirées, 12 bonnes perdues ; à 0,55 : 58 et 42). Entre 0,55 et 0,65 le mot reste proposé (`print` lu
+  « animal » → « ecrire ») : juste 30 fois sur 52, bonne réponse dans les suggestions 45 fois. À remesurer
+  quand d'autres lots seront validés (30 copies seulement).
 - **Virgules sur supA 1** : 6 vraies virgules, 1 seule « détectée » (les deux lectures d'accord), les 5
   autres proposées avec un point et la virgule en second choix (règle du doute) ; toutes en revue. Sur EN
   c'était 4 sur 5 : la détection de la virgule est à remesurer sur les deux lots avant d'y toucher.
