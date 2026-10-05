@@ -183,6 +183,10 @@ def snap(candidates, spec, accept=0.34, margin=0.25, far=0.65):
             "suggestions": sugg, "raw": raw}
 
 
+SURE_DIGITS = 0.99
+NUMBER_SURE = "nombre : les deux lectures concordent, très sûr, à confirmer"
+
+
 def propose_digits(r, spec, number, conf, accept=0.34):
     """Ajoute à un résultat de `snap` (champ `number`) la lecture du lecteur de chiffres.
 
@@ -213,7 +217,12 @@ def propose_digits(r, spec, number, conf, accept=0.34):
     r["suggestions"] = [number] + [s for s in r["suggestions"] if s != number][:2]
     if decimal:
         r["suggestions"] = _both_separators(r["suggestions"], number)
+    # « très sûr » : entier, deux lectures d'accord, confiance des chiffres >= 0,99. Mesuré le 5 octobre :
+    # 18/18 justes sur EN, 7/7 sur supA 1 (à 0,95 il restait un « 3.14 » lu « 314 »). Trop peu de cas
+    # pour accepter seul : la réponse reste en revue, seulement signalée (validation groupée).
+    r["sure"] = bool(not decimal and r["digits"]["agree"] and conf >= SURE_DIGITS)
     r["reason"] = ((DECIMAL_COMMA if comma else DECIMAL_UNSURE) if decimal else
+                   NUMBER_SURE if r["sure"] else
                    "nombre : les deux lectures concordent, à confirmer" if r["digits"]["agree"]
                    else "nombre : lecture à confirmer")
     return r

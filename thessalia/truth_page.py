@@ -50,6 +50,7 @@ def collect(results_dir, template=None, truth=None):
                 "key": key, "copy": c, "fid": fid,
                 "img": (info.get("crop") or "").replace("\\", "/"),
                 "prop": prop, "status": "blank" if blank else o.get("status", ""),
+                "sure": bool(o.get("sure")) and not blank,
                 "sugg": [s for s in o.get("suggestions", []) if s and s != prop][:3],
                 "value": prop if t is None else t.rstrip("?"),
                 "unsure": bool(t is not None and t.endswith("?")),
@@ -118,6 +119,7 @@ PAGE = r"""<!doctype html>
   <label>Question <select id="fq"></select></label>
   <label>Afficher <select id="ff">
     <option value="todo">à valider</option>
+    <option value="sure">nombres très sûrs à valider</option>
     <option value="all">toutes</option>
     <option value="unsure">incertaines</option>
     <option value="diff">écart avec la proposition</option>
@@ -159,6 +161,7 @@ function shown(it) {
   if (fq.value && it.fid !== fq.value) return false;
   switch (ff.value) {
     case "todo": return !s.ok;
+    case "sure": return it.sure && !s.ok;
     case "unsure": return s.unsure;
     case "diff": return s.v !== it.prop;
     case "ok": return s.ok;
@@ -185,7 +188,8 @@ function makeCard(it) {
   const input = el("input", {type: "text", value: s.v, placeholder: "(vide)", spellcheck: false, autocomplete: "off"});
   const card = el("div", {});
   card.dataset.key = it.key;
-  const statut = {ok: "acceptée par ocr", review: "en revue", blank: "détectée vide"}[it.status] || "non lue";
+  const statut = ({ok: "acceptée par ocr", review: "en revue", blank: "détectée vide"}[it.status] || "non lue")
+    + (it.sure ? " (très sûr : deux lectures d'accord)" : "");
   const hint = el("div", {className: "hint"});
   hint.append("proposé : " + (it.prop === "" ? "(vide)" : it.prop) + " — " + statut + (it.from_truth ? "" : " ; pas de vérité existante"));
   if (it.sugg.length) {

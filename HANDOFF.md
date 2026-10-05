@@ -79,6 +79,41 @@ Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté i
   (demande de l'enseignant) ; celle de l'export reste (réponses non validées exportées avec « ? »). Pas
   de filtre par copie : chercher la clé `cNN_qX.Y` avec Ctrl+F, filtre d'état sur « toutes ».
 
+### 5 octobre, après-midi : série Booster suspendue, essai d'affinage de TrOCR
+
+- Décision de l'enseignant : **optimiser le Niveau 2 avant de lire les 25 classes** (7 h 30) — les lectures
+  TrOCR sont à refaire si le modèle change, le reste (chiffres, rapprochement) se réapplique en 1 min.
+  Lus avec le modèle d'origine : `supA_PRENOM_NOM` (36 vignettes) et `supA_2` (294 : 62 acceptées, 232 en
+  revue dont 114 nombres). Vitesse : 2,9 à 4,2 s/vignette selon batterie et charge.
+- **Essai court d'affinage de TrOCR base** (script temporaire, non conservé : AdamW 2e-5, lots de 4,
+  2 passes, étiquettes = vérité validée) : entraîné sur 160 vignettes EN tirées au hasard, testé sur les
+  copies 1 à 3 de supA 1 (110 vignettes, lot et sujet jamais vus). Lecture brute exacte **35 → 67/110** ;
+  par type : enum 13 → 35/51, nombres 21 → 29/47, texte libre 1 → 3/12. Acceptées 36 → 40 ; bonne
+  réponse dans le top 3 : 81 → 90/98. Une acceptée « à tort » (c01_q8.6, vérité `list`, lu `bool`) : la
+  vignette montre plutôt `bool`, **vérité à revoir par l'enseignant**.
+  Limites vues : « Bonjour » reste mal lu (aucun dans l'entraînement EN) ; le modèle affiné invente
+  parfois un mot fréquent avec aplomb (`Total: _8` lu `str`, confiance 0,98) ; sa confiance ne sépare pas
+  le juste du faux (≥ 0,95 : 56 justes, 13 fausses). Coût : 14 min pour 80 pas (6 s/pas, 10 s quand la
+  mémoire sature : 6 Go pour l'entraînement sur 15,5) ; lecture inchangée (2,9 s/vignette).
+- **Nombres, accord des deux lectures** (entiers en revue ; EN optimiste, supA 1 jamais vu) : accord seul
+  103/106 et 44/50 ; confiance chiffres ≥ 0,95 : 78/78 et 26/27 (`3.14` lu `314` à 0,957) ; ≥ 0,96 :
+  72/72 et 21/21 ; ≥ 0,99 : 18/18 et 7/7. Les `1` à la française lus `7` sortent à 0,93-0,94 avec les deux
+  lectures d'accord. **Décision de l'enseignant : marquer sans accepter.** `vocab.propose_digits` pose
+  `sure` (entier, accord, confiance chiffres ≥ 0,99) et le motif « … très sûr, à confirmer » ; la page
+  `truth-page` a un filtre « nombres très sûrs à valider » pour la validation groupée. Statuts inchangés
+  (supA 1 : 82 acceptées dont 82 justes ; 6 marquées, 6 aussi sur supA 2). À remesurer sur un 3ᵉ lot
+  validé avant toute acceptation automatique.
+- **Affinage complet (étape 1) tenté le 5 octobre après-midi, sans résultat** : tout le lot EN, 3 passes,
+  test prévu sur les 9 copies de supA 1. Arrêté par le système à 260 pas sur 567 (mémoire critique :
+  ~6 Go pour l'entraînement, l'enseignant travaillait en parallèle) ; rien d'enregistré, le script ne
+  sauvegardait qu'à la fin. **À refaire sur demande de l'enseignant** (soir / nuit, applications fermées,
+  ~1 h 30), avec une sauvegarde à chaque passe et des lots de 2 avec cumul des gradients ; destination
+  prévue `data/models/trocr_en` (hors dépôt, ~1,3 Go). Le script d'essai était dans le dossier temporaire :
+  à réécrire (TrOCR base, AdamW 2e-5, étiquettes = vérité validée, vignettes `.clean.png` avec `_pad(12)`,
+  `config.pad_token_id = 1`, `config.decoder_start_token_id = 2`).
+  Page de validation de supA 2 prête : `sorties/booster/supA_2/validation.html`.
+- Vérité supA 1 : `c01_q8.6` vaut `list`, la vignette montre plutôt `bool` — à revoir par l'enseignant.
+
 ## 1. En bref
 
 | Niveau | État | Résultat mesuré sur le vrai lot (examen blanc EN, 21 copies, 100 dpi) |
