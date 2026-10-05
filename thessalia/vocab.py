@@ -115,7 +115,7 @@ def _both_separators(sugg, number):
     return ([number, other_separator(number)] + [s for s in sugg if favor_point(s) != favor_point(number)])[:3]
 
 
-def snap(candidates, spec, accept=0.34, margin=0.25):
+def snap(candidates, spec, accept=0.34, margin=0.25, far=0.75):
     """candidates : [(texte, confiance 0..1), …] du moteur (meilleur d'abord).
 
     Retourne {value, status ('ok'|'review'), confidence, suggestions, raw}.
@@ -165,6 +165,14 @@ def snap(candidates, spec, accept=0.34, margin=0.25):
     if decimal:
         ok = False
         sugg = _both_separators(sugg, best)
+    # lecture très loin de tout le vocabulaire : le mot « le plus proche » n'a plus de sens (« input »
+    # lu « im-ment » était proposé « lire », pris pour une traduction). Mesuré sur EN + supA 1 : au-delà
+    # de 0,75 la proposition est juste 2 fois sur 20. On montre la lecture brute, visiblement fausse,
+    # plutôt qu'un mot plausible ; les mots proches restent en suggestions.
+    if kind == "enum" and d1 > far:
+        return {"value": raw, "status": "review", "reason": "hors vocabulaire : aucun mot proche, lecture brute",
+                "distance": round(d1, 3), "second": round(d2, 3), "confidence": round(conf, 3),
+                "suggestions": sugg, "raw": raw}
     return {"value": best, "status": "ok" if ok else "review",
             "reason": None if ok else ("hors vocabulaire" if d1 > accept else
                                        (DECIMAL_COMMA if "," in best else DECIMAL_POINT) if decimal else

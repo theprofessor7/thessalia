@@ -44,8 +44,31 @@ Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté i
   recalées à 0,95. Le motif dit maintenant « effacée au correcteur ? » dans ce cas (`omr`, champ `erased`) ;
   « page mal alignée ? » reste quand aucune case de la page n'est recalée. Aucun seuil modifié.
 - **supE 2, copie 1** : la première feuille est passée de travers dans le chargeur (~12°), deux coins sont
-  hors du scan, il ne reste que 2 repères sur 4 par face. Pistes : rescanner cette feuille, ou un
-  alignement de secours sur 2 repères (toujours en revue) — non fait.
+  hors du scan, il ne reste que 2 repères sur 4 par face.
+- **Alignement de secours sur 2 repères** (`align._align_on_two`, demandé par l'enseignant) : quand aucun
+  rectangle de 3 ou 4 repères n'est trouvé, chaque paire de candidats dont la distance vaut un côté ou la
+  diagonale (± 8 %) donne des rectangles possibles ; on garde celui dont la page redressée ressemble le plus
+  au sujet (score ≥ 0,75 exigé, sinon « page illisible » comme avant), puis recalage sur le texte imprimé.
+  La page part **toujours en revue** (« alignement de secours sur 2 repères … , N % de la page hors du
+  scan ») : ce qui est hors du scan serait sinon lu vide. Essai sur supE 2 copie 1 : pages 1 et 2
+  identifiées (score 0,96), cases et lignes bien calées à l'œil, 4 % hors du scan. Simulé difficile
+  graine 7, 12 copies : 0 FAUSSES, 17,7 % en revue (inchangé). Lot réel EN : `results.csv` et `review.csv`
+  identiques. Le lot `sorties/booster/supE_2` n'a pas été retraité.
+- **Propositions prises pour des « traductions »** (remarque de l'enseignant sur la page de validation de
+  supA 1) : une lecture TrOCR illisible était remplacée par le mot du vocabulaire le plus proche (`input`
+  lu « im-ment » → proposé « lire », `str` lu « crn. » → « chaîne »). Jamais accepté seul, mais trompeur.
+  Mesure (champs `enum` en revue, EN + supA 1, proposition juste / cas) selon la distance : 0,34-0,55 :
+  84/108 ; 0,55-0,65 : 30/52 ; 0,65-0,75 : 10/28 ; > 0,75 : 2/20. Depuis le 5 octobre, au-delà de 0,75
+  (`vocab.snap`, `far`) la proposition est la lecture brute (« hors vocabulaire : aucun mot proche, lecture
+  brute »), les mots proches restent en suggestions. Acceptés inchangés (supA 1 : 82 dont 82 ; EN : 200
+  dont 199). **Partiel** : « lire » et « chaîne » sont vers 0,6 et restent proposés ; abaisser `far` à 0,65
+  ou 0,55 se décide avec l'enseignant (on perd autant de bonnes propositions qu'on en retire de mauvaises).
+- **Virgules sur supA 1** : 6 vraies virgules, 1 seule « détectée » (les deux lectures d'accord), les 5
+  autres proposées avec un point et la virgule en second choix (règle du doute) ; toutes en revue. Sur EN
+  c'était 4 sur 5 : la détection de la virgule est à remesurer sur les deux lots avant d'y toucher.
+- **Vérité supA 1, entrées à relire par l'enseignant** (elles reprennent la lecture brute de la machine) :
+  c05_q7.1 `Bongoun - Alice` (écrit « Bonjour - Alice »), c08_q14.2 `Grandletit` (« GrandPetit »),
+  c07_q7.3 `X.X` (un mot raturé puis « XY » ?), c07_q7.2 `A-P-C`, c04_q7.3 `" X "Y .`.
 
 ## 1. En bref
 

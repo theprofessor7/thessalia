@@ -87,8 +87,10 @@ def detect_fiducials(gray: np.ndarray, px_mm: float, size_mm: float = 5.0,
         cands = cands[:16]
     sel, inferred = _select_rectangle(cands, rect_mm)
     if sel is None:
-        raise AlignmentError(f"fiducials introuvables ({len(cands)} candidats, aucun rectangle "
-                             f"{rect_mm[0]:.0f}x{rect_mm[1]:.0f} mm cohérent)")
+        e = AlignmentError(f"fiducials introuvables ({len(cands)} candidats, aucun rectangle "
+                           f"{rect_mm[0]:.0f}x{rect_mm[1]:.0f} mm cohérent)")
+        e.candidates = cands  # pour l'alignement de secours sur 2 repères
+        raise e
     pts = [p if i in inferred else _refine_center(gray, p, px_mm, size_mm) for i, p in enumerate(sel)]
     return Fiducials(np.array(pts, np.float64), [CORNERS[i] for i in range(4) if i not in inferred],
                      [CORNERS[i] for i in inferred], len(cands))
@@ -146,6 +148,38 @@ def _select_rectangle(cands, rect_mm, max_err=0.12):
     P = _clockwise(best)
     idx = int(np.argmin(np.linalg.norm(P - D, axis=1)))
     return P, [idx]
+
+
+def _rectangles_from_pair(A, B, rect_mm, px_mm, tol=0.08):
+    """Rectangles des fiducials compatibles avec 2 repères seulement (feuille passée de travers,
+    deux coins hors du scan). La distance A-B doit être un côté ou la diagonale à l'échelle du scan ;
+    chaque cas laisse deux rectangles possibles (de part et d'autre). Un scan n'est jamais en miroir.
+    Retourne [(4 points horaires, indices des 2 points réels)]."""
+    A, B = np.asarray(A, np.float64), np.asarray(B, np.float64)
+    d = np.linalg.norm(B - A)
+    if d < 1:
+        return []
+    u = (B - A) / d
+    w, h = rect_mm
+    out = []
+
+    def add(C, D):
+        P = _clockwise([A, B, C, D])
+        real = [int(np.argmin(np.linalg.norm(P - X, axis=1))) for X in (A, B)]
+        out.append((P, real))
+
+    for side, other in ((w, h), (h, w)):
+        s = d / side
+        if abs(s / px_mm - 1) <= tol:
+            for sign in (1, -1):
+                n = sign * np.array([-u[1], u[0]]) * s * other
+                add(B + n, A + n)
+    s = d / np.hypot(w, h)
+    if abs(s / px_mm - 1) <= tol:
+        for a in (np.arctan2(h, w), -np.arctan2(h, w)):
+            C = A + np.array([[np.cos(a), -np.sin(a)], [np.sin(a), np.cos(a)]]) @ u * s * w
+            add(C, A + B - C)
+    return out
 
 
 def _refine_center(gray, p, px_mm, size_mm):
@@ -306,16 +340,26 @@ def align_page(gray: np.ndarray, px_mm: float, ref: ReferenceSet, expected_page:
     size_mm = ref.template.get("fiducial_size_mm", 5.0)
     F = ref.fid_mm
     rect_mm = (np.linalg.norm(F[1] - F[0]), np.linalg.norm(F[2] - F[1]))
+    two = None
     try:
         fid = detect_fiducials(gray, px_mm, size_mm, rect_mm)
-    except AlignmentError:
+    except AlignmentError as err:
         # résolution déclarée fausse (photo, PDF mal paginé) : on la ré-estime en supposant un A4
         h_, w_ = gray.shape
         est = 0.5 * (max(h_, w_) / 297.0 + min(h_, w_) / 210.0)
-        if abs(est / px_mm - 1) < 0.1:
-            raise
-        fid = detect_fiducials(gray, est, size_mm, rect_mm)
-    sc, page, rot, H, margin = _identify(gray, fid.points, ref, expected_page)
+        fid = None
+        if abs(est / px_mm - 1) >= 0.1:
+            try:
+                fid = detect_fiducials(gray, est, size_mm, rect_mm)
+            except AlignmentError:
+                pass
+        if fid is None:
+            two = _align_on_two(gray, px_mm, size_mm, rect_mm, ref, expected_page,
+                                getattr(err, "candidates", []))
+            if two is None:
+                raise err
+            fid = two[0]
+    sc, page, rot, H, margin = two[1] if two else _identify(gray, fid.points, ref, expected_page)
 
     # Faux fiducial (agrafe, coin plié, tache carrée) : les 4 points ne ferment plus le
     # parallélogramme. On essaie de reconstruire chaque coin à partir des 3 autres et on garde
@@ -347,7 +391,16 @@ def align_page(gray: np.ndarray, px_mm: float, ref: ReferenceSet, expected_page:
         H = _refine_on_text(gray, H, ref, page, fid, px_mm)
 
     warnings = []
-    if fid.inferred:
+    if two:
+        # secours : jamais sans revue. Ce qui est hors du scan serait sinon lu « vide » en silence.
+        seen =_warp(np.zeros_like(gray), H, ref.dpi, ref.shape(ref.dpi)) == 0
+        out_pct = 100.0 * (1.0 - float(seen.mean()))
+        if sc < TWO_MIN_SCORE:
+            raise AlignmentError(f"fiducials introuvables (2 repères seulement, alignement de secours "
+                                 f"trop peu ressemblant : {sc:.2f})")
+        warnings.append(f"alignement de secours sur 2 repères ({','.join(fid.found)}) : page à vérifier"
+                        + (f", {out_pct:.0f} % de la page hors du scan" if out_pct >= 0.5 else ""))
+    elif fid.inferred:
         warnings.append(f"fiducial {','.join(fid.inferred)} reconstruit")
     if sc < min_score:
         warnings.append(f"ressemblance faible avec la page vierge ({sc:.2f})")
@@ -365,6 +418,31 @@ def align_page(gray: np.ndarray, px_mm: float, ref: ReferenceSet, expected_page:
 
 CLOSURE_MM = 1.0   # défaut de fermeture du parallélogramme des fiducials au-delà duquel on doute d'un coin
 FIX_GAIN = 0.05    # gain mini du score de texte pour préférer un coin reconstruit
+TWO_MIN_SCORE = 0.75  # alignement de secours sur 2 repères : ressemblance mini avec la page vierge
+
+
+def _align_on_two(gray, px_mm, size_mm, rect_mm, ref: ReferenceSet, expected_page, cands):
+    """Secours quand seuls 2 repères sont visibles : on essaie chaque paire de candidats dont la
+    distance est un côté ou la diagonale du rectangle, et on garde le rectangle dont la page
+    redressée ressemble le plus au sujet. Retourne (Fiducials, résultat de `_identify`) ou None."""
+    from itertools import combinations
+
+    h_, w_ = gray.shape
+    best = None
+    for i, j in combinations(range(len(cands)), 2):
+        A, B = (_refine_center(gray, cands[x], px_mm, size_mm) for x in (i, j))
+        for P, real in _rectangles_from_pair(A, B, rect_mm, px_mm):
+            c = P.mean(axis=0)
+            if not (0 <= c[0] < w_ and 0 <= c[1] < h_):
+                continue  # rectangle centré hors de l'image : mauvais côté
+            try:
+                res = _identify(gray, P, ref, expected_page)
+            except AlignmentError:
+                continue
+            if best is None or res[0] > best[1][0]:
+                best = (Fiducials(P, [CORNERS[x] for x in sorted(real)],
+                                  [CORNERS[x] for x in range(4) if x not in real], len(cands)), res)
+    return best
 
 
 def _homography(P, fid_mm, k):
