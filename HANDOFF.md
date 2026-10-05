@@ -1,13 +1,33 @@
-# Passation — état du projet au 3 octobre 2026
+# Passation — état du projet au 5 octobre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
+
+## 0. Point d'arrêt du 5 octobre 2026 (à lire en premier)
+
+Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté ici.
+
+- **Non commité à l'arrêt** : `thessalia/pipeline.py` (feuille de présence ignorée, pages rendues à la
+  première copie) et ce fichier. Tests : 14 passés. À commiter si l'enseignant confirme.
+- **Questions restées sans réponse** : (1) commiter ce qui précède ; (2) lancer `ocr` sur les 25 lots
+  Booster (plusieurs heures à ~2,5 s par vignette : plutôt la nuit, machine sur secteur).
+- **À faire ensuite, dans l'ordre proposé** :
+  1. `ocr` sur les lots Booster (`sorties/booster/<classe>`, vocabulaire FR ou EN selon la classe), puis
+     `truth-page` pour la revue des réponses courtes.
+  2. Faire valider par l'enseignant un lot Booster (supA 1 : `sorties/supA_1_v3/validation.html`), puis
+     réaffiner le lecteur de chiffres sur EN + Booster (`digits-train`) : priorité aux `1` à la française.
+  3. Regarder supNA 2 (14 QCM en revue pour 18 copies) et supE 2 copie 1 (pages 1-2 illisibles).
+  4. Statistiques d'erreurs par question pour l'enseignant (souhaitées, reportées).
+- **Les QCM des lots Booster ne sont validés par personne** : seuls ceux du lot EN l'ont été.
+- Les scripts d'essai de la session (traitement par lots, bilans, prototypes) étaient dans un dossier
+  temporaire et ne sont pas conservés ; les commandes utiles sont dans `CLAUDE.md`.
+- Sur batterie, TrOCR est 3 à 6 fois plus lent : brancher la machine avant une lecture longue.
 
 ## 1. En bref
 
 | Niveau | État | Résultat mesuré sur le vrai lot (examen blanc EN, 21 copies, 100 dpi) |
 |---|---|---|
-| 1 — QCM / V-F | **Opérationnel** | 160/168 questions décidées automatiquement, **0 erreur** (validé par l'enseignant), 8 en revue |
+| 1 — QCM / V-F | **Opérationnel** | 160/168 questions décidées automatiquement, **0 erreur** (validé par l'enseignant), 8 en revue ; 26 lots Booster traités (306 copies avec supA 1), non validés |
 | 2 — réponses courtes | **Chaîne en place, moteur à choisir** | nettoyage + rapprochement OK ; moteurs locaux testés trop faibles (cf. §3), **TrOCR base compris** (mesuré le 3 octobre) |
 | 3 — code manuscrit | Non commencé | vignettes des cadres déjà découpées par `process` |
 | 4 — interface de validation | Amorcé | page locale de validation de la vérité des réponses courtes (`truth-page`) ; pas encore de file de revue ni d'export de notes |
@@ -122,7 +142,16 @@ vocabulaire (`keys/*.vocab.json`) et écrit `short_answers.csv` + `ocr_review.cs
    `supA 1` est dans `sorties/supA_1_v3` ; les 25 autres sont traités dans `sorties/booster/<classe>/`
    (Niveau 1 + vignettes, relancé le 5 octobre après la correction ci-dessous).
    **Page 1 « illisible » expliquée** : la première page de chaque PDF de classe est la feuille de
-   présence (liste d'émargement, avec des noms), pas une copie. Elle reste signalée « page illisible ».
+   présence (liste d'émargement, avec des noms), pas une copie. Depuis le 5 octobre, une page non
+   reconnue avant la première copie est ignorée et consignée (`other_pages` de `results.json`), sans
+   ligne de revue. Si la première copie ne commence pas à la page 1, les pages non reconnues juste avant
+   lui sont rendues comme « page illisible » (cas réel : supE 2, copie 1).
+   **Bilan des 25 lots (5 octobre)** : 305 copies, 5 177 pages reconnues, 20 feuilles de présence
+   ignorées, aucun « gabarit douteux » (score médian 0,96-0,97 partout). 2 pages illisibles (supE 2,
+   copie 1, pages 1 et 2). 153 points en revue dont 112 questions de QCM (4,6 % des 2 440 questions)
+   et 33 « fiducial reconstruit ». 6 pages manquantes dans 3 copies (supB 2, supB 3, supNA 2 : une
+   feuille recto-verso absente du scan).
+   Les réponses courtes (`ocr`) ne sont pas encore lues sur ces lots ; QCM non validés par l'enseignant.
    **Seuil des repères relevé de 0,50 à 0,62 le 5 octobre** (`align.detect_fiducials`) : sur ces scans un
    repère est parfois rendu en gris uniforme à 128 sur papier à 255, soit exactement 50 %, et était manqué
    d'un niveau de gris (page 17 surtout : 30 manquantes sur 144 copies FR, ~235 « fiducial reconstruit »).

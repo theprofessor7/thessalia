@@ -90,7 +90,7 @@ class Processor:
         out_dir.mkdir(parents=True, exist_ok=True)
         t0 = time.time()
         copies, cur, last = [], None, 0
-        self.blank_pages = []
+        self.blank_pages, self.other_pages, pending = [], [], []
         N = self.template["page_count"]
         for sp in load_scans(scan_paths, self.dpi):
             expected = last % N + 1
@@ -102,22 +102,39 @@ class Processor:
                     self.log(f"  {sp.label}: page blanche, ignorée")
                     continue
                 if cur is None:
-                    cur = self._new_copy(len(copies) + 1)
-                    copies.append(cur)
+                    # avant la première copie : feuille de présence, bordereau… (lots Booster : une
+                    # liste d'émargement en tête de chaque PDF). Ignorée mais consignée ; si c'était
+                    # la page 1 d'une copie, elle lui est rendue plus bas comme « page illisible ».
+                    pending.append((sp.label, str(e)))
+                    self.log(f"  {sp.label}: page hors copie avant la première copie "
+                             f"(feuille de présence ?), ignorée")
+                    continue
                 cur["unreadable"].append({"source": sp.label, "error": str(e)})
                 cur["review"].append({"item": sp.label, "reason": f"page illisible : {e}"})
                 self.log(f"  {sp.label}: ÉCHEC alignement — {e}")
                 continue
+            first = cur is None
             if cur is None or al.page <= last:
                 cur = self._new_copy(len(copies) + 1)
                 copies.append(cur)
+            if first:
+                # la première copie ne commence pas à la page 1 : les pages non reconnues juste avant
+                # sont sans doute ses premières pages, pas une feuille de présence
+                k = min(al.page - 1, len(pending))
+                for label, err in pending[len(pending) - k:]:
+                    cur["unreadable"].append({"source": label, "error": err})
+                    cur["review"].append({"item": label, "reason": f"page illisible : {err}"})
+                    self.log(f"  {label}: finalement rattachée à {cur['copy_id']} (page illisible)")
+                self.other_pages = [label for label, _ in pending[:len(pending) - k]]
             last = al.page
             self._process_page(cur, sp, al, out_dir)
+        if cur is None:  # aucune copie reconnue dans le lot
+            self.other_pages = [label for label, _ in pending]
         self._check_template(copies)
         for c in copies:
             self._finalize(c, out_dir)
         save_json({"schema": RESULT_SCHEMA + "/batch", "exam_id": self.template["exam_id"],
-                   "n_copies": len(copies), "blank_pages": self.blank_pages, "elapsed_s": round(time.time() - t0, 1),
+                   "n_copies": len(copies), "blank_pages": self.blank_pages, "other_pages": self.other_pages, "elapsed_s": round(time.time() - t0, 1),
                    "copies": [{k: c[k] for k in ("copy_id", "missing_pages", "flat")}
                               | {"n_review": len(c["review"]), "grade": c.get("grade")} for c in copies]},
                   out_dir / "results.json")
