@@ -227,7 +227,6 @@ function render() {
     for (const it of its) grid.append(makeCard(it));
     const all = el("button", {textContent: "Valider les " + its.length + " affichées"});
     all.onclick = () => {
-      if (!confirm("Valider telles quelles les " + its.length + " réponses affichées de " + q + " ?")) return;
       for (const c of grid.querySelectorAll(".card")) {
         const it = its.find(x => x.key === c.dataset.key);
         if (!state[it.key].unsure) validate(c, it, c.querySelector("input[type=text]"));

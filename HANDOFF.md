@@ -69,9 +69,15 @@ Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté i
 - **Virgules sur supA 1** : 6 vraies virgules, 1 seule « détectée » (les deux lectures d'accord), les 5
   autres proposées avec un point et la virgule en second choix (règle du doute) ; toutes en revue. Sur EN
   c'était 4 sur 5 : la détection de la virgule est à remesurer sur les deux lots avant d'y toucher.
-- **Vérité supA 1, entrées à relire par l'enseignant** (elles reprennent la lecture brute de la machine) :
-  c05_q7.1 `Bongoun - Alice` (écrit « Bonjour - Alice »), c08_q14.2 `Grandletit` (« GrandPetit »),
-  c07_q7.3 `X.X` (un mot raturé puis « XY » ?), c07_q7.2 `A-P-C`, c04_q7.3 `" X "Y .`.
+- **Vérité supA 1 relue par l'enseignant le 5 octobre** (fichier de 13 h 28, puis deux corrections) :
+  c05_q7.1 → `Bonjour - Alice`, c08_q14.2 → `GrandPetit`, c04_q7.3 → `" X "Y`, q14.3 des copies 1, 3, 5 →
+  `Zéro`, q7.4 des copies 1 et 5. **Gardées volontairement** : c07_q7.2 `A-P-C` et c07_q7.3 `X.X` — règle
+  de l'enseignant : la vérité transcrit ce qui se lit ; une lettre mal formée joue au détriment de
+  l'étudiant (le doute favorable ne vaut que pour le doute de la machine). Mesure refaite : 82 acceptées
+  dont 82 justes, bonne réponse dans le top 3 76,8 %, nombres 107/140 (74 avec TrOCR seul).
+- **Page de validation** (`truth-page`) : la confirmation de « Valider les N affichées » est supprimée
+  (demande de l'enseignant) ; celle de l'export reste (réponses non validées exportées avec « ? »). Pas
+  de filtre par copie : chercher la clé `cNN_qX.Y` avec Ctrl+F, filtre d'état sur « toutes ».
 
 ## 1. En bref
 
