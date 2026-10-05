@@ -61,6 +61,8 @@ def main(argv=None):
     d.add_argument("--truth", help="vérité terrain VALIDÉE (format cNN_qX.Y)")
     d.add_argument("-o", "--out", help="modèle affiné (défaut : data/models/digits.npz, hors dépôt)")
     d.add_argument("--base-only", action="store_true", help="réentraîner le modèle MNIST fourni avec le paquet")
+    d.add_argument("--also", nargs=3, action="append", default=[], metavar=("DOSSIER", "VOCAB", "VERITE"),
+                   help="autre lot validé à ajouter (répétable) : dossier de résultats, vocabulaire, vérité")
 
     v = sub.add_parser("truth-page", help="Niveau 2 : page HTML locale pour valider la vérité terrain")
     v.add_argument("results_dir")
@@ -105,7 +107,7 @@ def main(argv=None):
         elif not (a.results_dir and a.vocab and a.truth):
             ap.error("digits-train : results_dir, --vocab et --truth sont requis (ou --base-only)")
         else:
-            digits_train.run(a.results_dir, a.vocab, a.truth, **({"out": a.out} if a.out else {}))
+            digits_train.run(a.results_dir, a.vocab, a.truth, also=a.also, **({"out": a.out} if a.out else {}))
     elif a.cmd == "truth-page":
         from .truth_page import build
 

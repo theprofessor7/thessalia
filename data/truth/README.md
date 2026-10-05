@@ -17,3 +17,9 @@ Usage : `python -m thessalia ocr <dossier_resultats> -v keys/python_core_EN.voca
   incertaine. C'est la référence pour le lot EN ; `python_core_EN_examen_blanc.short_truth.json` (lecture de
   Claude) n'est gardé que pour mémoire.
 - `booster_supA1.numbers_truth.json` : champs numériques du lot Booster supA 1, lecture de Claude, non validée.
+
+## Mise à jour du 5 octobre 2026
+
+- `supA_1_v3.short_truth.json` : **vérité validée par l'enseignant** du lot Booster supA 1 (sujet FR,
+  9 copies, 333 réponses, aucune incertaine). C'est la référence pour ce lot ; `booster_supA1.numbers_truth.json`
+  (19 écarts sur 140) n'est gardé que pour mémoire.

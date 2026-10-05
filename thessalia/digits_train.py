@@ -154,13 +154,21 @@ def numeric_items(results_dir, truth, vocab):
                 yield key, num, cv2.imread(str(results_dir / info["clean"]), cv2.IMREAD_GRAYSCALE)
 
 
-def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, log=print):
+def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, log=print, also=()):
+    """`also` : autres lots validés [(results_dir, vocab, vérité)], affinés et mesurés avec le premier."""
     torch = _torch()
     torch.set_num_threads(max(1, min(8, torch.get_num_threads())))
-    vocab = load_json(vocab_path)["fields"]
-    items = list(numeric_items(results_dir, load_json(truth_path), vocab))
+    lots = [(results_dir, vocab_path, truth_path), *also]
+    items = []  # clés préfixées par le numéro du lot (« 0:c01_q3.1 ») : la copie c01 diffère d'un lot à l'autre
+    for i, (rd, vp, tp) in enumerate(lots):
+        items += [(f"{i}:{k}", t, img)
+                  for k, t, img in numeric_items(rd, load_json(tp), load_json(vp)["fields"])]
     if not items:
         raise SystemExit("Aucune réponse numérique avec vérité dans ce lot.")
+
+    def copy_of(k):
+        return k.split("_")[0]
+
     segs = {k: segment(img) for k, _, img in items}
     glyphs = {}  # copie -> [(28×28, chiffre)] ; seulement quand le découpage a la forme de la vérité
     def conform(k, t):  # le découpage a la forme de la vérité (point et virgule confondus ici)
@@ -170,7 +178,7 @@ def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, 
         if conform(k, t):
             for g, ch in zip(segs[k], t):
                 if g["kind"] == "digit":
-                    glyphs.setdefault(k[:3], []).append((to_mnist(g["mask"]), int(ch)))
+                    glyphs.setdefault(copy_of(k), []).append((to_mnist(g["mask"]), int(ch)))
     n_ok = sum(conform(k, t) for k, t, _ in items)
     log(f"{len(items)} réponses numériques ; découpage conforme : {n_ok} ; "
         f"{sum(len(v) for v in glyphs.values())} chiffres étiquetés sur {len(glyphs)} copies")
@@ -185,17 +193,22 @@ def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, 
                    and parse_number(r) is not None
                    and same(parse_number(r).replace(",", "."), t.replace(",", "."), "number"))
 
-    copies = sorted({k[:3] for k, _, _ in items})
+    copies = sorted({copy_of(k) for k, _, _ in items})
     all_keys = {k for k, _, _ in items}
     log(f"modèle de base (MNIST) : {score(DigitReader(base).read, all_keys)}/{len(items)} nombres justes")
     if len(copies) >= folds:
-        good = 0
+        good = [0] * len(lots)
         for f in range(folds):
             test = set(copies[f::folds])
             net = _finetune(torch, base, *tensors([c for c in copies if c not in test]), xm, ym, seed=f)
             tmp = CACHE / "digits_fold.npz"
             _save(net, tmp)
-            good += score(DigitReader(tmp).read, {k for k in all_keys if k[:3] in test})
-        log(f"modèle affiné, validation croisée par copie ({folds} plis) : {good}/{len(items)} nombres justes")
+            for i in range(len(lots)):
+                good[i] += score(DigitReader(tmp).read,
+                                 {k for k in all_keys if copy_of(k) in test and k.startswith(f"{i}:")})
+        log(f"modèle affiné, validation croisée par copie ({folds} plis) : {sum(good)}/{len(items)} nombres justes")
+        if len(lots) > 1:
+            for i, (rd, _, _) in enumerate(lots):
+                log(f"  {Path(rd).name} : {good[i]}/{sum(k.startswith(f'{i}:') for k in all_keys)}")
     _save(_finetune(torch, base, *tensors(copies), xm, ym, seed=0), out)
-    log(f"-> {out} (affiné sur tout le lot ; hors dépôt)")
+    log(f"-> {out} (affiné sur {'tout le lot' if len(lots) == 1 else f'les {len(lots)} lots'} ; hors dépôt)")

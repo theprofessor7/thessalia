@@ -182,6 +182,9 @@ def read_page(aligned_img, blank_img, fields, dpi, cfg: OMRConfig | None = None,
                 "match": round(sc, 3),
                 "loc": used,
                 "lost": lost,
+                # les autres cases de la page sont bien recalées : la page est alignée, c'est cette
+                # case qui a disparu du scan (recouverte de correcteur, vu sur supNA 2)
+                "erased": lost and any(kk != key for *_, kk in reliable),
                 "box_px": list(inner_s),
             }
         out[f["id"]] = decide(f, opts, cfg)
@@ -213,7 +216,8 @@ def decide(field, opts, cfg: OMRConfig):
             # "cancelled" : case annulée, ignorée
         elif st == "ambiguous":
             if o.get("lost"):
-                why = f"case non retrouvée, recalage {o['match']:.2f} : page mal alignée ?"
+                why = (f"case non retrouvée, recalage {o['match']:.2f} : "
+                       + ("effacée au correcteur ?" if o.get("erased") else "page mal alignée ?"))
             elif o["fill"] >= cfg.rature_min_fill and o.get("halo", 0) >= cfg.halo_rature:
                 why = f"rature probable, halo {o['halo']:.2f}"
             elif o["fill"] >= cfg.checked_min and o.get("core", 1) < cfg.core_min:

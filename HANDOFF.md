@@ -23,6 +23,30 @@ Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté i
   temporaire et ne sont pas conservés ; les commandes utiles sont dans `CLAUDE.md`.
 - Sur batterie, TrOCR est 3 à 6 fois plus lent : brancher la machine avant une lecture longue.
 
+### Reprise du 5 octobre (suite)
+
+- Point d'arrêt ci-dessus commité (`3709b7b`). `ocr` sur les 25 lots Booster : **pas maintenant** (réponse
+  de l'enseignant) ; à reproposer, un lot d'essai d'abord.
+- **Vérité de supA 1 validée par l'enseignant** : `data/truth/supA_1_v3.short_truth.json` (333 réponses,
+  aucune incertaine, 6 virgules décimales). La lecture de Claude des nombres différait sur 19 des 140.
+  Mesure `ocr --truth` (TrOCR base, lectures en cache, modèle de chiffres affiné sur EN seul, donc lot
+  jamais vu) : 82 acceptées sur 289 champs à vocabulaire, **82 justes** ; proposition juste des nombres
+  74/140 avec TrOCR seul, 107/140 avec le lecteur de chiffres.
+- **`digits-train --also DOSSIER VOCAB VERITE`** (répétable) : affinage et validation croisée sur plusieurs
+  lots. EN + supA 1 (396 nombres, 30 copies, ~4 min) : 305/396 en validation croisée, soit EN 211/275
+  (200 avec EN seul) et supA 1 94/121 (93 avec le modèle fourni, affiné sur EN seul). Gain faible sur
+  supA 1 : les fautes restantes sont les `1` à la française d'une seule copie (c05 : `1024` → `7024`,
+  `11` → `17`…) et des découpages faux (`1024` → `1.24`, `427` → `49.7`). Le modèle fourni n'a **pas** été
+  remplacé.
+- **supNA 2** (14 QCM en revue) : revues légitimes. Coches fines au crayon (encre 0,12-0,14, copie 14),
+  coches débordantes et libellés barrés (copie 18), une feuille absente (copie 12), et 3 « case non
+  retrouvée » : la case imprimée a disparu du scan, recouverte de correcteur, alors que les voisines sont
+  recalées à 0,95. Le motif dit maintenant « effacée au correcteur ? » dans ce cas (`omr`, champ `erased`) ;
+  « page mal alignée ? » reste quand aucune case de la page n'est recalée. Aucun seuil modifié.
+- **supE 2, copie 1** : la première feuille est passée de travers dans le chargeur (~12°), deux coins sont
+  hors du scan, il ne reste que 2 repères sur 4 par face. Pistes : rescanner cette feuille, ou un
+  alignement de secours sur 2 repères (toujours en revue) — non fait.
+
 ## 1. En bref
 
 | Niveau | État | Résultat mesuré sur le vrai lot (examen blanc EN, 21 copies, 100 dpi) |
