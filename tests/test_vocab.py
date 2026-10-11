@@ -41,6 +41,16 @@ def test_comma_is_not_a_point():
     assert snap([("3", 0.99)], {**NUM, "min_conf": 0.5})["status"] == "ok"
 
 
+def test_secondary_reading_alone_is_not_accepted():
+    # la lecture principale n'a rien du mot retenu : seule une variante du moteur « trouve » le vocabulaire
+    r = snap([('" what .', 0.53), ('" What .', 0.42), ('" List .', 0.42)], TYPES)
+    assert r["status"] == "review" and r["value"] == "list" and "secondaire" in r["reason"]
+    r = snap([("bool", 0.9), ("Error", 0.5)], {"kind": "enum", "values": ["Grand", "Petit", "ERREUR"]})
+    assert r["status"] == "review"
+    # lecture principale proche du mot retenu : la lecture secondaire peut emporter l'acceptation
+    assert snap([("flat .", 0.86), ("feat .", 0.42), ("# float .", 0.36)], TYPES)["status"] == "ok"
+
+
 def test_text_always_reviewed():
     r = snap([("Hello Alice", 0.99)], {"kind": "text", "values": ["Hello Alice"]})
     assert r["status"] == "review"

@@ -17,7 +17,8 @@ Normalisation : casse, espaces, guillemets, point final parasite, et formes équ
 classiques de l'écriture manuscrite coûtent moins cher (0/O, 1/l/I, 5/S…).
 
 Décision : accepté si la meilleure distance relative est faible ET nettement
-inférieure à la deuxième ; sinon « review » avec les meilleures propositions.
+inférieure à la deuxième, ET si la lecture principale du moteur ressemble au mot
+retenu ; sinon « review » avec les meilleures propositions.
 """
 from __future__ import annotations
 
@@ -115,7 +116,10 @@ def _both_separators(sugg, number):
     return ([number, other_separator(number)] + [s for s in sugg if favor_point(s) != favor_point(number)])[:3]
 
 
-def snap(candidates, spec, accept=0.34, margin=0.25, far=0.65):
+SECONDARY = "mot reconnu par une lecture secondaire, lecture principale différente : à confirmer"
+
+
+def snap(candidates, spec, accept=0.34, margin=0.30, far=0.65, lead=0.65):
     """candidates : [(texte, confiance 0..1), …] du moteur (meilleur d'abord).
 
     Retourne {value, status ('ok'|'review'), confidence, suggestions, raw}.
@@ -149,6 +153,10 @@ def snap(candidates, spec, accept=0.34, margin=0.25, far=0.65):
         return {"value": None, "status": "review", "reason": "hors vocabulaire", "suggestions": [raw], "raw": raw}
     best, (d1, conf) = ranked[0]
     d2 = ranked[1][1][0] if len(ranked) > 1 else 1.0
+    # marge 0,30 (0,25 jusqu'au 8 octobre) : sur supA 2, lot jamais vu, deux `bool` et un `int` mal lus
+    # (« troot », « is it ») étaient acceptés `float` et `list`. Mesuré sur EN, supA 1, supA 2 avec la règle
+    # de la lecture secondaire ci-dessous : 346 acceptées dont 342 justes -> 298 dont 298. Réglé sur ces
+    # trois lots : à confirmer sur un lot validé de plus.
     ok = d1 <= accept and (d2 - d1) >= margin
     # un nombre libre n'a pas de vocabulaire pour le rattraper : un 14 lu 44 est un nombre
     # valide. Mesuré sur le lot EN (TrOCR base) : les nombres mal lus ont la même confiance que
@@ -174,8 +182,18 @@ def snap(candidates, spec, accept=0.34, margin=0.25, far=0.65):
         return {"value": raw, "status": "review", "reason": "hors vocabulaire : aucun mot proche, lecture brute",
                 "distance": round(d1, 3), "second": round(d2, 3), "confidence": round(conf, 3),
                 "suggestions": sugg, "raw": raw}
+    # mot reconnu par une lecture secondaire alors que la lecture principale en est très loin : le moteur
+    # a « trouvé » un mot du vocabulaire dans une de ses variantes (`int` lu « what », 3ᵉ lecture « List »
+    # -> `list` ; `Grand` lu « bool », 2ᵉ lecture « Error » -> `ERREUR`). On n'accepte que si la lecture
+    # principale ressemble elle aussi au mot retenu (distance <= `lead`). Seuil 0,65 confirmé par
+    # l'enseignant : à 0,70 un `bool` lu « inward », 3ᵉ lecture « inh. », restait accepté `int` (supA 2) ;
+    # le prix est de 6 bonnes réponses d'EN en revue (`str` lu « ska », « rtd » : 0,67).
+    weak = ok and best in values and rel(normalize(raw, kind), normalize(best, kind)) > lead
+    if weak:
+        ok = False
     return {"value": best, "status": "ok" if ok else "review",
-            "reason": None if ok else ("hors vocabulaire" if d1 > accept else
+            "reason": None if ok else (SECONDARY if weak else
+                                       "hors vocabulaire" if d1 > accept else
                                        (DECIMAL_COMMA if "," in best else DECIMAL_POINT) if decimal else
                                        "nombre libre : lecture à confirmer" if free
                                        else "hésitation entre propositions"),

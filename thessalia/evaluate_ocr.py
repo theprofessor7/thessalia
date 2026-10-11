@@ -25,7 +25,7 @@ def same(a, b, kind):
     return normalize(a, kind) == normalize(b, kind)
 
 
-def evaluate(ocr: dict, truth: dict, vocab: dict, accept=0.34, margin=0.25, verbose=False):
+def evaluate(ocr: dict, truth: dict, vocab: dict, accept=0.34, margin=0.30, verbose=False):
     st = Counter()
     by_q = defaultdict(Counter)
     errors = []
