@@ -36,6 +36,11 @@ from .ocr import _pad
 BASE = "microsoft/trocr-base-handwritten"
 OUT = Path("data/models/trocr")
 BATCH, ACCUM = 2, 2  # gradients cumulés sur 2 lots de 2 : même apprentissage qu'un lot de 4
+# Étiquettes SANS le jeton de début <s> : TrOCR ne le produit pas (il écrit « texte </s> » après son jeton
+# de départ). Jusqu'au 11 octobre 2026 les étiquettes le gardaient : l'affinage commençait par apprendre à
+# l'écrire (modèle d'origine : log P d'une lecture juste -0,7 sans <s>, -41 avec). Noté dans etat.json :
+# un modèle affiné avec l'ancien format ne se reprend pas avec le nouveau.
+LABELS = "sans <s>"
 
 
 def labelled_items(results_dir, vocab, truth):
@@ -84,6 +89,9 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
         if st.get("entrainement") != len(train) or st.get("lots") != [str(Path(l[0])) for l in lots]:
             raise SystemExit(f"{out} contient un modèle affiné sur d'autres données : choisir un autre "
                              f"dossier avec -o, ou supprimer celui-ci.")
+        if st.get("etiquettes") != LABELS:
+            raise SystemExit(f"{out} a été affiné avec l'ancien format d'étiquettes (jeton de début) : il ne "
+                             f"se reprend pas. Choisir un autre dossier avec -o, ou supprimer celui-ci.")
         first = st["passes_faites"]
         if first >= passes:
             log(f"{out} : les {passes} passes sont déjà faites.")
@@ -113,6 +121,8 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
             b = train[i:i + BATCH]
             px = proc(images=[pil(p) for p, _ in b], return_tensors="pt").pixel_values
             lab = tok([t for _, t in b], padding=True, return_tensors="pt").input_ids
+            if tok.bos_token_id is not None and bool((lab[:, 0] == tok.bos_token_id).all()):
+                lab = lab[:, 1:].clone()  # voir LABELS
             lab[lab == tok.pad_token_id] = -100
             loss = model(pixel_values=px, labels=lab).loss
             (loss / ACCUM).backward()
@@ -131,7 +141,8 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
         proc.save_pretrained(out)
         with open(state_path, "w", encoding="utf-8") as fh:
             json.dump({"base": base, "passes_faites": ep + 1, "passes_prevues": passes, "entrainement": len(train),
-                       "lots": [str(Path(l[0])) for l in lots]}, fh, ensure_ascii=False, indent=1)
+                       "lots": [str(Path(l[0])) for l in lots], "etiquettes": LABELS}, fh, ensure_ascii=False,
+                      indent=1)
         log(f"passe {ep + 1}/{passes} : perte moyenne {tot / n_lots:.3f} -> {out} enregistré")
     log(f"-> {out} (hors dépôt). Mesurer sur un lot jamais vu : ocr <lot> -v … --model {out} --truth …")
     return out
