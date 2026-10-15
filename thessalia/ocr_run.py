@@ -21,7 +21,10 @@ import cv2
 from .common import load_json, save_json
 from .evaluate_ocr import evaluate, proposals, report
 from .ocr import get_backend
+from .ocr_prep import extra_word
 from .vocab import parse_number, propose_digits, snap
+
+EXTRA_WORD = "écriture séparée en plus du mot reconnu (deux mots, rature ?) : à vérifier"
 
 
 def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, log=print, batch=4,
@@ -89,6 +92,10 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
         c = [(t, s) for t, s in cache[key]["candidates"]]
         spec = vocab.get(fid, {"kind": "text"})
         r = snap(c, spec)
+        # un seul mot accepté alors que la vignette en montre deux (« Grand Petit » lu « Grand ») : en revue
+        if (r["status"] == "ok" and " " not in str(r["value"])
+                and extra_word(cv2.imread(str(results_dir / info["clean"]), cv2.IMREAD_GRAYSCALE))):
+            r.update(status="review", reason=EXTRA_WORD)
         text_only[key] = r["value"]
         if reader is not None and spec.get("kind") == "number":
             txt, conf = reader.read(cv2.imread(str(results_dir / info["clean"]), cv2.IMREAD_GRAYSCALE))

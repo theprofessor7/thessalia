@@ -183,3 +183,33 @@ def prepare_field(aligned_img, blank_img, field, dpi, cfg: PrepConfig | None = N
     clean = (np.clip(clean[cy0:cy1, cx0:cx1], 0, 1) * 255).astype(np.uint8)
     out.update(blank=False, clean=clean)
     return out
+
+
+def extra_word(clean, gap=0.6, width=1.0, share=0.30):
+    """Écriture séparée en plus d'un mot : vrai si la vignette nettoyée contient, à côté du groupe d'encre
+    principal, un second groupe séparé d'un espace d'au moins `gap` × la hauteur d'écriture, large d'au
+    moins `width` × cette hauteur et portant au moins `share` de l'encre.
+
+    Sert à refuser l'acceptation d'un mot seul quand l'étudiant en a écrit deux : sur supA 2, « Grand Petit »
+    lu « Grand » par TrOCR était accepté (juste) alors que la réponse est fausse. Mesuré sur les acceptées
+    de EN, supA 1 et supA 2 (372) : ce cas et 3 autres repérés (deux ratures devant `ERREUR` / `ERROR`, un
+    « Ze ro » en deux morceaux) ; les petits résidus (points, traits, jusqu'à 0,3 × la hauteur) ne comptent pas.
+    """
+    ink = clean < 128
+    rows = np.where(ink.any(1))[0]
+    if not len(rows):
+        return False
+    h = rows[-1] - rows[0] + 1
+    xs = np.where(ink.any(0))[0]
+    groups, start, prev = [], xs[0], xs[0]
+    for x in xs[1:]:
+        if x - prev - 1 >= gap * h:
+            groups.append((start, prev))
+            start = x
+        prev = x
+    groups.append((start, prev))
+    if len(groups) < 2:
+        return False
+    total = ink.sum()
+    second = sorted(groups, key=lambda g: -int(ink[:, g[0]:g[1] + 1].sum()))[1]
+    return (second[1] - second[0] + 1) >= width * h and ink[:, second[0]:second[1] + 1].sum() >= share * total
