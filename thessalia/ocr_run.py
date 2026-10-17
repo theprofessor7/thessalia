@@ -19,12 +19,13 @@ from pathlib import Path
 import cv2
 
 from .common import load_json, save_json
-from .evaluate_ocr import evaluate, proposals, report
+from .evaluate_ocr import evaluate, proposals, report, same
 from .ocr import get_backend
-from .ocr_prep import extra_word
+from .ocr_prep import extra_word, struck_word
 from .vocab import parse_number, propose_digits, snap
 
 EXTRA_WORD = "écriture séparée en plus du mot reconnu (deux mots, rature ?) : à vérifier"
+STRUCK = "mot barré à côté d'une autre écriture : à vérifier"
 
 
 def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, log=print, batch=4,
@@ -87,21 +88,33 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
         from .digits import DigitReader
         reader = DigitReader()
         log(f"lecteur de chiffres : {reader.path}")
-    ocr_by_key, text_only, proposed = {}, {}, {}
+    # entiers acceptés seulement avec un TrOCR affiné localement (mesuré avec data/models/trocr_commun) :
+    # avec le modèle d'origine, des nombres faux sortaient avec les deux lectures d'accord
+    model = str(getattr(eng, "model_name", "") or "")
+    accept_numbers = reader is not None and eng.name == "trocr" and not model.startswith("microsoft/")
+    if accept_numbers:
+        log("nombres entiers (2 chiffres ou plus, deux lectures d'accord, TrOCR >= 0,99) : acceptés")
+    ocr_by_key, text_only, proposed, flagged = {}, {}, {}, set()
     for (rp, fid, info), key in zip(todo, keys):
         c = [(t, s) for t, s in cache[key]["candidates"]]
         spec = vocab.get(fid, {"kind": "text"})
         r = snap(c, spec)
-        # un seul mot accepté alors que la vignette en montre deux (« Grand Petit » lu « Grand ») : en revue
-        if (r["status"] == "ok" and " " not in str(r["value"])
-                and extra_word(cv2.imread(str(results_dir / info["clean"]), cv2.IMREAD_GRAYSCALE))):
-            r.update(status="review", reason=EXTRA_WORD)
         text_only[key] = r["value"]
+        img = cv2.imread(str(results_dir / info["clean"]), cv2.IMREAD_GRAYSCALE)
         if reader is not None and spec.get("kind") == "number":
-            txt, conf = reader.read(cv2.imread(str(results_dir / info["clean"]), cv2.IMREAD_GRAYSCALE))
+            txt, conf = reader.read(img)
             num = parse_number(txt) if txt else None
             if num is not None:
-                propose_digits(r, spec, num, conf)
+                propose_digits(r, spec, num, conf, accept_numbers=accept_numbers)
+        # un seul mot accepté alors que la vignette en montre deux (« Grand Petit » lu « Grand ») : en revue
+        if r["status"] == "ok":
+            if " " not in str(r["value"]) and extra_word(img):
+                r.update(status="review", reason=EXTRA_WORD)
+            # le moteur a lu le mot barré au lieu de la réponse (`input` barré puis `for`) : en revue
+            elif struck_word(img):
+                r.update(status="review", reason=STRUCK)
+            if r["status"] == "review":
+                flagged.add(key)
         proposed[key] = r["value"]
         r["engine"] = eng.name
         r["candidates"] = [[t, round(float(s), 3)] for t, s in c]
@@ -136,9 +149,15 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
     log(f"-> short_answers.csv, ocr_review.csv ({n_rev} à valider)")
 
     if truth:
-        st, by_q, errors = evaluate(ocr_by_key, load_json(truth), vocab)
+        st, by_q, errors = evaluate(ocr_by_key, load_json(truth), vocab, flagged=flagged)
         txt = report(eng.name, st, by_q, errors)
         truth_d = load_json(truth)
+        n_ok = [(k, info["ocr"]["value"]) for (rp, fid, info), k in zip(todo, keys)
+                if vocab.get(fid, {}).get("kind") == "number" and info["ocr"]["status"] == "ok"
+                and k in truth_d and not truth_d[k].endswith("?")]
+        bad = [(k, v, truth_d[k]) for k, v in n_ok if not same(str(v), truth_d[k], "number")]
+        txt += f"\n  nombres acceptés auto : {len(n_ok)}, dont justes {len(n_ok) - len(bad)}"
+        txt += "".join(f"\n    ERREUR NOMBRE {b}" for b in bad)
         n, a = proposals(text_only, truth_d, vocab)
         txt += f"\n  champs numériques (point et virgule distingués) : proposition juste {a}/{n} avec le moteur de texte seul"
         if reader is not None:

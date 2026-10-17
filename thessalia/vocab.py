@@ -119,7 +119,7 @@ def _both_separators(sugg, number):
 SECONDARY = "mot reconnu par une lecture secondaire, lecture principale différente : à confirmer"
 
 
-def snap(candidates, spec, accept=0.34, margin=0.30, far=0.65, lead=0.65):
+def snap(candidates, spec, accept=0.34, margin=0.30, far=0.65, lead=0.65, weak=0.05, exact_margin=0.15):
     """candidates : [(texte, confiance 0..1), …] du moteur (meilleur d'abord).
 
     Retourne {value, status ('ok'|'review'), confidence, suggestions, raw}.
@@ -130,6 +130,9 @@ def snap(candidates, spec, accept=0.34, margin=0.30, far=0.65, lead=0.65):
     if not candidates or not raw.strip():
         return {"value": None, "status": "review", "reason": "illisible", "suggestions": [], "raw": raw}
 
+    # lectures secondaires presque nulles ignorées : `float` à 1,00 avec une variante `bool` à 0,014 était une
+    # « hésitation ». Mesuré sur EN, supA 1, supA 2, supB 1 : quelques acceptées de plus, aucune fausse.
+    candidates = candidates[:1] + [c for c in candidates[1:] if c[1] >= weak]
     scored = {}  # valeur canonique -> (distance relative, confiance moteur)
     for text, conf in candidates:
         for v in values:
@@ -158,6 +161,11 @@ def snap(candidates, spec, accept=0.34, margin=0.30, far=0.65, lead=0.65):
     # de la lecture secondaire ci-dessous : 346 acceptées dont 342 justes -> 298 dont 298. Réglé sur ces
     # trois lots : à confirmer sur un lot validé de plus.
     ok = d1 <= accept and (d2 - d1) >= margin
+    # la lecture principale EST un mot du vocabulaire : un mot voisin (`print` / `printf`, une lettre d'écart)
+    # ne suffit plus à créer une hésitation ; il faut qu'une autre lecture soit aussi proche ou presque.
+    # Choix de l'enseignant (17 octobre) ; risque connu : `printf` lu sans son « f » serait accepté `print`.
+    if not ok and kind == "enum" and d1 == 0 and normalize(raw, kind) == normalize(best, kind):
+        ok = d2 >= exact_margin
     # un nombre libre n'a pas de vocabulaire pour le rattraper : un 14 lu 44 est un nombre
     # valide. Mesuré sur le lot EN (TrOCR base) : les nombres mal lus ont la même confiance que
     # les bons (0,90 à 0,99), aucun seuil ne les sépare. Par défaut il part donc toujours en revue,
@@ -202,15 +210,16 @@ def snap(candidates, spec, accept=0.34, margin=0.30, far=0.65, lead=0.65):
 
 
 SURE_DIGITS = 0.99
+NUMBER_ACCEPT_CONF = 0.99
 NUMBER_SURE = "nombre : les deux lectures concordent, très sûr, à confirmer"
 
 
-def propose_digits(r, spec, number, conf, accept=0.34):
+def propose_digits(r, spec, number, conf, accept=0.34, accept_numbers=False):
     """Ajoute à un résultat de `snap` (champ `number`) la lecture du lecteur de chiffres.
 
-    Elle ne change JAMAIS le statut : elle devient la proposition d'un champ en revue, sauf si le
-    moteur de texte a reconnu un mot du vocabulaire (« ERROR »). `agree` signale que les deux
-    lectures donnent le même nombre.
+    Elle devient la proposition d'un champ en revue, sauf si le moteur de texte a reconnu un mot du
+    vocabulaire (« ERROR »). `agree` signale que les deux lectures donnent le même nombre. Elle ne change
+    le statut que si `accept_numbers` (moteur de texte affiné, cf. NUMBER_ACCEPT_CONF).
     """
     r["digits"] = {"value": number, "confidence": round(conf, 3)}
     # le moteur de texte penche pour un mot (« ERROR ») : on le garde s'il est accepté, ou s'il est
@@ -239,6 +248,14 @@ def propose_digits(r, spec, number, conf, accept=0.34):
     # 18/18 justes sur EN, 7/7 sur supA 1 (à 0,95 il restait un « 3.14 » lu « 314 »). Trop peu de cas
     # pour accepter seul : la réponse reste en revue, seulement signalée (validation groupée).
     r["sure"] = bool(not decimal and r["digits"]["agree"] and conf >= SURE_DIGITS)
+    # acceptation d'un entier d'au moins 2 chiffres quand les deux lectures concordent et que le moteur de
+    # texte (TrOCR affiné) est sûr. Mesuré le 17 octobre avec `trocr_commun` sur deux lots jamais vus :
+    # 89 justes sur 89 (supA 2 : 33, supB 1 : 56). Un chiffre seul reste en revue : 2 fautes sur 85
+    # (`3` lu `5`, `2` bouclé lu `9`, les deux lectures d'accord à 1,00). Avec TrOCR d'origine, `3` lu `43`.
+    if (accept_numbers and not decimal and r["digits"]["agree"] and r.get("confidence", 0) >= NUMBER_ACCEPT_CONF
+            and len(str(number).lstrip("-")) >= 2):
+        r.update(status="ok", reason=None)
+        return r
     r["reason"] = ((DECIMAL_COMMA if comma else DECIMAL_UNSURE) if decimal else
                    NUMBER_SURE if r["sure"] else
                    "nombre : les deux lectures concordent, à confirmer" if r["digits"]["agree"]

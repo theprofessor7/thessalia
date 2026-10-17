@@ -16,16 +16,23 @@ from collections import Counter, defaultdict
 from .vocab import normalize, parse_number, snap
 
 
+# même réponse dans la langue de l'autre sujet (décision de l'enseignant) : pas une faute, donc une
+# acceptation `Error` -> `ERREUR` n'est pas comptée fausse
+EQUIV = {"error": "erreur", "zero": "zéro"}
+
+
 def same(a, b, kind):
     if kind == "number":
         na, nb = parse_number(a) or normalize(a, kind), parse_number(b) or normalize(b, kind)
-        return na == nb
+        return EQUIV.get(na.lower(), na) == EQUIV.get(nb.lower(), nb) if na != nb else True
     if kind == "text":
         return normalize(a, "enum") == normalize(b, "enum")  # tolérant aux espaces pour le texte
-    return normalize(a, kind) == normalize(b, kind)
+    na, nb = normalize(a, kind), normalize(b, kind)
+    return EQUIV.get(na, na) == EQUIV.get(nb, nb)
 
 
-def evaluate(ocr: dict, truth: dict, vocab: dict, accept=0.34, margin=0.30, verbose=False):
+def evaluate(ocr: dict, truth: dict, vocab: dict, accept=0.34, margin=0.30, verbose=False, flagged=()):
+    """flagged : clés mises en revue par une règle sur l'image (deux mots, mot barré) que `snap` ne voit pas."""
     st = Counter()
     by_q = defaultdict(Counter)
     errors = []
@@ -59,7 +66,10 @@ def evaluate(ocr: dict, truth: dict, vocab: dict, accept=0.34, margin=0.30, verb
         good = r["value"] is not None and same(r["value"], t, kind)
         in_top = any(same(s, t, kind) for s in r["suggestions"])
         st["top3"] += in_top
-        if r["status"] == "ok":
+        if r["status"] == "ok" and key in flagged:
+            st["revue (image)"] += 1
+            st["revue"] += 1
+        elif r["status"] == "ok":
             st["auto"] += 1
             by_q[q]["auto"] += 1
             if good:
@@ -90,7 +100,7 @@ def report(name, st, by_q, errors, show=12):
              f"  lecture brute exacte : {st['brut_ok']}/{n} ({100 * st['brut_ok'] / max(n, 1):.1f} %)",
              f"  champs à vocabulaire : {sn} ; acceptés auto {st['auto']} ({100 * st['auto'] / max(sn, 1):.1f} %),"
              f" dont justes {st['auto_ok']} ({100 * st['auto_ok'] / max(st['auto'], 1):.1f} %) ;"
-             f" revue {st['revue']} ; bonne réponse dans le top 3 : {100 * st['top3'] / max(sn, 1):.1f} %",
+             f" revue {st['revue']} (dont {st['revue (image)']} par l'image) ; bonne réponse dans le top 3 : {100 * st['top3'] / max(sn, 1):.1f} %",
              f"  texte libre (q7, toujours en revue) : {st['texte (revue)']} ; incertaines exclues : {st['incertaines (exclues)']}"]
     for q in sorted(by_q, key=lambda s: int(s[1:])):
         c = by_q[q]

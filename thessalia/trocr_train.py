@@ -3,6 +3,7 @@ nécessite l'extra [trocr]).
 
     python -m thessalia trocr-train sorties/<lot> -v keys/<x>.vocab.json --truth data/truth/<x>.json \
         [--also DOSSIER VOCAB VERITE]... [-o data/models/trocr] [--passes 3] [--limit 160]
+        [--from data/models/<précédent> --replay 400]
 
 Le modèle affiné est écrit dans data/models/ (local, hors dépôt : ~1,3 Go) après CHAQUE passe ; une
 commande interrompue (veille, mémoire) reprend après la dernière passe enregistrée. Il se mesure ensuite
@@ -19,6 +20,12 @@ sur 325. À savoir avant de s'en servir :
 - une étiquette fausse apprend une erreur : la vérité doit être validée par l'enseignant ;
 - ~6 Go de mémoire, ~20 min par passe pour 750 vignettes sur CPU : fermer les applications lourdes.
   `--limit` permet un essai court sur un échantillon avant de lancer plusieurs heures.
+
+Affinage classe par classe (`--from`, `--replay`) : repartir du modèle précédent plutôt que du modèle
+d'origine, avec toute la nouvelle classe (lot principal) et seulement N vignettes tirées au hasard dans
+les lots déjà appris (`--also`), pour qu'il ne les oublie pas. Durée à peu près constante d'une classe à
+l'autre, au lieu d'un réentraînement complet qui s'allonge à chaque lot ajouté ; en refaire un complet
+de temps en temps (une nuit) pour vérifier qu'on n'a rien perdu.
 """
 from __future__ import annotations
 
@@ -62,8 +69,12 @@ def _keep_awake():
         ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)
 
 
-def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=print):
-    """lots : [(dossier de résultats, vocabulaire, vérité validée), …]."""
+def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=print, replay=None):
+    """lots : [(dossier de résultats, vocabulaire, vérité validée), …] ; le premier est le lot principal.
+
+    base : modèle de départ (d'origine, ou un modèle déjà affiné) ; replay : ne garder que N vignettes
+    tirées au hasard dans les lots autres que le premier.
+    """
     try:
         import torch
         from PIL import Image
@@ -71,11 +82,17 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
     except ImportError:
         raise SystemExit("trocr-train nécessite l'extra [trocr] : pip install -e \".[trocr]\"")
     out = Path(out)
-    train = []
-    for rd, vp, tp in lots:
+    if Path(base).resolve() == out.resolve():
+        raise SystemExit("Le modèle de départ (--from) et la destination (-o) doivent être différents.")
+    train, old = [], []
+    for k, (rd, vp, tp) in enumerate(lots):
         its = list(labelled_items(rd, load_json(vp)["fields"], load_json(tp)))
         log(f"{Path(rd).name} : {len(its)} vignettes étiquetées")
-        train += its
+        (train if k == 0 or replay is None else old).extend(its)
+    if replay is not None:
+        random.Random(seed).shuffle(old)
+        log(f"rappel : {min(replay, len(old))} vignettes tirées sur {len(old)} des lots déjà appris")
+        train += old[:replay]
     if not train:
         raise SystemExit("Aucune vignette avec vérité validée dans ces lots.")
     random.Random(seed).shuffle(train)
@@ -86,7 +103,8 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
     state_path, first = out / "etat.json", 0
     if state_path.exists():
         st = load_json(state_path)
-        if st.get("entrainement") != len(train) or st.get("lots") != [str(Path(l[0])) for l in lots]:
+        if (st.get("entrainement") != len(train) or st.get("lots") != [str(Path(l[0])) for l in lots]
+                or st.get("base") != str(base) or st.get("rappel") != replay):
             raise SystemExit(f"{out} contient un modèle affiné sur d'autres données : choisir un autre "
                              f"dossier avec -o, ou supprimer celui-ci.")
         if st.get("etiquettes") != LABELS:
@@ -99,8 +117,8 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
         log(f"reprise : {first} passe(s) déjà faite(s), modèle relu dans {out}")
     _keep_awake()
     torch.manual_seed(seed)
-    proc = TrOCRProcessor.from_pretrained(base)
-    model = VisionEncoderDecoderModel.from_pretrained(str(out) if first else base)
+    proc = TrOCRProcessor.from_pretrained(str(base))
+    model = VisionEncoderDecoderModel.from_pretrained(str(out) if first else str(base))
     tok = proc.tokenizer
     start = getattr(model.generation_config, "decoder_start_token_id", None)
     model.config.pad_token_id = tok.pad_token_id
@@ -140,7 +158,7 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
         model.save_pretrained(out)
         proc.save_pretrained(out)
         with open(state_path, "w", encoding="utf-8") as fh:
-            json.dump({"base": base, "passes_faites": ep + 1, "passes_prevues": passes, "entrainement": len(train),
+            json.dump({"base": str(base), "rappel": replay, "passes_faites": ep + 1, "passes_prevues": passes, "entrainement": len(train),
                        "lots": [str(Path(l[0])) for l in lots], "etiquettes": LABELS}, fh, ensure_ascii=False,
                       indent=1)
         log(f"passe {ep + 1}/{passes} : perte moyenne {tot / n_lots:.3f} -> {out} enregistré")

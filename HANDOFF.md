@@ -1,9 +1,52 @@
-# Passation — état du projet au 5 octobre 2026
+# Passation — état du projet au 17 octobre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
 
-## 0. Point d'arrêt du 5 octobre 2026 (à lire en premier)
+## 0. Point du 17 octobre 2026 (à lire en premier)
+
+Entre le 5 et le 17 octobre (commits du 11 et du 15) : marge d'acceptation 0,30 et refus d'un mot reconnu
+par une seule lecture secondaire ; étiquettes de `trocr-train` sans `<s>` ; règle « second mot séparé »
+(`ocr_prep.extra_word`). Modèle **`data/models/trocr_commun`** (hors dépôt) : TrOCR base affiné sur EN +
+supA 1 (1 079 vignettes, 3 passes) ; c'est le modèle en service. Vérités validées : EN, supA 1, supA 2,
+**supB 1** (`data/truth/supB_1.short_truth.json`, 592 réponses, 1 incertaine, validée le 17 octobre).
+
+Mesures du 17 octobre avec `trocr_commun`, sur deux lots jamais vus par le modèle :
+
+| | supB 1 | supA 2 |
+|---|---|---|
+| lecture brute exacte | 80 % | 87 % |
+| mots acceptés (justes) | 249 (249) | 136 (135, cf. ci-dessous) |
+| nombres acceptés (justes) | 83 (83) | 49 (49) |
+| à valider | 278 (351 avant les règles du jour) | 126 |
+
+- **Mot barré** (`ocr_prep.struck_word`) : 3 acceptées fausses sur supB 1, le moteur lisait le mot barré
+  (`input` barré puis `for`, `ERREU` barré puis `"42" + "7"`, rature puis `InPU`). En revue quand un trait
+  horizontal ≥ 1,6 × la hauteur d'écriture traverse la bande centrale ET qu'une autre écriture est séparée
+  du trait. Sur les 643 acceptées des 4 lots : ces 3 cas, aucune juste. Marge courte (1,69 / 1,55),
+  réglée sur 3 cas ; un mot barré seul n'est pas repéré.
+- **`snap`** : lectures secondaires < 0,05 ignorées (`float` 1,00 / `bool` 0,014 n'est plus une
+  hésitation) ; lecture principale exactement égale à un mot (`enum` seulement) acceptée si le suivant
+  est à ≥ 0,15 (`print` / `printf` : 14 copies sur 16 en revue sur supB 1). Risque connu, choix de
+  l'enseignant : `printf` lu sans son « f » serait accepté `print`. Aucune erreur nouvelle sur 4 lots.
+- **Nombres acceptés** (`vocab.propose_digits`, `accept_numbers`) : entier d'au moins 2 chiffres, TrOCR et
+  lecteur de chiffres d'accord, confiance TrOCR ≥ 0,99, **seulement avec un TrOCR affiné localement**
+  (`ocr_run` : modèle hors `microsoft/`). 89/89 sur les deux lots ; un chiffre seul reste en revue
+  (2 fautes sur 85 : `3` lu `5`, `2` bouclé lu `9`, deux lectures d'accord à 1,00). Avec TrOCR base,
+  la règle « très sûr » du 5 octobre se trompait sur supA 2 (`3` lu `43`). **À remesurer à chaque lot
+  validé et à chaque nouveau modèle.**
+- **Mesure `--truth`** : applique désormais les règles d'image (deux mots, mot barré), compte
+  `Error` = `ERREUR` et `Zero` = `Zéro` comme justes (décision de l'enseignant) et affiche les nombres
+  acceptés. Les « acceptés auto » mesurés avant le 17 octobre ignoraient les règles d'image.
+- Le lecteur de chiffres fait moins bien que TrOCR affiné sur les nombres (supB 1 : 171 contre 185/242
+  propositions justes ; supA 2 : 96 contre 106/128) : à revoir (qui fait la proposition).
+- **Vérité supA 2 à revoir** : c07_q6.1 vaut `int` dans la vérité, la vignette montre `print`.
+- `trocr-train --from MODELE --replay N` : affinage classe par classe en repartant d'un modèle affiné, avec
+  la nouvelle classe entière et N vignettes tirées des lots déjà appris. Pas encore essayé.
+- Suite proposée : affinage `--from trocr_commun` sur supA 2 + supB 1 (durée à estimer avant), test sur un
+  lot validé jamais vu ; puis lecture des 25 classes (une nuit).
+
+## 0 bis. Point d'arrêt du 5 octobre 2026
 
 Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté ici.
 

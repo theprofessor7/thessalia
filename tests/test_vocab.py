@@ -65,3 +65,14 @@ def test_trailing_dot_is_ignored():
     assert snap([("float .", 0.9)], TYPES)["status"] == "ok"
     # le texte libre garde sa ponctuation
     assert normalize("A-B-C.", "text") == "A-B-C."
+
+
+def test_exact_reading_and_weak_variants():
+    # lecture principale exacte : un mot voisin du vocabulaire (`printf`) ne crée plus d'hésitation
+    fn = {"kind": "enum", "values": ["print", "printf", "input"]}
+    assert snap([("print", 0.99), ("printAlice", 0.01)], fn)["status"] == "ok"
+    # mais une lecture approchée reste prudente
+    assert snap([("prinl", 0.99)], fn)["status"] == "review"
+    # une variante presque nulle du moteur (`bool` à 0,014) ne compte pas
+    assert snap([("float", 0.99), ("bool", 0.014)], TYPES)["status"] == "ok"
+    assert snap([("float", 0.99), ("bool", 0.4)], TYPES)["status"] == "review"

@@ -74,6 +74,8 @@ def main(argv=None):
     tt.add_argument("-o", "--out", default="data/models/trocr", help="modèle affiné (hors dépôt, ~1,3 Go)")
     tt.add_argument("--passes", type=int, default=3)
     tt.add_argument("--limit", type=int, help="essai court : n'utiliser que N vignettes tirées au hasard")
+    tt.add_argument("--from", dest="from_model", help="repartir de ce modèle déjà affiné (ex. data/models/trocr_commun)")
+    tt.add_argument("--replay", type=int, help="ne reprendre que N vignettes tirées au hasard dans les lots --also")
 
     v = sub.add_parser("truth-page", help="Niveau 2 : page HTML locale pour valider la vérité terrain")
     v.add_argument("results_dir")
@@ -122,7 +124,8 @@ def main(argv=None):
     elif a.cmd == "trocr-train":
         from . import trocr_train
 
-        trocr_train.run([(a.results_dir, a.vocab, a.truth), *a.also], out=a.out, passes=a.passes, limit=a.limit)
+        trocr_train.run([(a.results_dir, a.vocab, a.truth), *a.also], out=a.out, passes=a.passes, limit=a.limit,
+                        base=a.from_model or trocr_train.BASE, replay=a.replay)
     elif a.cmd == "truth-page":
         from .truth_page import build
 

@@ -44,3 +44,13 @@ def test_digits_only_propose():
     # un mot du vocabulaire accepté n'est pas remplacé par des chiffres
     r = propose_digits(snap([("ERROR", 0.8)], NUM), NUM, "68808", 0.3)
     assert r["status"] == "ok" and r["value"] == "ERROR"
+
+
+def test_integer_acceptance_needs_fine_tuned_engine():
+    # entier de 2 chiffres, deux lectures d'accord, moteur sûr : accepté seulement si demandé (TrOCR affiné)
+    assert propose_digits(snap([("22", 0.999)], NUM), NUM, "22", 0.9)["status"] == "review"
+    assert propose_digits(snap([("22", 0.999)], NUM), NUM, "22", 0.9, accept_numbers=True)["status"] == "ok"
+    # chiffre seul, désaccord, moteur peu sûr, décimal : toujours en revue
+    for read, digits, conf in [("3", "3", 0.999), ("22", "27", 0.999), ("22", "22", 0.95), ("2.5", "2.5", 0.999)]:
+        r = propose_digits(snap([(read, conf)], NUM), NUM, digits, 0.99, accept_numbers=True)
+        assert r["status"] == "review", (read, digits, conf)

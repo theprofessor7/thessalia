@@ -213,3 +213,42 @@ def extra_word(clean, gap=0.6, width=1.0, share=0.30):
     total = ink.sum()
     second = sorted(groups, key=lambda g: -int(ink[:, g[0]:g[1] + 1].sum()))[1]
     return (second[1] - second[0] + 1) >= width * h and ink[:, second[0]:second[1] + 1].sum() >= share * total
+
+
+def struck_word(clean, run=1.6, other=0.5, gap=0.2):
+    """Mot barré suivi (ou précédé) d'un autre : vrai si la vignette nettoyée contient, dans sa bande centrale,
+    un trait horizontal continu long d'au moins `run` × la hauteur d'écriture, ET de l'écriture séparée de ce
+    trait par un espace vide (≥ `gap` × la hauteur) et large d'au moins `other` × la hauteur.
+
+    Sert à refuser l'acceptation quand le moteur lit le mot barré au lieu de la réponse : sur supB 1,
+    `input` barré puis `for`, `ERREU` barré puis `"42" + "7"`, un mot raturé puis `InPU` étaient acceptés
+    faux, et `extra_word` ne les voyait pas (le mot barré porte l'essentiel de l'encre). Mesuré sur les 643
+    acceptées de EN, supA 1, supA 2 et supB 1 : ces 3 cas, aucune réponse juste. Sans la seconde condition,
+    les liaisons d'un mot attaché (`bool`, `Grand`) passent pour un trait ; la réponse juste suivante est à
+    1,55 (un trait seul ne suffit donc pas, et un mot barré seul n'est pas repéré ici).
+    """
+    ink = clean < 128
+    rows = np.where(ink.any(1))[0]
+    if not len(rows):
+        return False
+    h = rows[-1] - rows[0] + 1
+    k = cv2.morphologyEx(ink.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((1, 5), np.uint8)) > 0
+    best, a, b = 0, 0, 0
+    for y in range(rows[0] + h // 5, rows[-1] - h // 5):
+        band = k[max(0, y - 1):y + 2].any(0)
+        r = 0
+        for x, v in enumerate(band):
+            r = r + 1 if v else 0
+            if r > best:
+                best, a, b = r, x - r + 1, x
+    if best < run * h:
+        return False
+    xs = np.where(ink.any(0))[0]
+    groups, start, prev = [], xs[0], xs[0]
+    for x in xs[1:]:
+        if x - prev - 1 >= max(2, gap * h):
+            groups.append((start, prev))
+            start = x
+        prev = x
+    groups.append((start, prev))
+    return sum(e - s + 1 for s, e in groups if e < a or s > b) >= other * h
