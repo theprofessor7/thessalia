@@ -1,14 +1,45 @@
-# Passation — état du projet au 17 octobre 2026
+# Passation — état du projet au 18 octobre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
 
-## 0. Point du 17 octobre 2026 (à lire en premier)
+## 0. Point du 18 octobre 2026 (à lire en premier)
+
+**Modèle en service : `data/models/trocr_v2`** (hors dépôt, 1,3 Go), à passer avec
+`ocr … --model data/models/trocr_v2`. Affiné le 17 octobre au soir : `trocr-train --from
+data/models/trocr_commun --replay 500 --passes 2`, sur supB 1 entier (570 vignettes) + 500 vignettes tirées
+de supA 2, EN et supA 1, soit 1 070 vignettes par passe, ~3,9 s par lot de 2 sur secteur (~35 min par
+passe). Perte 0,56 puis 0,35. La passe 2 a été tuée une fois faute de mémoire, la reprise a fonctionné.
+`trocr_commun` est conservé pour comparaison.
+
+Mesure sur **supB 3** (10 copies, jamais vu par aucun des deux modèles), vérité validée par l'enseignant le
+18 octobre (`data/truth/supB_3.short_truth.json`, 370 réponses, aucune incertaine) :
+
+| supB 3 | trocr_commun | trocr_v2 |
+|---|---|---|
+| lecture brute exacte | 327/361 (90,6 %) | 335/361 (92,8 %) |
+| mots acceptés (justes) | 173 (173) | 174 (174) |
+| nombres acceptés (justes) | 59 (**58**) | 50 (50) |
+| bonne réponse dans le top 3 | 93,5 % | 94,7 % |
+| nombres : proposition juste (texte / chiffres) | 138 / 115 sur 157 | 139 / 117 sur 157 |
+| à valider | 151 | 160 |
+
+- **Erreur acceptée avec `trocr_commun`** : c04_q10.1 accepté `49`, vérité `42` (TrOCR et lecteur de
+  chiffres d'accord). Première faute de la règle « entiers acceptés » (89/89 sur supA 2 et supB 1).
+  `trocr_v2` accepte moins de nombres (d'où 9 réponses de plus à valider) et aucun faux. La règle tient avec
+  `trocr_v2` sur ce lot, mais elle n'est mesurée que sur 50 cas de ce modèle : **à remesurer au prochain
+  lot validé**, et resserrer (revue) si une erreur réapparaît.
+- Gain surtout sur q7 (texte libre, 34/39 contre 30/39) et q10.
+- Durée de lecture de supB 3 : 2,2 s par vignette sur secteur (361 vignettes, ~13 min).
+- Toujours à faire : vérité supA 2 c07_q6.1 (`int`, la vignette montre `print`) ; lecture des 25 classes
+  avec `trocr_v2` (une nuit).
+
+## 0 ter. Point du 17 octobre 2026
 
 Entre le 5 et le 17 octobre (commits du 11 et du 15) : marge d'acceptation 0,30 et refus d'un mot reconnu
 par une seule lecture secondaire ; étiquettes de `trocr-train` sans `<s>` ; règle « second mot séparé »
 (`ocr_prep.extra_word`). Modèle **`data/models/trocr_commun`** (hors dépôt) : TrOCR base affiné sur EN +
-supA 1 (1 079 vignettes, 3 passes) ; c'est le modèle en service. Vérités validées : EN, supA 1, supA 2,
+supA 1 (1 079 vignettes, 3 passes) ; modèle en service jusqu'au 18 octobre (remplacé par `trocr_v2`, cf. §0). Vérités validées : EN, supA 1, supA 2,
 **supB 1** (`data/truth/supB_1.short_truth.json`, 592 réponses, 1 incertaine, validée le 17 octobre).
 
 Mesures du 17 octobre avec `trocr_commun`, sur deux lots jamais vus par le modèle :

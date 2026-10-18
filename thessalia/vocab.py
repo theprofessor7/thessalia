@@ -252,6 +252,7 @@ def propose_digits(r, spec, number, conf, accept=0.34, accept_numbers=False):
     # texte (TrOCR affiné) est sûr. Mesuré le 17 octobre avec `trocr_commun` sur deux lots jamais vus :
     # 89 justes sur 89 (supA 2 : 33, supB 1 : 56). Un chiffre seul reste en revue : 2 fautes sur 85
     # (`3` lu `5`, `2` bouclé lu `9`, les deux lectures d'accord à 1,00). Avec TrOCR d'origine, `3` lu `43`.
+    # 18 octobre, supB 3 jamais vu : `trocr_commun` 58 justes sur 59 (`42` lu `49`), `trocr_v2` 50 sur 50.
     if (accept_numbers and not decimal and r["digits"]["agree"] and r.get("confidence", 0) >= NUMBER_ACCEPT_CONF
             and len(str(number).lstrip("-")) >= 2):
         r.update(status="ok", reason=None)
