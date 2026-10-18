@@ -162,6 +162,9 @@ PAGE = r"""<!doctype html>
   .card .hint { font-size:12px; color:var(--mute); margin-top:3px; min-height:17px; }
   .card .hint a { color:var(--accent); cursor:pointer; text-decoration:underline; margin-right:6px; font-family:ui-monospace, Consolas, monospace; }
   .empty { color:var(--mute); padding:30px 0; }
+  .block { grid-column:1 / -1; display:flex; gap:10px; align-items:center; margin-top:6px; padding:4px 0 2px;
+           border-bottom:1px solid var(--line); font-family:ui-monospace, Consolas, monospace; color:var(--mute); }
+  .block button { font-size:12px; }
   .card.qcm:focus { outline:2px solid var(--accent); }
   .card .reason { font-size:12px; color:var(--warn); }
   .opts { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0; }
@@ -184,6 +187,7 @@ PAGE = r"""<!doctype html>
     <option value="unsure">incertaines</option>
     <option value="diff">écart avec la proposition</option>
     <option value="ok">validées</option>
+    <option value="auto">acceptées par la machine (contrôle rapide)</option>
   </select></label>
   <span><kbd>Entrée</kbd> valider et passer à la suivante · <kbd>Ctrl</kbd>+<kbd>I</kbd> incertaine · QCM : cochez ce que l'étudiant a coché</span>
   <span id="progress"></span>
@@ -199,15 +203,25 @@ const DATA = JSON.parse(document.getElementById("data").textContent);
 const STORE = "thessalia-verite:" + DATA.lot;
 // état d'une réponse : v = texte, ok = validée par l'enseignant, unsure = illisible / incertaine
 let state = {};
-// une réponse reprise d'une vérité déjà validée (sans « ? ») est déjà validée : seul le reste est à faire
-for (const it of DATA.items) state[it.key] = {v: it.value, ok: it.from_truth && !it.unsure, unsure: it.unsure};
+// une réponse reprise d'une vérité déjà validée (sans « ? ») est déjà validée : seul le reste est à faire.
+// Acceptée par la machine (statut ok de `ocr`) : validée d'office (auto), visible dans « contrôle rapide ».
+// Tant que l'enseignant n'y touche pas, elle n'est PAS exportée dans la vérité : `notes` la reprend de la
+// lecture, et l'affinage comme les mesures ne la prennent pas pour une réponse vérifiée.
+const isAuto = it => it.status === "ok" && !it.from_truth;
+for (const it of DATA.items)
+  state[it.key] = {v: it.value, ok: (it.from_truth && !it.unsure) || isAuto(it), unsure: it.unsure, auto: isAuto(it)};
 // QCM en revue : sel = options cochées par l'étudiant (pré-réglées sur la lecture de la machine)
 const QCM = DATA.qcm || [];
 let qstate = {};
 for (const it of QCM) qstate[it.key] = {sel: it.value.slice(), ok: false, unsure: it.unsure};
 try {
   const saved = JSON.parse(localStorage.getItem(STORE) || "{}");
-  for (const k in saved) if (state[k]) state[k] = saved[k];
+  for (const k in saved) if (state[k]) {
+    const s = saved[k], it = DATA.items.find(x => x.key === k);
+    // avancement d'avant les validations d'office : une acceptée jamais touchée reste validée d'office
+    if (state[k].auto && s.auto === undefined && !s.ok && s.v === it.value) continue;
+    state[k] = s;
+  }
   const qsaved = JSON.parse(localStorage.getItem(STORE + ":qcm") || "{}");
   for (const k in qsaved) if (qstate[k]) qstate[k] = qsaved[k];
 } catch (e) { /* stockage indisponible : l'export reste la sauvegarde */ }
@@ -236,6 +250,7 @@ function shown(it) {
     case "unsure": return s.unsure;
     case "diff": return s.v !== it.prop;
     case "ok": return s.ok;
+    case "auto": return isAuto(it);
     default: return true;
   }
 }
@@ -247,6 +262,7 @@ function qshown(it) {
     case "unsure": return s.unsure;
     case "diff": return s.sel.join(",") !== it.prop.join(",");
     case "ok": return s.ok;
+    case "auto": return false;
     default: return true;
   }
 }
@@ -264,7 +280,7 @@ function progress() {
 }
 function validate(card, it, input) {
   const s = state[it.key];
-  s.v = input.value.trim(); s.ok = true;
+  s.v = input.value.trim(); s.ok = true; s.auto = false;
   save(); paint(card, it); progress();
 }
 function makeCard(it) {
@@ -288,13 +304,13 @@ function makeCard(it) {
     if (nx) nx.focus();
   };
   bOk.onclick = () => { s.unsure = false; validate(card, it, input); next(); };
-  const toggleUnsure = () => { s.unsure = !s.unsure; s.v = input.value.trim(); s.ok = true; save(); paint(card, it); progress(); };
+  const toggleUnsure = () => { s.unsure = !s.unsure; s.v = input.value.trim(); s.ok = true; s.auto = false; save(); paint(card, it); progress(); };
   bUn.onclick = toggleUnsure;
   input.addEventListener("keydown", ev => {
     if (ev.key === "Enter") { ev.preventDefault(); s.unsure = false; validate(card, it, input); next(); }
     else if (ev.key.toLowerCase() === "i" && ev.ctrlKey) { ev.preventDefault(); toggleUnsure(); }
   });
-  input.addEventListener("input", () => { s.v = input.value.trim(); s.ok = false; save(); paint(card, it); progress(); });
+  input.addEventListener("input", () => { s.v = input.value.trim(); s.ok = false; s.auto = false; save(); paint(card, it); progress(); });
   card.append(
     el("div", {className: "top"}, el("span", {textContent: "copie " + it.copy}), el("span", {textContent: it.key})),
     it.img ? el("img", {src: it.img, loading: "lazy", alt: "vignette " + it.key}) : el("div", {className: "hint", textContent: "(pas de vignette)"}),
@@ -354,6 +370,12 @@ function makeQcmCard(it) {
 function render() {
   main.textContent = "";
   let total = 0;
+  const nAuto = DATA.items.filter(it => state[it.key].auto).length;
+  if (nAuto && ff.value !== "auto") {
+    const b = el("button", {textContent: "contrôle rapide", onclick: () => { ff.value = "auto"; render(); }});
+    main.append(el("p", {className: "hint"}, nAuto + " réponses acceptées par la machine sont déjà validées (non exportées "
+      + "dans la vérité tant que vous n'y touchez pas). ", b));
+  }
   for (const q of qcmQuestions) {
     const its = QCM.filter(it => it.fid === q && qshown(it));
     if (!its.length) continue;
@@ -370,7 +392,24 @@ function render() {
     // réponses identiques côte à côte : une erreur de lecture saute aux yeux dans la rangée
     its.sort((a, b) => state[a.key].v.localeCompare(state[b.key].v) || a.copy - b.copy);
     const grid = el("div", {className: "grid" + (q.startsWith("q7.") ? " wide" : "")});
-    for (const it of its) grid.append(makeCard(it));
+    // blocs de propositions identiques : un coup d'œil sur les vignettes du bloc, puis un seul clic
+    for (let i = 0; i < its.length;) {
+      let j = i;
+      while (j < its.length && state[its[j].key].v === state[its[i].key].v) j++;
+      const block = its.slice(i, j), cards = block.map(makeCard);
+      if (block.length >= 2) {
+        const v = state[block[0].key].v;
+        const b = el("button", {textContent: "Valider ce bloc (" + block.length + ")"});
+        b.onclick = () => {
+          cards.forEach((c, k) => { if (!state[block[k].key].unsure) validate(c, block[k], c.querySelector("input[type=text]")); });
+          b.disabled = true; b.textContent = "bloc validé";
+        };
+        grid.append(el("div", {className: "block"},
+          el("span", {textContent: "« " + (v === "" ? "(vide)" : v) + " » × " + block.length}), b));
+      }
+      grid.append(...cards);
+      i = j;
+    }
     const all = el("button", {textContent: "Valider les " + its.length + " affichées"});
     all.onclick = () => {
       for (const c of grid.querySelectorAll(".card")) {
@@ -389,7 +428,11 @@ fq.onchange = render; ff.onchange = render;
 document.getElementById("exp").onclick = () => {
   // format de --truth : validée -> texte ; non validée ou incertaine -> texte + « ? » (exclue des mesures)
   const out = {};
-  for (const it of DATA.items) { const s = state[it.key]; out[it.key] = s.v + (s.ok && !s.unsure ? "" : "?"); }
+  for (const it of DATA.items) {
+    const s = state[it.key];
+    if (s.auto) continue;  // acceptée par la machine, non vérifiée : pas dans la vérité (notes la reprend de la lecture)
+    out[it.key] = s.v + (s.ok && !s.unsure ? "" : "?");
+  }
   const todo = DATA.items.filter(it => !state[it.key].ok).length + QCM.filter(it => !qstate[it.key].ok).length;
   if (todo && !confirm(todo + " réponses ne sont pas validées : elles seront exportées avec « ? » (non notées). Continuer ?")) return;
   const dl = (obj, name) => {
@@ -417,7 +460,7 @@ document.getElementById("file").onchange = async ev => {
   }
   for (const k in obj) if (state[k] && typeof obj[k] === "string") {
     const un = obj[k].endsWith("?");
-    state[k] = {v: un ? obj[k].slice(0, -1) : obj[k], ok: !un, unsure: false};
+    state[k] = {v: un ? obj[k].slice(0, -1) : obj[k], ok: !un, unsure: false, auto: false};
     n++;
   }
   save(); render();

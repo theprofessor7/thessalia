@@ -88,6 +88,24 @@ la vérité) ; supB 2 copie 7, pages 6 et 7 absentes du scan (q10 en attente, vo
 - c05_q8.4 : `int` barré puis `float`, accepté `int`. La règle du mot barré ne l'a pas vu ; seul cas sur
   6 lots, seuil inchangé, à surveiller.
 
+**Groupe A noté** (`sorties/notes/A.csv`, 28 notes complètes sur 29). `trocr_v2` sur supA 3 (jamais vu) :
+175 mots acceptés dont 174 justes (c04_q8.6 : mot raturé au gribouillis puis `1`, accepté `str` ; la règle
+du mot barré ne voit que les traits) ; 60 nombres acceptés, justes. Vérité supA 2 : c06_q10.4 `tERREUR`
+(faute de frappe) → `ERREUR`.
+
+**« Le modèle manque de confiance » (remarque de l'enseignant)** : sur 4 classes lues avec `trocr_v2` et
+validées, 356 des 478 réponses en revue (74 %) étaient déjà justes : chiffres seuls aux deux lectures
+d'accord 154/157 (en revue volontairement : accepter aurait fait 3 erreurs), q7 106/115 (toujours en revue),
+décimaux 25/56. Décisions du 18 octobre au soir, dans la page de validation :
+- bouton « Valider ce bloc » par série de propositions identiques ;
+- **les réponses acceptées par la machine arrivent validées d'office** (filtre « acceptées par la machine
+  (contrôle rapide) ») : environ moitié moins de réponses à traiter (supC 1 : 338 au lieu de 666). Tant que
+  l'enseignant n'y touche pas, elles ne sont **pas exportées dans la vérité** : `notes` les reprend de la
+  lecture, l'affinage et les mesures les ignorent. Conséquence : sur une classe validée ainsi, la précision
+  des acceptations ne se mesure plus (les acceptées non relues sont hors vérité) ; faire relire en entier
+  une classe de temps en temps pour la suivre.
+- À mesurer sur C et D : chiffres seuls « très sûrs » (47/47 jusqu'ici) avant de les accepter d'office.
+
 **Suite** : valider les groupes au fil de la lecture, `notes` après chaque groupe ; remesurer `trocr_v2` sur
 chaque classe validée (`ocr … --truth`) ; après 2 ou 3 groupes validés, proposer un réaffinage ; puis export
 Moodle (liste réelle), puis le code par l'API.
