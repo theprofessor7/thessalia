@@ -6,6 +6,7 @@
     digits-train  Niveau 2 : affiner le lecteur de chiffres sur un lot dont la vérité est validée
     trocr-train   Niveau 2 : affiner TrOCR sur des lots validés (long, ~6 Go de mémoire)
     truth-page    Niveau 2 : page HTML locale pour valider la vérité terrain des réponses courtes
+    notes      notes partielles : QCM + réponses courtes, par classe (et fichier commun d'un groupe)
     simulate   génère des copies remplies + scannées synthétiques (tests)
     evaluate   compare des résultats à une vérité terrain
 """
@@ -83,6 +84,13 @@ def main(argv=None):
     v.add_argument("--truth", help="vérité existante à relire (sinon : propositions de `ocr`)")
     v.add_argument("-o", "--out", help="défaut : <results_dir>/validation.html")
 
+    n = sub.add_parser("notes", help="notes partielles : QCM + réponses courtes")
+    n.add_argument("results_dirs", nargs="+", help="dossiers de résultats (une classe chacun)")
+    n.add_argument("-t", "--template", required=True)
+    n.add_argument("-k", "--key", required=True, help="corrigé JSON (short_answers, short_accept, short_reject)")
+    n.add_argument("-v", "--vocab", required=True, help="vocabulaire (nature de chaque blanc)")
+    n.add_argument("-o", "--out", help="fichier commun du groupe (ex. sorties/notes/B.csv)")
+
     e = sub.add_parser("evaluate", help="résultats vs vérité terrain")
     e.add_argument("results_dir")
     e.add_argument("truth")
@@ -130,6 +138,10 @@ def main(argv=None):
         from .truth_page import build
 
         build(a.results_dir, a.template, a.truth, a.out)
+    elif a.cmd == "notes":
+        from .notes import run as nrun
+
+        nrun(a.results_dirs, a.template, a.key, a.vocab, a.out)
     elif a.cmd == "simulate":
         from .simulate import main as smain
 
