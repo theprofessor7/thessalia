@@ -8,6 +8,10 @@ existante ou, à défaut, la proposition de `ocr`. L'enseignant corrige, valide 
 un JSON au format de `--truth` (clé cNN_qX.Y ; "" = vide ; suffixe « ? » = non validée ou incertaine,
 exclue des mesures).
 
+Les QCM en revue (statut `review` de `process`) y sont aussi : extrait de la page, une case par option
+pré-réglée sur la lecture de la machine. Ils s'exportent dans un second fichier, `<lot>.qcm_truth.json`
+(clé cNN_qX ; options cochées « a,c » ; "" = aucune ; « ? » = non validée), lu par la commande `notes`.
+
 La page contient des réponses d'étudiants : elle reste dans le dossier de sortie (hors dépôt) et
 référence les vignettes par chemin relatif. L'avancement est gardé dans le navigateur (localStorage) ;
 l'export / import JSON sert de sauvegarde.
@@ -17,14 +21,18 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import cv2
+
 from .common import load_json
+
+OVERLAY_SCALE = 0.6  # échelle des overlays écrits par report.draw_overlay
 
 
 def _qkey(fid):
     return [int(x) if x.isdigit() else x for x in fid.replace("q", "").split(".")]
 
 
-def collect(results_dir, template=None, truth=None):
+def collect(results_dir, template=None, truth=None, qcm_truth=None):
     results_dir = Path(results_dir)
     copies = sorted(results_dir.glob("copy_*/result.json"))
     if not copies:
@@ -57,15 +65,59 @@ def collect(results_dir, template=None, truth=None):
                 "from_truth": t is not None,
             })
     items.sort(key=lambda it: (_qkey(it["fid"]), it["copy"]))
-    return {"lot": results_dir.name, "prompts": prompts, "items": items}
+    return {"lot": results_dir.name, "prompts": prompts, "items": items,
+            "qcm": collect_qcm(results_dir, copies, qcm_truth)}
 
 
-def build(results_dir, template=None, truth=None, out=None, log=print):
-    data = collect(results_dir, template, truth)
+def _qcm_crop(results_dir: Path, copy_dir: Path, overlay: str, ans: dict, fid: str) -> str:
+    """Bande de la page sur toute la largeur (libellés à droite des cases, énoncés V/F à gauche)."""
+    img = cv2.imread(str(results_dir / overlay.replace("\\", "/")))
+    if img is None:
+        return ""
+    ys = [y for o in ans["options"].values() for y in (o["box_px"][1], o["box_px"][3])]
+    y0, y1 = int((min(ys) - 35) * OVERLAY_SCALE), int((max(ys) + 35) * OVERLAY_SCALE)
+    out = copy_dir / "crops" / f"qcm_{fid}.jpg"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(out), img[max(0, y0):min(img.shape[0], y1), :], [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return out.relative_to(results_dir).as_posix()
+
+
+def collect_qcm(results_dir: Path, copies, qcm_truth=None):
+    """QCM en revue : un élément par question, options pré-réglées sur la lecture de la machine."""
+    truth = load_json(qcm_truth) if qcm_truth and Path(qcm_truth).exists() else {}
+    items = []
+    for rp in copies:
+        doc = load_json(rp)
+        c = int(doc["copy_id"].split("_")[1])
+        reasons = {r["item"]: r for r in doc.get("review", [])}
+        for fid, ans in doc.get("answers", {}).items():
+            if ans.get("type") not in ("mcq", "truefalse") or ans.get("status") != "review":
+                continue
+            key, r, sel = f"c{c:02d}_{fid}", reasons.get(fid, {}), sorted(ans.get("selected", []))
+            t = truth.get(key)
+            items.append({
+                "key": key, "copy": c, "fid": fid, "mode": ans.get("mode", "multi"),
+                "img": _qcm_crop(results_dir, rp.parent, r["overlay"], ans, fid) if r.get("overlay") else "",
+                "reason": r.get("reason") or ", ".join(ans.get("flags", [])),
+                "options": [{"id": k, "label": o.get("label", k), "state": o["state"]}
+                            for k, o in ans["options"].items()],
+                "prop": sel,
+                "value": sel if t is None else [x for x in t.rstrip("?").split(",") if x],
+                "unsure": bool(t is not None and t.endswith("?")),
+            })
+    items.sort(key=lambda it: (_qkey(it["fid"]), it["copy"]))
+    return items
+
+
+def build(results_dir, template=None, truth=None, out=None, log=print, qcm_truth=None):
+    if qcm_truth is None:  # vérité QCM déjà exportée pour ce lot : on la reprend
+        guess = Path("data/truth") / f"{Path(results_dir).name}.qcm_truth.json"
+        qcm_truth = guess if guess.exists() else None
+    data = collect(results_dir, template, truth, qcm_truth)
     out = Path(out) if out else Path(results_dir) / "validation.html"
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     out.write_text(PAGE.replace("__DATA__", payload).replace("__LOT__", data["lot"]), encoding="utf-8")
-    log(f"{len(data['items'])} réponses -> {out} (à ouvrir dans un navigateur ; ne pas diffuser : réponses d'étudiants)")
+    log(f"{len(data['items'])} réponses, {len(data['qcm'])} QCM en revue -> {out} (à ouvrir dans un navigateur ; ne pas diffuser : réponses d'étudiants)")
     return out
 
 
@@ -110,12 +162,20 @@ PAGE = r"""<!doctype html>
   .card .hint { font-size:12px; color:var(--mute); margin-top:3px; min-height:17px; }
   .card .hint a { color:var(--accent); cursor:pointer; text-decoration:underline; margin-right:6px; font-family:ui-monospace, Consolas, monospace; }
   .empty { color:var(--mute); padding:30px 0; }
+  .card.qcm:focus { outline:2px solid var(--accent); }
+  .card .reason { font-size:12px; color:var(--warn); }
+  .opts { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0; }
+  .opts label { display:flex; gap:4px; align-items:center; padding:3px 7px; border:1px solid var(--line); border-radius:5px;
+                background:var(--card); cursor:pointer; font-family:ui-monospace, Consolas, monospace; }
+  .opts label.on { border-color:var(--accent); background:#e6eefb; font-weight:600; }
+  .opts label.amb { border-style:dashed; border-color:var(--warn); }
+  .opts input { margin:0; }
   kbd { border:1px solid var(--line); border-radius:3px; padding:0 4px; background:var(--bg); font-size:12px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Validation des réponses courtes — __LOT__</h1>
+  <h1>Validation — __LOT__</h1>
   <label>Question <select id="fq"></select></label>
   <label>Afficher <select id="ff">
     <option value="todo">à valider</option>
@@ -125,7 +185,7 @@ PAGE = r"""<!doctype html>
     <option value="diff">écart avec la proposition</option>
     <option value="ok">validées</option>
   </select></label>
-  <span><kbd>Entrée</kbd> valider et passer à la suivante · <kbd>Ctrl</kbd>+<kbd>I</kbd> incertaine</span>
+  <span><kbd>Entrée</kbd> valider et passer à la suivante · <kbd>Ctrl</kbd>+<kbd>I</kbd> incertaine · QCM : cochez ce que l'étudiant a coché</span>
   <span id="progress"></span>
   <button id="imp">Importer…</button><input type="file" id="file" accept=".json" hidden>
   <button id="exp" class="primary">Exporter le JSON</button>
@@ -139,16 +199,27 @@ const DATA = JSON.parse(document.getElementById("data").textContent);
 const STORE = "thessalia-verite:" + DATA.lot;
 // état d'une réponse : v = texte, ok = validée par l'enseignant, unsure = illisible / incertaine
 let state = {};
-for (const it of DATA.items) state[it.key] = {v: it.value, ok: false, unsure: it.unsure};
+// une réponse reprise d'une vérité déjà validée (sans « ? ») est déjà validée : seul le reste est à faire
+for (const it of DATA.items) state[it.key] = {v: it.value, ok: it.from_truth && !it.unsure, unsure: it.unsure};
+// QCM en revue : sel = options cochées par l'étudiant (pré-réglées sur la lecture de la machine)
+const QCM = DATA.qcm || [];
+let qstate = {};
+for (const it of QCM) qstate[it.key] = {sel: it.value.slice(), ok: false, unsure: it.unsure};
 try {
   const saved = JSON.parse(localStorage.getItem(STORE) || "{}");
   for (const k in saved) if (state[k]) state[k] = saved[k];
+  const qsaved = JSON.parse(localStorage.getItem(STORE + ":qcm") || "{}");
+  for (const k in qsaved) if (qstate[k]) qstate[k] = qsaved[k];
 } catch (e) { /* stockage indisponible : l'export reste la sauvegarde */ }
-function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(state)); localStorage.setItem(STORE + ":qcm", JSON.stringify(qstate)); } catch (e) {}
+}
 
 const main = document.getElementById("main"), fq = document.getElementById("fq"), ff = document.getElementById("ff");
 const questions = [...new Set(DATA.items.map(it => it.fid))];
+const qcmQuestions = [...new Set(QCM.map(it => it.fid))];
 fq.append(new Option("toutes", ""));
+for (const q of qcmQuestions) fq.append(new Option(q + " (QCM)", q));
 for (const q of questions) fq.append(new Option(q, q));
 
 function el(tag, props, ...kids) {
@@ -168,14 +239,27 @@ function shown(it) {
     default: return true;
   }
 }
+function qshown(it) {
+  const s = qstate[it.key];
+  if (fq.value && it.fid !== fq.value) return false;
+  switch (ff.value) {
+    case "todo": case "sure": return !s.ok;
+    case "unsure": return s.unsure;
+    case "diff": return s.sel.join(",") !== it.prop.join(",");
+    case "ok": return s.ok;
+    default: return true;
+  }
+}
 function paint(card, it) {
   const s = state[it.key];
   card.className = "card" + (s.unsure ? " unsure" : s.ok ? " ok" : "");
 }
 function progress() {
-  const n = DATA.items.length, ok = DATA.items.filter(it => state[it.key].ok).length;
-  const un = DATA.items.filter(it => state[it.key].unsure).length;
-  document.getElementById("progress").textContent = ok + " / " + n + " validées · " + un + " incertaines";
+  const n = DATA.items.length + QCM.length;
+  const ok = DATA.items.filter(it => state[it.key].ok).length + QCM.filter(it => qstate[it.key].ok).length;
+  const un = DATA.items.filter(it => state[it.key].unsure).length + QCM.filter(it => qstate[it.key].unsure).length;
+  document.getElementById("progress").textContent = ok + " / " + n + " validées · " + un + " incertaines"
+    + (QCM.length ? " · dont " + QCM.length + " QCM" : "");
   document.querySelector("#bar div").style.width = (100 * ok / Math.max(n, 1)) + "%";
 }
 function validate(card, it, input) {
@@ -199,7 +283,7 @@ function makeCard(it) {
   const bOk = el("button", {textContent: "✓", title: "Valider (Entrée)"});
   const bUn = el("button", {textContent: "?", title: "Incertaine / illisible (Ctrl+I)"});
   const next = () => {
-    const all = [...main.querySelectorAll(".card input[type=text]")];
+    const all = [...main.querySelectorAll(".card input[type=text], .card.qcm")];
     const nx = all[all.indexOf(input) + 1];
     if (nx) nx.focus();
   };
@@ -218,9 +302,67 @@ function makeCard(it) {
   paint(card, it);
   return card;
 }
+function makeQcmCard(it) {
+  const s = qstate[it.key];
+  const card = el("div", {tabIndex: 0});
+  card.dataset.key = it.key;
+  const opts = el("div", {className: "opts"});
+  const paintQ = () => {
+    card.className = "card qcm" + (s.unsure ? " unsure" : s.ok ? " ok" : "");
+    for (const lb of opts.querySelectorAll("label")) {
+      const on = s.sel.includes(lb.dataset.id);
+      lb.classList.toggle("on", on);
+      lb.querySelector("input").checked = on;
+    }
+  };
+  for (const o of it.options) {
+    const box = el("input", {type: "checkbox", tabIndex: -1});
+    const lb = el("label", {className: o.state === "ambiguous" ? "amb" : "", title: "lecture machine : " + o.state},
+                  box, o.id === o.label ? o.id : o.id + " " + o.label);
+    lb.dataset.id = o.id;
+    box.onchange = () => {
+      if (box.checked) s.sel = it.mode === "single" ? [o.id] : [...new Set([...s.sel, o.id])].sort();
+      else s.sel = s.sel.filter(x => x !== o.id);
+      s.ok = false; save(); paintQ(); progress();
+    };
+    opts.append(lb);
+  }
+  const next = () => {
+    const all = [...main.querySelectorAll(".card input[type=text], .card.qcm")];
+    const nx = all[all.indexOf(card) + 1];
+    if (nx) nx.focus();
+  };
+  const ok = () => { s.unsure = false; s.ok = true; save(); paintQ(); progress(); next(); };
+  const toggleUnsure = () => { s.unsure = !s.unsure; s.ok = true; save(); paintQ(); progress(); };
+  card.addEventListener("keydown", ev => {
+    if (ev.target !== card) return;
+    if (ev.key === "Enter") { ev.preventDefault(); ok(); }
+    else if (ev.key.toLowerCase() === "i" && ev.ctrlKey) { ev.preventDefault(); toggleUnsure(); }
+  });
+  const bOk = el("button", {textContent: "✓", title: "Valider (Entrée)", onclick: ok});
+  const bUn = el("button", {textContent: "?", title: "Incertaine / illisible (Ctrl+I)", onclick: toggleUnsure});
+  card.append(
+    el("div", {className: "top"}, el("span", {textContent: "copie " + it.copy}), el("span", {textContent: it.key})),
+    el("div", {className: "reason", textContent: "en revue : " + it.reason}),
+    it.img ? el("img", {src: it.img, loading: "lazy", alt: "extrait " + it.key}) : el("div", {className: "hint", textContent: "(pas d'image)"}),
+    opts,
+    el("div", {className: "row"}, el("span", {className: "hint", style: "flex:1",
+       textContent: "lecture machine : " + (it.prop.length ? it.prop.join(", ") : "aucune case")}), bOk, bUn));
+  paintQ();
+  return card;
+}
 function render() {
   main.textContent = "";
   let total = 0;
+  for (const q of qcmQuestions) {
+    const its = QCM.filter(it => it.fid === q && qshown(it));
+    if (!its.length) continue;
+    total += its.length;
+    const grid = el("div", {className: "grid wide"});
+    for (const it of its) grid.append(makeQcmCard(it));
+    main.append(el("section", {}, el("h2", {}, el("span", {textContent: q + " — QCM en revue"}),
+      el("span", {className: "prompt", textContent: "cochez exactement ce que l'étudiant a coché"})), grid));
+  }
   for (const q of questions) {
     const its = DATA.items.filter(it => it.fid === q && shown(it));
     if (!its.length) continue;
@@ -248,11 +390,18 @@ document.getElementById("exp").onclick = () => {
   // format de --truth : validée -> texte ; non validée ou incertaine -> texte + « ? » (exclue des mesures)
   const out = {};
   for (const it of DATA.items) { const s = state[it.key]; out[it.key] = s.v + (s.ok && !s.unsure ? "" : "?"); }
-  const todo = DATA.items.filter(it => !state[it.key].ok).length;
-  if (todo && !confirm(todo + " réponses ne sont pas validées : elles seront exportées avec « ? » (exclues des mesures). Continuer ?")) return;
-  const a = el("a", {href: URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], {type: "application/json"})),
-                     download: DATA.lot + ".short_truth.json"});
-  document.body.append(a); a.click(); a.remove();
+  const todo = DATA.items.filter(it => !state[it.key].ok).length + QCM.filter(it => !qstate[it.key].ok).length;
+  if (todo && !confirm(todo + " réponses ne sont pas validées : elles seront exportées avec « ? » (non notées). Continuer ?")) return;
+  const dl = (obj, name) => {
+    const a = el("a", {href: URL.createObjectURL(new Blob([JSON.stringify(obj, null, 1)], {type: "application/json"})), download: name});
+    document.body.append(a); a.click(); a.remove();
+  };
+  dl(out, DATA.lot + ".short_truth.json");
+  if (QCM.length) {  // second fichier : les QCM (le navigateur peut demander d'autoriser plusieurs téléchargements)
+    const q = {};
+    for (const it of QCM) { const s = qstate[it.key]; q[it.key] = s.sel.join(",") + (s.ok && !s.unsure ? "" : "?"); }
+    setTimeout(() => dl(q, DATA.lot + ".qcm_truth.json"), 400);
+  }
 };
 document.getElementById("imp").onclick = () => document.getElementById("file").click();
 document.getElementById("file").onchange = async ev => {
@@ -261,6 +410,11 @@ document.getElementById("file").onchange = async ev => {
   let obj;
   try { obj = JSON.parse(await f.text()); } catch (e) { alert("Fichier JSON illisible."); return; }
   let n = 0;
+  for (const k in obj) if (qstate[k] && typeof obj[k] === "string") {
+    const un = obj[k].endsWith("?");
+    qstate[k] = {sel: obj[k].replace(/\?$/, "").split(",").filter(x => x), ok: !un, unsure: false};
+    n++;
+  }
   for (const k in obj) if (state[k] && typeof obj[k] === "string") {
     const un = obj[k].endsWith("?");
     state[k] = {v: un ? obj[k].slice(0, -1) : obj[k], ok: !un, unsure: false};

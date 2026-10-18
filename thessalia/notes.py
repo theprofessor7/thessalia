@@ -31,7 +31,8 @@ from collections import Counter
 from pathlib import Path
 
 from .common import load_json
-from .vocab import normalize, parse_number
+from .grade import grade_copy
+from .vocab import normalize
 
 TRUTH_DIR = Path("data/truth")
 LISTS_DIR = Path("data/listes")
@@ -106,6 +107,20 @@ def _students(name: str, lists_dir: Path) -> dict:
         return {r["copie"]: r["etudiant"] for r in csv.DictReader(fh, delimiter=";")}
 
 
+def _regrade_qcm(result_path: Path, num: int, qcm_truth: dict, template: dict, key: dict):
+    """Note QCM recalculée avec les QCM en revue validés par l'enseignant (« ? » = toujours en attente)."""
+    if not result_path.exists():
+        return None
+    answers = load_json(result_path).get("answers", {})
+    changed = False
+    for fid, ans in answers.items():
+        t = qcm_truth.get(f"c{num:02d}_{fid}")
+        if ans.get("status") == "review" and t is not None and not t.endswith("?"):
+            ans.update(status="ok", selected=[x for x in t.split(",") if x])
+            changed = True
+    return grade_copy(answers, template, key) if changed else None
+
+
 def grade_class(results_dir, template: dict, key: dict, vocab: dict, truth_dir=TRUTH_DIR, lists_dir=LISTS_DIR):
     results_dir = Path(results_dir)
     name = results_dir.name
@@ -120,10 +135,14 @@ def grade_class(results_dir, template: dict, key: dict, vocab: dict, truth_dir=T
     pts = {f: p for f, p in _short_fields(template).items() if f in expected}
 
     rows, details = [], []
+    qcm_path = Path(truth_dir) / f"{name}.qcm_truth.json"
+    qcm_truth = load_json(qcm_path) if qcm_path.exists() else {}
     for c in res["copies"]:
         cid = c["copy_id"]
         num = int(cid.split("_")[-1])
         g = c.get("grade") or {}
+        if qcm_truth and g.get("pending"):
+            g = _regrade_qcm(results_dir / cid / "result.json", num, qcm_truth, template, key) or g
         qcm, qcm_max, qcm_wait = g.get("total"), g.get("max", 0), len(g.get("pending", []))
         short, short_max, counts = 0.0, 0.0, Counter()
         for fid, p in pts.items():
