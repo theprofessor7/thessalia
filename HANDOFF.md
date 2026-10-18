@@ -31,8 +31,9 @@ Mesure sur **supB 3** (10 copies, jamais vu par aucun des deux modèles), vérit
   lot validé**, et resserrer (revue) si une erreur réapparaît.
 - Gain surtout sur q7 (texte libre, 34/39 contre 30/39) et q10.
 - Durée de lecture de supB 3 : 2,2 s par vignette sur secteur (361 vignettes, ~13 min).
-- Toujours à faire : vérité supA 2 c07_q6.1 (`int`, la vignette montre `print`) ; lecture des 25 classes
-  avec `trocr_v2` (une nuit).
+- Vérité supA 2 corrigée le 18 octobre : c07_q6.1 `int` → `print` (ancienne version :
+  `supA_2.short_truth.avant_corrections_2026-10-18.json`). `trocr_v2` a appris l'ancienne étiquette (1 sur 1 070).
+- Toujours à faire : lecture des 25 classes avec `trocr_v2` (une nuit).
 
 ## 0 ter. Point du 17 octobre 2026
 
