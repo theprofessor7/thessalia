@@ -30,6 +30,7 @@ python -m thessalia template templates/<sujet>.pdf -o templates/<sujet>.json --m
 python -m thessalia process scans/<classe>.pdf -t templates/<gabarit>.json -b templates/<sujet>.pdf -k keys/<x>.key.json -o sorties/<classe>
 python -m thessalia ocr sorties/<classe> -v keys/<x>.vocab.json --backend trocr [--truth data/truth/<x>.json]
 python -m thessalia truth-page sorties/<classe> -t templates/<gabarit>.json [--truth data/truth/<x>.json]   # validation.html, local
+python -m thessalia notes sorties/<classe> [sorties/<classe2> …] -t templates/<gabarit>.json -k keys/<x>.key.json -v keys/<x>.vocab.json [-o sorties/notes/<groupe>.csv]   # QCM + réponses courtes, sur 9
 python -m thessalia digits-train sorties/<classe> -v keys/<x>.vocab.json --truth data/truth/<x>.json   # vérité validée
 python -m thessalia trocr-train sorties/<classe> -v keys/<x>.vocab.json --truth data/truth/<x>.json [--also …] [--limit 160]   # long, ~6 Go ; mesurer ensuite avec ocr --model data/models/trocr sur un lot jamais vu
 python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m thessalia evaluate out/lot sim/lot/truth.json
@@ -48,7 +49,7 @@ python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m 
 `template_builder` PDF → gabarit · `loader` scans → pages · `align` fiducials, homographie, identification
 de page · `omr` cases à cocher · `extract` vignettes · `ocr_prep` nettoyage des réponses courtes ·
 `ocr` moteurs · `digits` lecteur de chiffres (nombres) · `vocab` rapprochement · `ocr_run` commande ocr · `truth_page` page de validation de la vérité · `pipeline` orchestration · `report` sorties ·
-`grade` notation QCM · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
+`grade` notation QCM · `notes` notes QCM + réponses courtes (règle globale de l'enseignant) · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
 
 ## Pièges connus
 

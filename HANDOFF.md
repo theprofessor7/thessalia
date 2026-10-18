@@ -31,9 +31,66 @@ Mesure sur **supB 3** (10 copies, jamais vu par aucun des deux modèles), vérit
   lot validé**, et resserrer (revue) si une erreur réapparaît.
 - Gain surtout sur q7 (texte libre, 34/39 contre 30/39) et q10.
 - Durée de lecture de supB 3 : 2,2 s par vignette sur secteur (361 vignettes, ~13 min).
+- Vérités validées le 18 octobre : supB 3, puis supB 2 (`data/truth/supB_2.short_truth.json`, 253
+  réponses) ; QCM en revue de supB 1, 2 et 3 (`*.qcm_truth.json`).
 - Vérité supA 2 corrigée le 18 octobre : c07_q6.1 `int` → `print` (ancienne version :
   `supA_2.short_truth.avant_corrections_2026-10-18.json`). `trocr_v2` a appris l'ancienne étiquette (1 sur 1 070).
-- Toujours à faire : lecture des 25 classes avec `trocr_v2` (une nuit).
+### 18 octobre, après-midi : notes des questions de cours (QCM + réponses courtes)
+
+Objectif de l'enseignant : **exploiter des notes Booster avant la fin de la semaine du 19 octobre**.
+Barème du sujet FR : QCM 2,25 + réponses courtes 6,75 = **9 points** ; le code (q11-q13, q15-q19) vaut
+11 points, non lu : il passera par l'API Claude **plus tard**, à la demande de l'enseignant (il fournira le
+corrigé du code ; essai sur quelques copies et coût annoncé avant tout envoi en masse).
+
+**Organisation du travail (demandée par l'enseignant)** : lecture par groupe de classes, en journée, pendant
+qu'il valide le groupe précédent (pas « une nuit d'un coup ») ; une page `validation.html` par classe
+(~100 à 300 réponses : « paquet de 100 » était un ordre de grandeur, pas un découpage). Ordre des groupes :
+B, A, C, D, E, F, G, H, NA, NB (NA et NB : sujet EN). File de lecture lancée le 18 octobre à 17 h 28
+(script de session, non conservé) ; journal `sorties/booster/file_lecture.log` (une ligne PRÊT par classe).
+Les classes déjà validées (supA 1, supA 2, supB 1, supB 3) ne sont pas relues.
+
+**Règle globale de notation des réponses courtes, décidée par l'enseignant le 18 octobre** :
+identique au corrigé ou équivalence (`Error` = `ERREUR` toute casse, `Zero` = `Zéro`) = 100 % ;
+**écart de forme seulement** (casse, parenthèses `print()` / `print("...")`, guillemets `"427"`,
+espaces) = **50 %** ; tout le reste = faux, virgule décimale comprise. En **q7** (affichage exact demandé)
+tout écart, espace compris, est faux. Il a refusé l'arbitrage réponse par réponse et les points partiels au
+cas par cas : « il faut une politique globale ». Le corrigé peut porter des exceptions par champ
+(`short_accept` / `short_reject`), inutilisées à ce jour.
+
+**Commande `notes`** (`thessalia/notes.py`) :
+`python -m thessalia notes sorties/booster/supB_1 sorties/booster/supB_2 … -t templates/socle_python_FR.json
+-k keys/socle_python_FR.key.json -v keys/socle_python_FR.vocab.json -o sorties/notes/B.csv`.
+Source de chaque réponse : vérité validée `data/truth/<classe>.short_truth.json` si elle existe, sinon la
+lecture `ocr` (acceptée = notée, en revue = **en attente**, jamais notée en silence). QCM : note de
+`results.json`, recalculée avec `data/truth/<classe>.qcm_truth.json`. Sorties par classe : `notes.csv`
+(note sur 9, en attente, écarts de forme, état complète/incomplète), `notes_detail.csv` (chaque blanc).
+Identité : `data/listes/<classe>.csv` (`copie;etudiant`, hors dépôt) ; pour l'instant des noms fictifs
+(`supB_2_copie001`…), la vraie liste Moodle sera fournie quand le procédé sera rodé.
+
+**Page de validation** : les QCM en revue y sont (extrait de la page, une case par option pré-réglée sur
+la lecture de la machine) ; l'export télécharge deux fichiers, `<classe>.short_truth.json` et
+`<classe>.qcm_truth.json`, que l'enseignant enregistre dans `data/truth/`. Une page construite sur une
+vérité déjà validée ne montre plus que ce qui reste à faire.
+
+**Groupe B noté** (`sorties/notes/B.csv`) : supB 2 validé le 18 octobre (253 réponses + 3 QCM), QCM de
+supB 1 et supB 3 validés. **31 notes complètes sur 33.** Restent : supB 1 copie 5 q3.1 (incertaine dans
+la vérité) ; supB 2 copie 7, pages 6 et 7 absentes du scan (q10 en attente, voir la copie papier).
+
+**Mesure de `trocr_v2` sur supB 2** (7 copies, jamais vu) : lecture brute 91,4 % ; 119 mots acceptés dont
+117 justes ; 31 nombres acceptés, tous justes. Les 2 fautes :
+- c03_q6.1 `print("...")` accepté `print` : sans conséquence avant la règle de notation, mais `print` vaut
+  100 % et `print()` 50 %. **Correctif** (`ocr_run.form_marks`) : une lecture brute portant parenthèses ou
+  guillemets absents de la valeur retenue part en revue (« forme à vérifier »). Mesure sur les 6 lots
+  validés (lectures en cache) : plus aucune acceptation fausse ; 22 réponses de plus en revue. Avec
+  `trocr_v2` (supB 2, supB 3) les 9 nouveaux cas sont tous de vrais `print()` / `input()`, qui étaient
+  acceptés à 100 % au lieu de 50 % ; avec TrOCR de base (supA 1, EN), 10 fausses alertes sur 13 (ce modèle
+  invente des guillemets). Pages de supA 3, supA PRENOM NOM, supC 1 et supC 2 recalculées après le correctif.
+- c05_q8.4 : `int` barré puis `float`, accepté `int`. La règle du mot barré ne l'a pas vu ; seul cas sur
+  6 lots, seuil inchangé, à surveiller.
+
+**Suite** : valider les groupes au fil de la lecture, `notes` après chaque groupe ; remesurer `trocr_v2` sur
+chaque classe validée (`ocr … --truth`) ; après 2 ou 3 groupes validés, proposer un réaffinage ; puis export
+Moodle (liste réelle), puis le code par l'API.
 
 ## 0 ter. Point du 17 octobre 2026
 
