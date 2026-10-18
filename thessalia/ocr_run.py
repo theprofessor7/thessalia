@@ -26,6 +26,14 @@ from .vocab import parse_number, propose_digits, snap
 
 EXTRA_WORD = "écriture séparée en plus du mot reconnu (deux mots, rature ?) : à vérifier"
 STRUCK = "mot barré à côté d'une autre écriture : à vérifier"
+FORM = "parenthèses ou guillemets lus autour de la réponse : forme à vérifier (notée 50 %)"
+FORM_CHARS = set("()\"'")
+
+
+def form_marks(raw: str, value) -> bool:
+    """La lecture brute porte des parenthèses ou guillemets que la valeur retenue n'a pas (`print("...")`
+    accepté `print`) : depuis la règle de notation du 18 octobre, cet écart de forme change la note."""
+    return bool(FORM_CHARS & set(raw or "")) and not (FORM_CHARS & set(str(value or "")))
 
 
 def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, log=print, batch=4,
@@ -113,6 +121,8 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
             # le moteur a lu le mot barré au lieu de la réponse (`input` barré puis `for`) : en revue
             elif struck_word(img):
                 r.update(status="review", reason=STRUCK)
+            elif form_marks(c[0][0] if c else "", r["value"]):
+                r.update(status="review", reason=FORM)
             if r["status"] == "review":
                 flagged.add(key)
         proposed[key] = r["value"]

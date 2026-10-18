@@ -72,7 +72,13 @@ def judge(answer, expected: str, kind: str, accept=(), reject=()) -> str:
         return FAUX  # q7 : affichage exact demandé, la casse et les espaces font partie de la réponse
     # casse, guillemets, parenthèses finales, espaces (normalize ne touche ni aux chiffres ni à la virgule :
     # « 2,5 » reste différent de « 2.5 »)
-    return FORME if normalize(a, kind) == normalize(e, kind) else FAUX
+    if normalize(a, kind) == normalize(e, kind):
+        return FORME
+    # appel complet au lieu du nom : `print("...")` pour `print` (parenthèses et guillemets = forme)
+    call = re.fullmatch(r"\s*(\w+)\s*\(.*\)\s*", a)
+    if kind == "enum" and call and call.group(1).casefold() == e.casefold():
+        return FORME
+    return FAUX
 
 
 def _fmt(x) -> str:

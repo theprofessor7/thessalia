@@ -20,6 +20,7 @@ def test_form_only_is_half_except_exact_output():
     assert judge("grand", "Grand", "enum") == FORME
     assert judge("print()", "print", "enum") == FORME
     assert judge('"427"', "427", "number") == FORME
+    assert judge('print("...")', "print", "enum") == FORME   # appel complet au lieu du nom
     assert judge("X Y", "XY", "text") == FAUX
     assert judge("X_Y", "XY", "text") == FAUX
     assert judge("Total: 8", "Total : 8", "text") == FAUX
@@ -33,3 +34,11 @@ def test_teacher_decisions_and_missing():
     assert judge("", "int", "enum") == VIDE
     assert judge(None, "int", "enum") == ATTENTE
     assert judge("float", "int", "enum") == FAUX
+
+
+def test_form_marks_send_to_review():
+    from thessalia.ocr_run import form_marks
+    assert form_marks("print()", "print")          # accepter `print` noterait 100 % au lieu de 50 %
+    assert form_marks('"427"', "427")
+    assert not form_marks("print", "print")
+    assert not form_marks('"427"', '"427"')
