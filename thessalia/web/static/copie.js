@@ -56,10 +56,10 @@ function dessinerListe() {
     a.champ.localeCompare(b.champ, undefined, {numeric: true}));
   for (const it of its) {
     if (seul && it.decide) continue;
-    const c = carte(it, (rep, carteEl) => {
+    const c = carte(it, (rep, carteEl, clavier) => {
       if (rep.note) note(rep.note);
       peindreCadres(it);
-      suivanteADecider(carteEl);
+      if (clavier) suivanteADecider(carteEl);
     }, {lienCopie: false});
     c.addEventListener("focus", () => {
       for (const b of document.querySelectorAll(".cadre.actif")) b.classList.remove("actif");

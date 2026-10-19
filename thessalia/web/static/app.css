@@ -76,6 +76,15 @@ details { margin-top:24px; } summary { cursor:pointer; color:var(--gris); margin
 .option.amb { border:2px solid var(--forme); background:var(--formef); }
 .option.amb.on { background:var(--accent); color:#fff; box-shadow:0 0 0 2px var(--forme); }
 .legende { font-size:12px; color:var(--forme); }
+.lecture { padding:1px 6px; font-size:11px; border:1px solid var(--trait); border-radius:4px; background:var(--carte); color:var(--gris); cursor:pointer; }
+.lecture:hover { border-color:var(--accent); color:var(--accent); }
+.verifie { font-size:11px; color:var(--juste); }
+.indicateurs { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0; }
+.indicateur { background:var(--carte); border:1px solid var(--trait); border-left:5px solid var(--trait); border-radius:8px;
+              padding:8px 12px; min-width:220px; max-width:340px; display:flex; flex-direction:column; }
+.indicateur b { font-size:26px; } .indicateur span { color:var(--gris); font-size:13px; }
+.indicateur.bon { border-left-color:var(--juste); } .indicateur.alerte { border-left-color:var(--faux); }
+td.rouge { color:var(--faux); font-weight:700; }
 .option .bon { color:var(--juste); font-weight:700; } .option.on .bon { color:#b8f5cc; }
 .attendu-carte { font-size:13px; color:var(--juste); } .attendu-carte code { font-size:15px; font-weight:700; }
 .entete-question { position:sticky; top:41px; z-index:5; background:var(--fond); padding:6px 0; border-bottom:1px solid var(--trait); }

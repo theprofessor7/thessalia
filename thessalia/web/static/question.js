@@ -57,7 +57,7 @@ function dessiner() {
   for (const its of ordre) {
     const ex = its[0];
     const grille = el("div", {className: "grille" + (D.champ.startsWith("q7") || ex.qcm ? " large" : "")});
-    const cartes = its.map(it => carte(it, (rep, c) => { progres(); suivanteADecider(c); }));
+    const cartes = its.map(it => carte(it, (rep, c, clavier) => { progres(); if (clavier) suivanteADecider(c); }));
     grille.append(...cartes);
     const titre = ex.qcm ? "cases lues : " + (ex.choix.join(", ") || "aucune")
       : "lu « " + (ex.proposition == null ? "?" : ex.proposition === "" ? "(vide)" : ex.proposition) + " » → " + (LIBELLE[ex.verdict] || "?");

@@ -49,6 +49,9 @@ def create_app(paths, db_path=DB_PATH):
     classes = {d.name: Classe(d, exams, decisions, memory=memory) for d in _classes(paths)}
     if not classes:
         raise SystemExit("Aucune classe trouvée (dossiers contenant results.json).")
+    for c in classes.values():  # vérité d'apprentissage à jour dès le démarrage (classes déjà travaillées)
+        if decisions.of(c.name):
+            c.save_labels()
     groups = {}
     for c in classes.values():
         groups.setdefault(c.group, []).append(c)
@@ -117,6 +120,16 @@ def create_app(paths, db_path=DB_PATH):
         return render_template("question.html", data=payload, groupe=g, champ=fid,
                                prec=ids[i - 1] if i else None, suiv=ids[i + 1] if i + 1 < len(ids) else None)
 
+    @app.route("/suivi")
+    def suivi_page():
+        rows, erreurs = [], []
+        for g in sorted(groups, key=_gkey):
+            for c in groups[g]:
+                st, err = c.suivi()
+                rows.append(st)
+                erreurs += err
+        return render_template("suivi.html", lignes=rows, erreurs=erreurs)
+
     @app.route("/g/<g>/copies")
     def copies_page(g):
         cs = group(g)
@@ -163,8 +176,8 @@ def create_app(paths, db_path=DB_PATH):
             c.undo(d["cle"])
         else:
             texte = d.get("texte")
-            c.decide(d["cle"], d.get("verdict"), texte if texte not in (None, "") or d.get("verdict") is None else None,
-                     d.get("options"))
+            c.decide(d["cle"], d.get("verdict"), texte, d.get("options"))  # ce qui manque est conservé
+        c.save_labels()  # data/truth/<classe>.appris.json à jour : rien à exporter à la main
         cid = next((x for x in c.copy_ids if f"c{int(x.split('_')[-1]):02d}_" == d["cle"][:4]), None)
         item = next((i for i in c.short_items() + c.qcm_items() if i["cle"] == d["cle"]), None)
         note = next((r for r in c.notes() if r["copie"] == cid), None)

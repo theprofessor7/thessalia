@@ -27,11 +27,12 @@ function carte(it, surDecision, opts = {}) {
     c.classList.toggle("decide", !!it.decide);
     c.classList.toggle("a-decider", !it.decide);
   };
-  const envoyer = async corps => {
+  // clavier = true : on passe à la réponse suivante (Entrée, 1 à 4) ; un clic de souris ne fait pas défiler
+  const envoyer = async (corps, clavier = false) => {
     const rep = await decider(Object.assign({classe: it.classe, cle: it.cle}, corps));
     if (rep.item) Object.assign(it, rep.item);
     redessiner();
-    surDecision(rep, c);
+    surDecision(rep, c, clavier);
   };
   const redessiner = () => {
     c.textContent = "";
@@ -73,12 +74,27 @@ function carte(it, surDecision, opts = {}) {
       ok.onclick = () => envoyer({options: it.choix});
       c.append(el("div", {className: "verdicts"}, ok,
         el("span", {className: "gris", textContent: "machine : " + (it.proposition.join(", ") || "aucune case")})));
-      c.valider = () => envoyer({options: it.choix});
+      c.valider = (clavier = false) => envoyer({options: it.choix}, clavier);
     } else {
+      // lecture (ce qui est écrit) : distincte de la note. « bien lu » / « corriger » sont facultatifs et
+      // servent à apprendre au lecteur ; la note ne change que si aucun verdict n'a été choisi à la main.
       const lu = it.texte != null ? it.texte : it.proposition;
-      c.append(el("div", {className: "lu"}, it.texte != null ? "écrit : " : "lu : ",
+      const verifiee = it.texte != null;
+      const ligneLu = el("div", {className: "lu"}, verifiee ? "écrit : " : "lu : ",
         el("code", {textContent: lu === null || lu === undefined ? "?" : (lu === "" ? "(vide)" : lu)}),
-        it.second != null ? el("span", {className: "gris", textContent: "  second lecteur : « " + it.second + " »"}) : null));
+        verifiee ? el("span", {className: "verifie", textContent: " ✓ lecture vérifiée"}) : null,
+        it.second != null ? el("span", {className: "gris", textContent: "  second lecteur : « " + it.second + " »"}) : null);
+      if (!verifiee && it.proposition != null) {
+        const bien = el("button", {className: "lecture", textContent: "✓ bien lu", tabIndex: -1,
+                                   title: "la machine a lu exactement ce qui est écrit (L) : sert à l'apprentissage"});
+        bien.onclick = () => envoyer({texte: it.proposition});
+        ligneLu.append(" ", bien);
+      }
+      const corr = el("button", {className: "lecture", textContent: "✎ corriger la lecture", tabIndex: -1,
+                                 title: "taper ce qui est réellement écrit (T) : sert à l'apprentissage"});
+      corr.onclick = () => saisir();
+      ligneLu.append(" ", corr);
+      c.append(ligneLu);
       if (it.attendu != null) c.append(el("div", {className: "attendu-carte"}, "attendu : ", el("code", {textContent: it.attendu})));
       const ligne = el("div", {className: "verdicts"});
       if (!it.decide && it.verdict) {
@@ -95,9 +111,6 @@ function carte(it, surDecision, opts = {}) {
         b.onclick = () => envoyer({verdict: v});
         ligne.append(b);
       }
-      const stylo = el("button", {className: "verdict texte", textContent: "✎", title: "taper ce qui est écrit (T)", tabIndex: -1});
-      stylo.onclick = () => saisir();
-      ligne.append(stylo);
       if (it.origine === "enseignant") {
         const annul = el("button", {className: "verdict annuler", textContent: "↺", title: "annuler ma décision (Suppr)", tabIndex: -1});
         annul.onclick = () => envoyer({annuler: true});
@@ -105,7 +118,7 @@ function carte(it, surDecision, opts = {}) {
       }
       c.append(ligne);
       c.append(el("div", {className: "points gris", textContent: it.points == null ? "" : fmt(it.points) + " / " + fmt(it.max) + " pt"}));
-      c.valider = () => it.verdict ? envoyer({verdict: it.verdict}) : saisir();
+      c.valider = (clavier = false) => it.verdict ? envoyer({verdict: it.verdict}, clavier) : saisir();
     }
     peindre();
   };
@@ -122,9 +135,10 @@ function carte(it, surDecision, opts = {}) {
   };
   c.addEventListener("keydown", ev => {
     if (ev.target !== c) return;
-    if (ev.key === "Enter") { ev.preventDefault(); c.valider(); }
-    else if (!it.qcm && TOUCHE[ev.key]) { ev.preventDefault(); envoyer({verdict: TOUCHE[ev.key]}); }
+    if (ev.key === "Enter") { ev.preventDefault(); c.valider(true); }
+    else if (!it.qcm && TOUCHE[ev.key]) { ev.preventDefault(); envoyer({verdict: TOUCHE[ev.key]}, true); }
     else if (!it.qcm && (ev.key === "t" || ev.key === "T")) { ev.preventDefault(); saisir(); }
+    else if (!it.qcm && (ev.key === "l" || ev.key === "L") && it.proposition != null) { ev.preventDefault(); envoyer({texte: it.proposition}); }
     else if (ev.key === "Delete" && it.origine === "enseignant") { ev.preventDefault(); envoyer({annuler: true}); }
     else if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); bouger(c, ev.key === "ArrowDown" ? 1 : -1); }
   });

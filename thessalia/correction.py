@@ -113,9 +113,15 @@ class Decisions:
                     for k, v, t, o in rows}
 
     def set(self, classe, cle, verdict=None, texte=None, options=None):
+        """Enregistre ce qui est fourni et GARDE le reste : la note (verdict) et la lecture (texte vérifié)
+        sont deux décisions distinctes ; choisir un verdict n'efface pas la lecture tapée, et inversement."""
         with self._db() as db:
+            old = db.execute("SELECT verdict, texte, options FROM decision WHERE classe=? AND cle=?",
+                             (classe, cle)).fetchone() or (None, None, None)
             db.execute("INSERT OR REPLACE INTO decision VALUES (?,?,?,?,?,?)",
-                       (classe, cle, verdict, texte, None if options is None else json.dumps(options), time.time()))
+                       (classe, cle, verdict if verdict is not None else old[0],
+                        texte if texte is not None else old[1],
+                        json.dumps(options) if options is not None else old[2], time.time()))
 
     def clear(self, classe, cle):
         with self._db() as db:
@@ -356,6 +362,56 @@ class Classe:
                         == self.exam.clean(expected[fid], fid)):
                     out[key] = o["value"]
         return out
+
+    def save_labels(self):
+        """Écrit `data/truth/<classe>.appris.json` (format de --truth) : suivi (`ocr --truth`) et affinage
+        s'en servent directement, sans export ni copie à la main. Rien n'est écrit pour une classe sans
+        aucune lecture vérifiée."""
+        lab = self.labels()
+        if not lab:
+            return None
+        path = self.truth_dir / f"{self.name}.appris.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(lab, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp.replace(path)
+        return path
+
+    # suivi de la machine ---------------------------------------------------------------
+    def suivi(self):
+        """Ce que les décisions de l'enseignant disent de la machine : lectures vérifiées (bien lues ou
+        corrigées), erreurs d'acceptation (réponse acceptée d'office qu'il a corrigée), mémoire contredite."""
+        dec = self.decisions.of(self.name)
+        st = {"classe": self.name, "groupe": self.group, "copies": len(self.copy_ids), "reponses": 0, "acceptees": 0,
+              "verifiees": 0, "bien_lues": 0, "corrigees": 0, "acceptees_fausses": 0, "memoire": 0,
+              "memoire_contredite": 0}
+        erreurs = []
+        for it in self.short_items():
+            st["reponses"] += 1
+            st["acceptees"] += it["lecture"] == "ok"
+            st["memoire"] += it["origine"] == "mémoire"
+            d = dec.get(it["cle"])
+            if not d:
+                continue
+            prop = it["proposition"]
+            if d.get("texte") is not None and prop is not None:
+                st["verifiees"] += 1
+                if self.exam.clean(d["texte"], it["champ"]) == self.exam.clean(str(prop), it["champ"]):
+                    st["bien_lues"] += 1
+                else:
+                    st["corrigees"] += 1
+                    erreurs.append({"classe": self.name, "copie": it["copie"], "cle": it["cle"], "champ": it["champ"],
+                                    "img": it["img"], "machine": prop, "ecrit": d["texte"], "lecture": it["lecture"]})
+            if it["lecture"] == "ok" and prop is not None:   # acceptée d'office puis changée par l'enseignant
+                rule = self.exam.verdict(prop, it["champ"])
+                if (d.get("texte") is not None and self.exam.clean(d["texte"], it["champ"]) != self.exam.clean(prop, it["champ"])) \
+                        or (d.get("verdict") and d["verdict"] != rule):
+                    st["acceptees_fausses"] += 1
+            if self.memory and d.get("verdict") and prop:
+                m = self.memory.lookup(self.exam_id, self.name, it["champ"], self.exam.clean(prop, it["champ"]))
+                if m and m[0] != d["verdict"]:
+                    st["memoire_contredite"] += 1
+        return st, erreurs
 
     # décisions ---------------------------------------------------------------------
     def decide(self, cle, verdict=None, texte=None, options=None):

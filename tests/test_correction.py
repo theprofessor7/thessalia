@@ -12,8 +12,10 @@ def test_decisions_roundtrip(tmp_path):
     d.set("supD", "c01_q1", options=["a", "c"])
     assert d.of("supD")["c01_q3.1"]["verdict"] == "faux"
     assert d.of("supD")["c01_q1"]["options"] == ["a", "c"]
-    d.set("supD", "c01_q3.1", None, texte="3")          # texte tapé : le verdict se recalcule
-    assert d.of("supD")["c01_q3.1"] == {"verdict": None, "texte": "3", "options": None}
+    d.set("supD", "c01_q3.1", None, texte="3")          # la lecture s'ajoute sans effacer le verdict
+    assert d.of("supD")["c01_q3.1"] == {"verdict": "faux", "texte": "3", "options": None}
+    d.set("supD", "c01_q3.1", "juste")                   # et le verdict change sans effacer la lecture
+    assert d.of("supD")["c01_q3.1"]["texte"] == "3"
     d.clear("supD", "c01_q3.1")
     assert "c01_q3.1" not in d.of("supD")
     assert d.of("supE") == {}

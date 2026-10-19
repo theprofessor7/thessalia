@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block titre %}Suivi de la machine{% endblock %}
+{% block nav %}<a href="/">Tableau de bord</a> › Suivi de la machine{% endblock %}
+{% block contenu %}
+<h1>Suivi de la machine</h1>
+<p class="aide">Ce que vos décisions disent de la lecture automatique. Les lectures que vous confirmez (« bien lu ») ou corrigez
+  sont enregistrées dans <code>data/truth/&lt;classe&gt;.appris.json</code> : elles servent au suivi et au prochain apprentissage.</p>
+{% set af = lignes | sum(attribute='acceptees_fausses') %}
+{% set mc = lignes | sum(attribute='memoire_contredite') %}
+{% set ver = lignes | sum(attribute='verifiees') %}
+{% set bl = lignes | sum(attribute='bien_lues') %}
+<div class="indicateurs">
+  <div class="indicateur {{ 'alerte' if af else 'bon' }}"><b>{{ af }}</b><span>réponses acceptées d'office que vous avez corrigées
+    (sur {{ lignes | sum(attribute='acceptees') }} acceptées)</span></div>
+  <div class="indicateur {{ 'alerte' if mc else 'bon' }}"><b>{{ mc }}</b><span>décisions de la mémoire que vous avez contredites
+    (sur {{ lignes | sum(attribute='memoire') }})</span></div>
+  <div class="indicateur"><b>{{ ver }}</b><span>lectures vérifiées par vous, dont {{ bl }} bien lues
+    {% if ver %}({{ (100 * bl / ver) | round | int }} %){% endif %}</span></div>
+</div>
+<h2>Par classe</h2>
+<table class="notes">
+  <tr><th>Classe</th><th>Copies</th><th>Réponses</th><th>Acceptées d'office</th><th>dont corrigées par vous</th>
+      <th>Mémoire</th><th>dont contredite</th><th>Lectures vérifiées</th><th>bien lues</th><th>corrigées</th></tr>
+  {% for r in lignes %}
+  <tr><td>{{ r.classe }}</td><td class="n">{{ r.copies }}</td><td class="n">{{ r.reponses }}</td>
+      <td class="n">{{ r.acceptees }}</td><td class="n {{ 'rouge' if r.acceptees_fausses }}">{{ r.acceptees_fausses }}</td>
+      <td class="n">{{ r.memoire }}</td><td class="n {{ 'rouge' if r.memoire_contredite }}">{{ r.memoire_contredite }}</td>
+      <td class="n">{{ r.verifiees }}</td><td class="n">{{ r.bien_lues }}</td><td class="n">{{ r.corrigees }}</td></tr>
+  {% endfor %}
+</table>
+<h2>Erreurs de lecture que vous avez corrigées ({{ erreurs | length }})</h2>
+<p class="aide">Ce que la machine a lu, et ce qui était écrit. Ce sont les exemples les plus utiles au prochain apprentissage.</p>
+<div class="grille">
+{% for e in erreurs %}
+  <div class="carte decide">
+    <div class="haut"><a href="/c/{{ e.classe }}/{{ e.copie }}">{{ e.classe }} · {{ e.cle }}</a>
+      <span class="origine">{{ 'acceptée d’office' if e.lecture == 'ok' else 'en revue' if e.lecture == 'review' else e.lecture }}</span></div>
+    {% if e.img %}<img src="/img/{{ e.classe }}/{{ e.img }}" loading="lazy" alt="{{ e.cle }}">{% endif %}
+    <div class="lu">machine : <code>{{ e.machine if e.machine != '' else '(vide)' }}</code> → écrit : <code>{{ e.ecrit if e.ecrit != '' else '(vide)' }}</code></div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}
