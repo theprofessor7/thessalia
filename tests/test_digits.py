@@ -28,13 +28,16 @@ def test_reader_packaged_model():
 
 
 def test_digits_only_propose():
-    # nombre libre en revue : la lecture des chiffres devient la proposition, le statut ne change pas
+    # nombre en revue : la lecture du moteur de texte reste la proposition (meilleure avec TrOCR affiné,
+    # mesuré le 19 octobre), celle des chiffres passe en second choix ; le statut ne change pas
     r = propose_digits(snap([("3 3", 0.9)], NUM), NUM, "3", 0.99)
-    assert r["status"] == "review" and r["value"] == "3" and r["suggestions"][0] == "3"
+    assert r["status"] == "review" and r["value"] == "33" and "3" in r["suggestions"]
     assert r["digits"]["agree"] is False
+    # le moteur de texte n'a pas lu de nombre : les chiffres proposent
+    assert propose_digits(snap([("abc", 0.9)], NUM), NUM, "3", 0.99)["value"] == "3"
     assert propose_digits(snap([("15 .", 0.9)], NUM), NUM, "15", 0.99)["digits"]["agree"] is True
     # décimal, une seule lecture voit une virgule : le doute profite à l'étudiant, point proposé
-    r = propose_digits(snap([("2 2", 0.9)], NUM), NUM, "2,5", 0.99)
+    r = propose_digits(snap([("2,5", 0.9)], NUM), NUM, "25", 0.99)
     assert r["value"] == "2.5" and r["suggestions"][:2] == ["2.5", "2,5"] and "incertain" in r["reason"]
     r = propose_digits(snap([("2,5", 0.9)], NUM), NUM, "2.5", 0.99)
     assert r["value"] == "2.5" and r["status"] == "review"

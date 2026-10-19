@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titre %}{{ titre }}{% endblock %}
+{% block nav %}<a href="/">Tableau de bord</a> › {{ titre }}{% endblock %}
+{% block contenu %}
+<h1>{{ titre }}</h1>
+<p class="aide">Tranchez chaque réponse comme d'habitude : verdict (1 à 5), « bien lu », « = attendu » ou « corriger la lecture ».
+  Vos décisions remplacent la vérité antérieure.</p>
+<div id="liste" class="grille large revoir"></div>
+{% endblock %}
+{% block scripts %}
+<script id="donnees" type="application/json">{{ data | tojson }}</script>
+<script src="{{ url_for('static', filename='commun.js') }}"></script>
+<script>
+const D = JSON.parse(document.getElementById("donnees").textContent);
+const z = document.getElementById("liste");
+if (!D.items.length) z.append(el("p", {className: "aide", textContent: "Aucune réponse trouvée."}));
+for (const it of D.items) z.append(carte(it, (rep, c, clavier) => { if (clavier) suivanteADecider(c); }));
+</script>
+{% endblock %}

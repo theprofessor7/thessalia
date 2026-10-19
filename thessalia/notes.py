@@ -43,7 +43,8 @@ LISTS_DIR = Path("data/listes")
 EQUIV_GROUPS = [{"erreur", "error"}, {"zéro", "zero"}]
 
 JUSTE, FORME, FAUX, VIDE, ATTENTE = "juste", "forme", "faux", "vide", "en attente"
-RATE = {JUSTE: 1.0, FORME: 0.5, FAUX: 0.0, VIDE: 0.0}  # règle globale de l'enseignant
+ILLISIBLE = "illisible"  # décision de l'enseignant seulement (rare) : 0 point, distinct dans le suivi
+RATE = {JUSTE: 1.0, FORME: 0.5, FAUX: 0.0, VIDE: 0.0, ILLISIBLE: 0.0}  # règle globale de l'enseignant
 
 
 def clean(s: str, kind: str) -> str:

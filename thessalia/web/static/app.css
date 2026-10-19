@@ -66,7 +66,8 @@ details { margin-top:24px; } summary { cursor:pointer; color:var(--gris); margin
 .verdict.juste.choisi { background:var(--juste); color:#fff; border-color:var(--juste); }
 .verdict.forme.choisi { background:var(--forme); color:#fff; border-color:var(--forme); }
 .verdict.faux.choisi { background:var(--faux); color:#fff; border-color:var(--faux); }
-.verdict.vide { font-size:12px; color:var(--gris); }
+.verdict.vide, .verdict.illisible { font-size:12px; color:var(--gris); }
+.verdict.illisible.choisi { background:var(--doute); color:#fff; border-color:var(--doute); }
 .verdict.vide.propose { border-color:var(--gris); } .verdict.vide.choisi { background:var(--gris); color:#fff; border-color:var(--gris); }
 .verdict.principal { background:var(--accent); color:#fff; border-color:var(--accent); }
 .options { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0; }
@@ -115,3 +116,5 @@ table.notes tr.fini td:first-child { box-shadow:inset 4px 0 var(--juste); }
 .note .grand { font-size:28px; font-weight:700; } .note .grand span { font-size:16px; color:var(--gris); font-weight:400; }
 .liste { display:flex; flex-direction:column; gap:6px; }
 @media (max-width: 900px) { .vue-copie { grid-template-columns:1fr; } .panneau { position:static; max-height:none; } }
+.revoir .carte img { width:100%; }
+.grille.large.revoir { grid-template-columns:repeat(auto-fill, minmax(520px, 1fr)); }

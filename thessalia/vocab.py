@@ -240,10 +240,18 @@ def propose_digits(r, spec, number, conf, accept=0.34, accept_numbers=False):
     comma = decimal and "," in number and text is not None and "," in text
     if decimal and not comma:
         number = favor_point(number)
-    r["value"] = number
-    r["suggestions"] = [number] + [s for s in r["suggestions"] if s != number][:2]
-    if decimal:
-        r["suggestions"] = _both_separators(r["suggestions"], number)
+    # proposition : la lecture du moteur de texte quand il a lu un nombre, celle des chiffres en second choix.
+    # Mesuré le 19 octobre avec `trocr_v2` sur supA 3 et supB 3 (jamais vus) : proposition juste 153/173 et
+    # 139/157 avec le moteur de texte, 147/173 et 117/157 avec le lecteur de chiffres (meilleur seulement
+    # avec TrOCR d'origine, 5 octobre). Acceptation et règle de la virgule inchangées (accord des deux).
+    prop = number
+    if text is not None:
+        prop = text if comma or "," not in text else favor_point(text)  # virgule vue par un seul : point
+    r["value"] = prop
+    r["suggestions"] = [prop] + [s for s in [number] + r["suggestions"] if s != prop][:2]
+    prop_decimal = other_separator(prop) is not None
+    if prop_decimal:
+        r["suggestions"] = _both_separators(r["suggestions"], prop)
     # « très sûr » : entier, deux lectures d'accord, confiance des chiffres >= 0,99. Mesuré le 5 octobre :
     # 18/18 justes sur EN, 7/7 sur supA 1 (à 0,95 il restait un « 3.14 » lu « 314 »). Trop peu de cas
     # pour accepter seul : la réponse reste en revue, seulement signalée (validation groupée).
@@ -257,7 +265,7 @@ def propose_digits(r, spec, number, conf, accept=0.34, accept_numbers=False):
             and len(str(number).lstrip("-")) >= 2):
         r.update(status="ok", reason=None)
         return r
-    r["reason"] = ((DECIMAL_COMMA if comma else DECIMAL_UNSURE) if decimal else
+    r["reason"] = ((DECIMAL_COMMA if comma else DECIMAL_UNSURE) if prop_decimal else
                    NUMBER_SURE if r["sure"] else
                    "nombre : les deux lectures concordent, à confirmer" if r["digits"]["agree"]
                    else "nombre : lecture à confirmer")

@@ -33,13 +33,13 @@ from pathlib import Path
 
 from .common import load_json
 from .grade import grade_copy
-from .notes import ATTENTE, FAUX, FORME, JUSTE, RATE, VIDE, judge
+from .notes import ATTENTE, FAUX, FORME, ILLISIBLE, JUSTE, RATE, VIDE, judge
 
 TRUTH_DIR = Path("data/truth")
 LISTS_DIR = Path("data/listes")
 DB_PATH = Path("data/correction.sqlite")
 SECOND = "lectures_secondaires.json"
-VERDICTS = (JUSTE, FORME, FAUX, VIDE)
+VERDICTS = (JUSTE, FORME, FAUX, VIDE, ILLISIBLE)
 MEMORY_MIN = 10       # jugements des autres classes nécessaires pour décider seul
 MEMORY_SHARE = 0.95   # part minimale du verdict majoritaire (choix de l'enseignant, 19 octobre)
 SUGGEST_MIN = 3       # jugements nécessaires pour pré-sélectionner son verdict le plus fréquent
@@ -57,7 +57,8 @@ class Memory:
         table = {}
         for c in classes:
             for it in c.short_items(use_memory=False):
-                if it["lecture"] != "review" or it["origine"] not in ("vérité", "enseignant") or not it["proposition"]:
+                if (it["lecture"] != "review" or it["origine"] not in ("vérité", "enseignant") or not it["proposition"]
+                        or it["verdict"] == ILLISIBLE):  # « illisible » tient à l'image, pas à la lecture
                     continue
                 k = (c.exam_id, it["champ"], c.exam.clean(it["proposition"], it["champ"]))  # par sujet : FR et EN diffèrent
                 table.setdefault(k, {}).setdefault(c.name, Counter())[it["verdict"]] += 1
@@ -112,14 +113,14 @@ class Decisions:
             return {k: {"verdict": v, "texte": t, "options": None if o is None else json.loads(o)}
                     for k, v, t, o in rows}
 
-    def set(self, classe, cle, verdict=None, texte=None, options=None):
+    def set(self, classe, cle, verdict=None, texte=None, options=None, clear_verdict=False):
         """Enregistre ce qui est fourni et GARDE le reste : la note (verdict) et la lecture (texte vérifié)
         sont deux décisions distinctes ; choisir un verdict n'efface pas la lecture tapée, et inversement."""
         with self._db() as db:
             old = db.execute("SELECT verdict, texte, options FROM decision WHERE classe=? AND cle=?",
                              (classe, cle)).fetchone() or (None, None, None)
             db.execute("INSERT OR REPLACE INTO decision VALUES (?,?,?,?,?,?)",
-                       (classe, cle, verdict if verdict is not None else old[0],
+                       (classe, cle, verdict if verdict is not None else (None if clear_verdict else old[0]),
                         texte if texte is not None else old[1],
                         json.dumps(options) if options is not None else old[2], time.time()))
 
@@ -350,10 +351,12 @@ class Classe:
             for fid in self.exam.points:
                 key = f"c{n:02d}_{fid}"
                 d = dec.get(key)
-                if not d or key in out:
+                if not d:
                     continue
-                if d.get("texte") is not None:
+                if d.get("texte") is not None:   # lecture tapée dans l'outil : prime sur une vérité antérieure
                     out[key] = d["texte"]
+                    continue
+                if key in out:
                     continue
                 o = doc.get("fields", {}).get(fid, {}).get("ocr") or {}
                 raw = (o.get("candidates") or [[None]])[0][0]
@@ -415,9 +418,18 @@ class Classe:
 
     # décisions ---------------------------------------------------------------------
     def decide(self, cle, verdict=None, texte=None, options=None):
+        """Une lecture tapée DIFFÉRENTE de la lecture actuelle (sans verdict cliqué en même temps) fait recalculer
+        la note à partir d'elle : un « = attendu » de bloc corrigé ensuite au cas par cas se réajuste. « Bien lu »
+        (même lecture) garde le verdict déjà choisi (ex. une indulgence de l'enseignant)."""
         if verdict is not None and verdict not in VERDICTS:
             raise ValueError(f"verdict inconnu : {verdict}")
-        self.decisions.set(self.name, cle, verdict, texte, options)
+        clear = False
+        if texte is not None and verdict is None:
+            cur = next((i for i in self.short_items(use_memory=False) if i["cle"] == cle), None)
+            if cur is not None:
+                lu = cur["texte"] if cur["texte"] is not None else cur["proposition"]
+                clear = self.exam.clean(texte, cur["champ"]) != self.exam.clean(str(lu if lu is not None else ""), cur["champ"])
+        self.decisions.set(self.name, cle, verdict, texte, options, clear_verdict=clear)
 
     def undo(self, cle):
         self.decisions.clear(self.name, cle)

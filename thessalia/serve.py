@@ -130,6 +130,18 @@ def create_app(paths, db_path=DB_PATH):
                 erreurs += err
         return render_template("suivi.html", lignes=rows, erreurs=erreurs)
 
+    @app.route("/revoir")
+    def revoir_page():
+        """Page temporaire : quelques réponses désignées (?cles=classe/cNN_qX.Y,…) à trancher par l'enseignant."""
+        wanted = [x.strip() for x in request.args.get("cles", "").split(",") if "/" in x]
+        items = []
+        for w in wanted:
+            name, cle = w.split("/", 1)
+            c = classes.get(name)
+            if c:
+                items += [i for i in c.short_items() + c.qcm_items() if i["cle"] == cle]
+        return render_template("revoir.html", data={"items": items}, titre=request.args.get("titre", "Réponses à revoir"))
+
     @app.route("/g/<g>/copies")
     def copies_page(g):
         cs = group(g)

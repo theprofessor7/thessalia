@@ -76,7 +76,6 @@ function dessiner() {
       const l = el("button", {className: "bouton", textContent: "bien lu pour le bloc (" + its.length + ")",
                               title: "la machine a lu exactement ce qui est écrit, pour toutes les réponses du bloc"});
       l.onclick = async () => {
-        if (!confirm("La machine a-t-elle lu exactement « " + ex.proposition + " » pour les " + its.length + " réponses du bloc ?")) return;
         l.disabled = true;
         for (const c of cartes) if (c.bienLu) await c.bienLu();
         l.textContent = "bloc bien lu";
@@ -84,10 +83,9 @@ function dessiner() {
       tete.append(l);
     }
     // faux négatif en série : la machine a mal lu la même chose (« 2427 ») alors que tous ont écrit le corrigé
-    if (its.length > 1 && !ex.qcm && ex.attendu != null && ex.verdict !== "juste") {
+    if (its.length > 1 && !ex.qcm && ex.attendu != null) {
       const a = el("button", {className: "bouton attendu-bloc", textContent: "= attendu pour le bloc (" + its.length + ")"});
       a.onclick = async () => {
-        if (!confirm("Les " + its.length + " réponses de ce bloc sont-elles exactement « " + ex.attendu + " » ?")) return;
         a.disabled = true;
         for (const c of cartes) if (c.attendu) await c.attendu();
         a.textContent = "bloc = attendu";

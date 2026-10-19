@@ -1,7 +1,7 @@
 "use strict";
 // Fonctions communes aux vues par question et par copie.
-const LIBELLE = {juste: "✓ juste", forme: "½ forme", faux: "✗ faux", vide: "∅ vide"};
-const TOUCHE = {"1": "juste", "2": "forme", "3": "faux", "4": "vide"};
+const LIBELLE = {juste: "✓ juste", forme: "½ forme", faux: "✗ faux", vide: "∅ vide", illisible: "? illisible"};
+const TOUCHE = {"1": "juste", "2": "forme", "3": "faux", "4": "vide", "5": "illisible"};
 
 function el(tag, props, ...kids) {
   const e = Object.assign(document.createElement(tag), props || {});
@@ -110,11 +110,11 @@ function carte(it, surDecision, opts = {}) {
         ligne.append(ok);
       }
       // vide et faux valent 0 tous les deux, mais ce sont deux constats différents : deux boutons distincts
-      for (const v of ["juste", "forme", "faux", "vide"]) {
+      for (const v of ["juste", "forme", "faux", "vide", "illisible"]) {
         const actif = it.verdict === v;
         const b = el("button", {className: "verdict " + v + (actif ? (it.decide ? " choisi" : " propose") : ""),
                                 textContent: LIBELLE[v], tabIndex: -1,
-                                title: {juste: "1", forme: "2", faux: "3", vide: "4 : rien d'écrit"}[v]});
+                                title: {juste: "1", forme: "2", faux: "3", vide: "4 : rien d'écrit", illisible: "5 : impossible à lire (0 point)"}[v]});
         b.onclick = () => envoyer({verdict: v});
         ligne.append(b);
       }

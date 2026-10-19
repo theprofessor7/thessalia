@@ -37,7 +37,7 @@ def form_marks(raw: str, value) -> bool:
 
 
 def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, log=print, batch=4,
-        digits=True):
+        digits=True, digits_model=None):
     results_dir = Path(results_dir)
     vocab = load_json(vocab_path)["fields"]
     copies = sorted(results_dir.glob("copy_*/result.json"))
@@ -94,7 +94,7 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
     reader = None
     if digits:
         from .digits import DigitReader
-        reader = DigitReader()
+        reader = DigitReader(digits_model)
         log(f"lecteur de chiffres : {reader.path}")
     # entiers acceptés seulement avec un TrOCR affiné localement (mesuré avec data/models/trocr_commun) :
     # avec le modèle d'origine, des nombres faux sortaient avec les deux lectures d'accord
