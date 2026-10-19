@@ -80,6 +80,7 @@ details { margin-top:24px; } summary { cursor:pointer; color:var(--gris); margin
 .lecture:hover { border-color:var(--accent); color:var(--accent); }
 .verifie { font-size:11px; color:var(--juste); }
 .lecture.attendu-btn { color:var(--juste); border-color:var(--juste); font-weight:600; }
+.bouton.attendu-bloc { color:var(--juste); border-color:var(--juste); }
 .indicateurs { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0; }
 .indicateur { background:var(--carte); border:1px solid var(--trait); border-left:5px solid var(--trait); border-radius:8px;
               padding:8px 12px; min-width:220px; max-width:340px; display:flex; flex-direction:column; }

@@ -42,3 +42,11 @@ def test_form_marks_send_to_review():
     assert form_marks('"427"', "427")
     assert not form_marks("print", "print")
     assert not form_marks('"427"', '"427"')
+
+
+def test_computation_ending_with_the_right_value():
+    assert judge("2^10 = 1024", "1024", "number") == JUSTE   # décision du 19 octobre
+    assert judge("2^10=1024", "1024", "number") == JUSTE
+    assert judge("2^10 = 1152", "1024", "number") == FAUX
+    assert judge("x = 2,5", "2.5", "number") == FAUX          # la virgule reste fausse
+    assert judge("2^10", "1024", "number") == FAUX

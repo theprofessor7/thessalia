@@ -13,6 +13,8 @@ Règle globale de l'enseignant (18 octobre 2026), comparaison au corrigé (`shor
   forme        écart de forme seulement : casse (`grand`), parenthèses (`print()`), guillemets (`"427"`),
                espaces : 50 %. Pas en q7 (texte) : on y demande l'affichage exact, l'espace compte (`X Y`
                pour `XY` = `end=""` non compris), donc tout écart y est faux
+  calcul       champ numérique : un calcul qui se termine par la bonne valeur (`2^10 = 1024`) est jugé
+               sur cette valeur finale (juste ; « mathématiquement juste », enseignant, 19 octobre)
   faux         tout le reste, dont « 2,5 » pour « 2.5 » (virgule décimale) : 0
   vide         zone vide : 0
   en attente   pas encore validée : pas de points, la note est marquée incomplète
@@ -70,6 +72,14 @@ def judge(answer, expected: str, kind: str, accept=(), reject=()) -> str:
         return FAUX
     if kind == "text":
         return FAUX  # q7 : affichage exact demandé, la casse et les espaces font partie de la réponse
+    if kind == "number":
+        # calcul posé qui aboutit à la bonne valeur (`2^10 = 1024`) : « mathématiquement juste » (décision de
+        # l'enseignant, 19 octobre) ; on juge la valeur après le dernier « = » avec les mêmes règles
+        m = re.fullmatch(r"(.+)=\s*([^=]+)", a)
+        if m and m.group(1).strip():
+            fin = judge(m.group(2), expected, kind, accept, reject)
+            if fin in (JUSTE, FORME):
+                return fin
     # casse, guillemets, parenthèses finales, espaces (normalize ne touche ni aux chiffres ni à la virgule :
     # « 2,5 » reste différent de « 2.5 »)
     if normalize(a, kind) == normalize(e, kind):

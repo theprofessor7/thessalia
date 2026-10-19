@@ -126,6 +126,8 @@ function carte(it, surDecision, opts = {}) {
       c.append(ligne);
       c.append(el("div", {className: "points gris", textContent: it.points == null ? "" : fmt(it.points) + " / " + fmt(it.max) + " pt"}));
       c.valider = (clavier = false) => it.verdict ? envoyer({verdict: it.verdict}, clavier) : saisir();
+      c.attendu = it.attendu != null ? () => envoyer({texte: it.attendu, verdict: "juste"}) : null;
+      c.bienLu = it.proposition != null ? () => envoyer({texte: it.proposition}) : null;
     }
     peindre();
   };
