@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titre %}Copies · groupe {{ groupe }}{% endblock %}
+{% block nav %}<a href="/">Tableau de bord</a> › <a href="/g/{{ groupe }}">Groupe {{ groupe }}</a> › Copies{% endblock %}
+{% block outils %}<a class="bouton" href="/g/{{ groupe }}/notes.csv">Exporter les notes</a>{% endblock %}
+{% block contenu %}
+<h1>Copies et notes · groupe {{ groupe }}</h1>
+<p class="aide">Note sur {{ notes[0].max | round(2) if notes else 9 }} (QCM + réponses courtes). Une note incomplète a encore des réponses à décider ;
+  entre parenthèses, la note si l'on acceptait toutes les propositions.</p>
+<table class="notes">
+  <tr><th>Classe</th><th>Copie</th><th>Étudiant</th><th>QCM</th><th>Réponses courtes</th><th>Total</th><th>État</th></tr>
+  {% for r in notes %}
+  <tr class="{{ 'fini' if r.etat == 'complète' }}">
+    <td>{{ r.classe }}</td><td><a href="/c/{{ r.classe }}/{{ r.copie }}">{{ r.copie }}</a></td><td>{{ r.etudiant }}</td>
+    <td class="n">{{ '%.2f' | format(r.qcm) }}</td><td class="n">{{ '%.2f' | format(r.courtes) }}</td>
+    <td class="n"><b>{{ '%.2f' | format(r.total) }}</b>{% if r.etat != 'complète' %} <span class="gris">({{ '%.2f' | format(r.provisoire) }})</span>{% endif %}</td>
+    <td>{% if r.etat == 'complète' %}<span class="ok">complète</span>{% else %}{{ r.en_attente }} à décider{% endif %}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

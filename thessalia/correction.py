@@ -1,0 +1,274 @@
+"""Correction : état de chaque réponse d'une classe (verdict, origine, décidé ou non) et notes.
+
+Moteur de la commande `serve` (sans Flask : testable seul). On juge des VERDICTS (juste / forme / faux /
+vide), pas des transcriptions : l'enseignant décide si c'est juste, il n'a pas à recopier ce qui est écrit.
+
+Origine du verdict d'une réponse courte, par ordre de priorité :
+  enseignant    décision prise dans l'outil (base `data/correction.sqlite`)
+  vérité        vérité validée `data/truth/<classe>.short_truth.json` (pages de validation antérieures)
+  acceptée      lecture acceptée par `ocr` (règles mesurées) : verdict de la lecture
+  deux lecteurs lecture en revue, mais un second lecteur indépendant et sûr donne le même verdict
+                (fichier optionnel `<classe>/lectures_secondaires.json`, rempli par n'importe quel lecteur)
+  proposé       sinon : verdict de la proposition, NON décidé (l'enseignant confirme ou change)
+Une zone détectée vide reste proposée (« vide ? ») : une écriture très pâle peut être prise pour du vide
+(mesuré le 19 octobre : 4 réponses justes sur 42 vides détectés, supC 1 et 2).
+
+Règle de notation : `notes.judge` (règle globale de l'enseignant du 18 octobre). QCM : `grade.grade_copy`.
+"""
+from __future__ import annotations
+
+import json
+import re
+import sqlite3
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from .common import load_json
+from .grade import grade_copy
+from .notes import ATTENTE, FAUX, FORME, JUSTE, RATE, VIDE, judge
+
+TRUTH_DIR = Path("data/truth")
+LISTS_DIR = Path("data/listes")
+DB_PATH = Path("data/correction.sqlite")
+SECOND = "lectures_secondaires.json"
+VERDICTS = (JUSTE, FORME, FAUX, VIDE)
+
+
+def group_of(name: str) -> str:
+    """supA_3 -> A, supc_1 -> C, supNA_2 -> NA, sup_nb_4 -> NB, supD -> D (regroupement voulu par l'enseignant)."""
+    m = re.match(r"sup_?([a-z]+?)(?:_|\d|$)", name, re.I)
+    if not m:
+        return name
+    g = m.group(1).upper()
+    return g if len(g) <= 2 else g[0]
+
+
+# ---------------------------------------------------------------- décisions de l'enseignant (SQLite)
+
+class Decisions:
+    """Décisions prises dans l'outil : une ligne par réponse (classe, clé cNN_qX.Y)."""
+
+    def __init__(self, path=DB_PATH):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self._db() as db:
+            db.execute("""CREATE TABLE IF NOT EXISTS decision (
+                classe TEXT, cle TEXT, verdict TEXT, texte TEXT, options TEXT, maj REAL,
+                PRIMARY KEY (classe, cle))""")
+
+    def _db(self):
+        return sqlite3.connect(self.path, timeout=10)
+
+    def of(self, classe: str) -> dict:
+        with self._db() as db:
+            rows = db.execute("SELECT cle, verdict, texte, options FROM decision WHERE classe=?", (classe,))
+            return {k: {"verdict": v, "texte": t, "options": None if o is None else json.loads(o)}
+                    for k, v, t, o in rows}
+
+    def set(self, classe, cle, verdict=None, texte=None, options=None):
+        with self._db() as db:
+            db.execute("INSERT OR REPLACE INTO decision VALUES (?,?,?,?,?,?)",
+                       (classe, cle, verdict, texte, None if options is None else json.dumps(options), time.time()))
+
+    def clear(self, classe, cle):
+        with self._db() as db:
+            db.execute("DELETE FROM decision WHERE classe=? AND cle=?", (classe, cle))
+
+
+# ---------------------------------------------------------------- examen (gabarit, corrigé, vocabulaire)
+
+@dataclass
+class Exam:
+    template: dict
+    key: dict
+    vocab: dict
+    points: dict = field(default_factory=dict)   # champ court -> points
+    prompts: dict = field(default_factory=dict)
+    fields: dict = field(default_factory=dict)   # id -> champ du gabarit
+
+    @classmethod
+    def load(cls, exam_id, keys_dir="keys", templates_dir="templates"):
+        def find(folder, suffix):
+            for p in sorted(Path(folder).glob(f"*{suffix}")):
+                try:
+                    if load_json(p).get("exam_id") == exam_id:
+                        return load_json(p)
+                except Exception:
+                    continue
+            raise SystemExit(f"Aucun fichier *{suffix} pour l'examen « {exam_id} » dans {folder}/")
+        ex = cls(find(templates_dir, ".json"), find(keys_dir, ".key.json"), find(keys_dir, ".vocab.json"))
+        by_q = {q["num"]: q for q in ex.template["questions"]}
+        shorts = [f for p in ex.template["pages"] for f in p["fields"] if f["type"] == "short_text"]
+        count = {}
+        for f in shorts:
+            count[f["question"]] = count.get(f["question"], 0) + 1
+        expected = ex.key.get("short_answers", {})
+        for f in shorts:
+            if f["id"] in expected:
+                ex.points[f["id"]] = (by_q.get(f["question"], {}).get("points") or 0) / count[f["question"]]
+                ex.prompts[f["id"]] = f.get("prompt") or ""
+        ex.fields = {f["id"]: f for p in ex.template["pages"] for f in p["fields"]}
+        return ex
+
+    def kind(self, fid):
+        return self.vocab.get("fields", {}).get(fid, {}).get("kind", "text")
+
+    def verdict(self, answer, fid):
+        if answer is None:
+            return None
+        k = self.key.get("short_answers", {})
+        return judge(answer, k[fid], self.kind(fid), self.key.get("short_accept", {}).get(fid, ()),
+                     self.key.get("short_reject", {}).get(fid, ()))
+
+
+# ---------------------------------------------------------------- classe
+
+def _num(cid):
+    return int(cid.split("_")[-1])
+
+
+class Classe:
+    def __init__(self, results_dir, exams: dict, decisions: Decisions, truth_dir=TRUTH_DIR, lists_dir=LISTS_DIR):
+        self.dir = Path(results_dir)
+        self.name = self.dir.name
+        self.group = group_of(self.name)
+        res = load_json(self.dir / "results.json")
+        self.exam_id = res["exam_id"]
+        if self.exam_id not in exams:
+            exams[self.exam_id] = Exam.load(self.exam_id)
+        self.exam: Exam = exams[self.exam_id]
+        self.copy_ids = [c["copy_id"] for c in res["copies"]]
+        self.decisions = decisions
+        self.truth_dir, self.lists_dir = Path(truth_dir), Path(lists_dir)
+        self._docs = {}
+
+    # sources --------------------------------------------------------------
+    def doc(self, cid):
+        if cid not in self._docs:
+            p = self.dir / cid / "result.json"
+            self._docs[cid] = load_json(p) if p.exists() else {"fields": {}, "answers": {}, "pages": {}}
+        return self._docs[cid]
+
+    def _json(self, path):
+        return load_json(path) if Path(path).exists() else {}
+
+    def students(self):
+        p = self.lists_dir / f"{self.name}.csv"
+        if not p.exists():
+            return {}
+        import csv
+        with open(p, encoding="utf-8-sig") as fh:
+            return {r["copie"]: r["etudiant"] for r in csv.DictReader(fh, delimiter=";")}
+
+    # état des réponses courtes ----------------------------------------------
+    def short_items(self):
+        truth = self._json(self.truth_dir / f"{self.name}.short_truth.json")
+        second = self._json(self.dir / SECOND)
+        dec = self.decisions.of(self.name)
+        items = []
+        for cid in self.copy_ids:
+            n, doc = _num(cid), self.doc(cid)
+            for fid, pts in self.exam.points.items():
+                key = f"c{n:02d}_{fid}"
+                info = doc.get("fields", {}).get(fid, {})
+                o = info.get("ocr") or {}
+                st = o.get("status")
+                prop = "" if st == "blank" else o.get("value")
+                it = {"classe": self.name, "copie": cid, "num": n, "cle": key, "champ": fid, "max": pts,
+                      "img": (info.get("crop") or "").replace("\\", "/"), "box": info.get("box_px"),
+                      "proposition": prop, "lecture": st or "absente", "raison": o.get("reason"),
+                      "texte": None, "attendu": self.exam.key.get("short_answers", {}).get(fid)}
+                d, t, s2 = dec.get(key), truth.get(key), second.get(key)
+                if d and (d.get("verdict") or d.get("texte") is not None):
+                    # texte tapé par l'enseignant : son verdict se calcule ; sinon son verdict cliqué
+                    v = d["verdict"] or self.exam.verdict(d["texte"], fid)
+                    it.update(verdict=v, origine="enseignant", decide=True, texte=d.get("texte"))
+                elif t is not None and not t.endswith("?"):
+                    it.update(verdict=self.exam.verdict(t, fid), origine="vérité", decide=True, texte=t)
+                elif not info.get("crop"):
+                    it.update(verdict=None, origine="page absente", decide=False)
+                elif st == "ok":
+                    it.update(verdict=self.exam.verdict(prop, fid), origine="acceptée", decide=True)
+                elif st == "blank":
+                    it.update(verdict=VIDE, origine="vide ?", decide=False)
+                else:
+                    v = self.exam.verdict(prop or "", fid)
+                    agree = (s2 is not None and s2.get("sur") and prop is not None
+                             and self.exam.verdict(s2.get("lecture", ""), fid) == v)
+                    it.update(verdict=v, origine="deux lecteurs" if agree else "proposé", decide=bool(agree),
+                              second=None if s2 is None else s2.get("lecture"))
+                it["points"] = None if it["verdict"] is None else pts * RATE.get(it["verdict"], 0.0)
+                items.append(it)
+        return items
+
+    # QCM en revue ----------------------------------------------------------------
+    def qcm_items(self):
+        truth = self._json(self.truth_dir / f"{self.name}.qcm_truth.json")
+        dec = self.decisions.of(self.name)
+        items = []
+        for cid in self.copy_ids:
+            n, doc = _num(cid), self.doc(cid)
+            reasons = {r["item"]: r for r in doc.get("review", [])}
+            for fid, ans in doc.get("answers", {}).items():
+                if ans.get("type") not in ("mcq", "truefalse") or ans.get("status") != "review":
+                    continue
+                key = f"c{n:02d}_{fid}"
+                d, t = dec.get(key), truth.get(key)
+                it = {"classe": self.name, "copie": cid, "num": n, "cle": key, "champ": fid, "qcm": True,
+                      "mode": ans.get("mode", "multi"), "raison": reasons.get(fid, {}).get("reason"),
+                      "img": f"{cid}/crops/qcm_{fid}.jpg" if (self.dir / cid / "crops" / f"qcm_{fid}.jpg").exists() else "",
+                      "overlay": (reasons.get(fid, {}).get("overlay") or "").replace("\\", "/"),
+                      "options": [{"id": k, "label": o.get("label", k), "state": o["state"]}
+                                  for k, o in ans["options"].items()],
+                      "proposition": sorted(ans.get("selected", [])),
+                      "attendu": sorted(self.exam.key.get("answers", {}).get(fid, []))}
+                if d and d.get("options") is not None:
+                    it.update(choix=d["options"], origine="enseignant", decide=True)
+                elif t is not None and not t.endswith("?"):
+                    it.update(choix=[x for x in t.split(",") if x], origine="vérité", decide=True)
+                else:
+                    it.update(choix=it["proposition"], origine="proposé", decide=False)
+                items.append(it)
+        return items
+
+    # notes --------------------------------------------------------------------
+    def notes(self):
+        shorts, qcms = self.short_items(), self.qcm_items()
+        students = self.students()
+        by_copy = {}
+        for it in shorts:
+            by_copy.setdefault(it["copie"], []).append(it)
+        q_by_copy = {}
+        for it in qcms:
+            q_by_copy.setdefault(it["copie"], []).append(it)
+        key = self.exam.key
+        rows = []
+        for cid in self.copy_ids:
+            answers = json.loads(json.dumps(self.doc(cid).get("answers", {})))
+            wait_q = 0
+            for it in q_by_copy.get(cid, []):
+                if it["decide"]:
+                    answers[it["champ"]].update(status="ok", selected=it["choix"])
+                else:
+                    wait_q += 1
+            g = grade_copy(answers, self.exam.template, key) if key.get("answers") else {"total": 0, "max": 0}
+            its = by_copy.get(cid, [])
+            court = sum(i["points"] or 0 for i in its if i["decide"])
+            provisoire = sum(i["points"] or 0 for i in its)
+            wait_c = sum(not i["decide"] for i in its)
+            mx = g.get("max", 0) + sum(i["max"] for i in its)
+            rows.append({"classe": self.name, "copie": cid, "etudiant": students.get(cid, f"{self.name}_{cid}"),
+                         "qcm": g.get("total", 0), "courtes": court, "total": g.get("total", 0) + court,
+                         "provisoire": g.get("total", 0) + provisoire, "max": mx,
+                         "en_attente": wait_c + wait_q, "etat": "complète" if wait_c + wait_q == 0 else "incomplète"})
+        return rows
+
+    # décisions ---------------------------------------------------------------------
+    def decide(self, cle, verdict=None, texte=None, options=None):
+        if verdict is not None and verdict not in VERDICTS:
+            raise ValueError(f"verdict inconnu : {verdict}")
+        self.decisions.set(self.name, cle, verdict, texte, options)
+
+    def undo(self, cle):
+        self.decisions.clear(self.name, cle)

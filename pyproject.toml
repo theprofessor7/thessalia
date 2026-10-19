@@ -22,6 +22,8 @@ ocr-light = ["pytesseract>=0.3", "rapidocr-onnxruntime>=1.3"]
 trocr = ["torch>=2.1", "transformers>=4.40", "sentencepiece"]
 # Générer les sujets PDF (déjà dans la stack HTML -> PDF)
 sujets = ["weasyprint>=60"]
+# Outil de correction dans le navigateur (python -m thessalia serve)
+serveur = ["flask>=3"]
 dev = ["pytest>=7"]
 
 [project.scripts]
@@ -31,7 +33,7 @@ thessalia = "thessalia.__main__:main"
 include = ["thessalia*"]
 
 [tool.setuptools.package-data]
-thessalia = ["data/*.npz"]
+thessalia = ["data/*.npz", "web/templates/*.html", "web/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

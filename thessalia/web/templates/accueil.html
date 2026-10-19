@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block titre %}Tableau de bord{% endblock %}
+{% block contenu %}
+<h1>Tableau de bord</h1>
+<p class="aide">Une ligne par classe. « À décider » : réponses dont le verdict attend votre confirmation.</p>
+<div class="groupes">
+{% for g in groupes %}
+  {% set a = g.classes | sum(attribute='a_decider') %}
+  {% set cp = g.classes | sum(attribute='copies') %}
+  {% set ok = g.classes | sum(attribute='completes') %}
+  <section class="carte-groupe {{ 'fini' if a == 0 }}">
+    <h2><a href="/g/{{ g.groupe }}">Groupe {{ g.groupe }}</a></h2>
+    <p class="chiffres"><b>{{ a }}</b> à décider · <b>{{ ok }}</b>/{{ cp }} notes complètes</p>
+    <table>
+      {% for c in g.classes %}
+      <tr><td>{{ c.classe }}</td><td class="n">{{ c.copies }} copies</td>
+          <td class="n">{% if c.a_decider %}{{ c.a_decider }} à décider{% else %}<span class="ok">terminé</span>{% endif %}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="liens"><a href="/g/{{ g.groupe }}">Corriger</a> · <a href="/g/{{ g.groupe }}/copies">Copies et notes</a> ·
+      <a href="/g/{{ g.groupe }}/notes.csv">Exporter</a></p>
+  </section>
+{% endfor %}
+</div>
+{% endblock %}

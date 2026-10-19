@@ -6,6 +6,7 @@
     digits-train  Niveau 2 : affiner le lecteur de chiffres sur un lot dont la vérité est validée
     trocr-train   Niveau 2 : affiner TrOCR sur des lots validés (long, ~6 Go de mémoire)
     truth-page    Niveau 2 : page HTML locale pour valider la vérité terrain des réponses courtes
+    serve      outil de correction local (navigateur) : vue par question, vue par copie, notes en direct
     notes      notes partielles : QCM + réponses courtes, par classe (et fichier commun d'un groupe)
     simulate   génère des copies remplies + scannées synthétiques (tests)
     evaluate   compare des résultats à une vérité terrain
@@ -91,6 +92,11 @@ def main(argv=None):
     n.add_argument("-v", "--vocab", required=True, help="vocabulaire (nature de chaque blanc)")
     n.add_argument("-o", "--out", help="fichier commun du groupe (ex. sorties/notes/B.csv)")
 
+    sv = sub.add_parser("serve", help="outil de correction local dans le navigateur")
+    sv.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
+    sv.add_argument("--port", type=int, default=8765)
+    sv.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
+
     e = sub.add_parser("evaluate", help="résultats vs vérité terrain")
     e.add_argument("results_dir")
     e.add_argument("truth")
@@ -142,6 +148,10 @@ def main(argv=None):
         from .notes import run as nrun
 
         nrun(a.results_dirs, a.template, a.key, a.vocab, a.out)
+    elif a.cmd == "serve":
+        from .serve import run as srun
+
+        srun(a.dossiers, port=a.port, open_browser=not a.no_browser)
     elif a.cmd == "simulate":
         from .simulate import main as smain
 

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block titre %}{{ classe }} · {{ copie }}{% endblock %}
+{% block nav %}<a href="/">Tableau de bord</a> › <a href="/g/{{ groupe }}">Groupe {{ groupe }}</a> ›
+<a href="/g/{{ groupe }}/copies">Copies</a> › {{ classe }} · {{ copie }}{% endblock %}
+{% block outils %}
+{% if prec %}<a class="bouton" id="prec" href="/c/{{ classe }}/{{ prec }}">← copie précédente</a>{% endif %}
+{% if suiv %}<a class="bouton" id="suiv" href="/c/{{ classe }}/{{ suiv }}">copie suivante →</a>{% endif %}
+{% endblock %}
+{% block contenu %}
+<div class="vue-copie">
+  <div id="pages" class="pages"></div>
+  <aside class="panneau">
+    <div id="note" class="note"></div>
+    <p class="aide">Cliquez une réponse sur la page, ou parcourez la liste. <kbd>Entrée</kbd> confirmer ·
+      <kbd>1</kbd> juste · <kbd>2</kbd> forme · <kbd>3</kbd> faux · <kbd>T</kbd> taper · <kbd>↑</kbd><kbd>↓</kbd> ·
+      <kbd>N</kbd>/<kbd>P</kbd> copie suivante / précédente</p>
+    <label class="gris"><input type="checkbox" id="seulement"> seulement les réponses à décider</label>
+    <div id="liste" class="liste"></div>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script id="donnees" type="application/json">{{ data | tojson }}</script>
+<script src="{{ url_for('static', filename='commun.js') }}"></script>
+<script src="{{ url_for('static', filename='copie.js') }}"></script>
+{% endblock %}

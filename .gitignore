@@ -11,6 +11,8 @@ data/truth/*
 data/models/
 # listes d'étudiants (noms, numéros) : jamais dans le dépôt
 data/listes/
+# décisions de correction (réponses d'étudiants)
+data/correction.sqlite
 !data/truth/README.md
 
 # Python

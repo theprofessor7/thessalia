@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block titre %}{{ champ }} · groupe {{ groupe }}{% endblock %}
+{% block nav %}<a href="/">Tableau de bord</a> › <a href="/g/{{ groupe }}">Groupe {{ groupe }}</a> › {{ champ }}{% endblock %}
+{% block outils %}
+{% if prec %}<a class="bouton" href="/g/{{ groupe }}/q/{{ prec }}">← {{ prec }}</a>{% endif %}
+{% if suiv %}<a class="bouton" href="/g/{{ groupe }}/q/{{ suiv }}">{{ suiv }} →</a>{% endif %}
+{% endblock %}
+{% block contenu %}
+<div class="entete-question">
+  <h1>{{ champ }}</h1>
+  <span id="consigne" class="consigne"></span>
+  <span class="attendu">attendu : <code id="attendu"></code></span>
+  <span id="progres" class="progres"></span>
+  <button id="tout-valider" class="bouton principal">Valider toutes les propositions</button>
+  <a id="suivante" class="bouton" href="#" hidden></a>
+</div>
+<p class="aide"><kbd>Entrée</kbd> confirmer le verdict proposé · <kbd>1</kbd> juste · <kbd>2</kbd> forme (50 %) ·
+  <kbd>3</kbd> faux · <kbd>T</kbd> taper ce qui est écrit · <kbd>Suppr</kbd> annuler · <kbd>↑</kbd><kbd>↓</kbd> naviguer</p>
+<div id="a-decider"></div>
+<details id="decidees"><summary></summary><div id="liste-decidees" class="grille"></div></details>
+{% endblock %}
+{% block scripts %}
+<script id="donnees" type="application/json">{{ data | tojson }}</script>
+<script src="{{ url_for('static', filename='commun.js') }}"></script>
+<script src="{{ url_for('static', filename='question.js') }}"></script>
+{% endblock %}
