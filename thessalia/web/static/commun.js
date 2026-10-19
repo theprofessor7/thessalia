@@ -90,6 +90,13 @@ function carte(it, surDecision, opts = {}) {
         bien.onclick = () => envoyer({texte: it.proposition});
         ligneLu.append(" ", bien);
       }
+      // faux négatif : la machine a mal lu une réponse qui est exactement le corrigé → lecture = attendu, note juste
+      if (it.attendu != null && !(it.verdict === "juste" && (verifiee || it.decide))) {
+        const att = el("button", {className: "lecture attendu-btn", textContent: "= attendu", tabIndex: -1,
+                                  title: "l'étudiant a écrit exactement « " + it.attendu + " » : la machine a mal lu (A)"});
+        att.onclick = () => envoyer({texte: it.attendu, verdict: "juste"});
+        ligneLu.append(" ", att);
+      }
       const corr = el("button", {className: "lecture", textContent: "✎ corriger la lecture", tabIndex: -1,
                                  title: "taper ce qui est réellement écrit (T) : sert à l'apprentissage"});
       corr.onclick = () => saisir();
@@ -139,6 +146,7 @@ function carte(it, surDecision, opts = {}) {
     else if (!it.qcm && TOUCHE[ev.key]) { ev.preventDefault(); envoyer({verdict: TOUCHE[ev.key]}, true); }
     else if (!it.qcm && (ev.key === "t" || ev.key === "T")) { ev.preventDefault(); saisir(); }
     else if (!it.qcm && (ev.key === "l" || ev.key === "L") && it.proposition != null) { ev.preventDefault(); envoyer({texte: it.proposition}); }
+    else if (!it.qcm && (ev.key === "a" || ev.key === "A") && it.attendu != null) { ev.preventDefault(); envoyer({texte: it.attendu, verdict: "juste"}, true); }
     else if (ev.key === "Delete" && it.origine === "enseignant") { ev.preventDefault(); envoyer({annuler: true}); }
     else if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); bouger(c, ev.key === "ArrowDown" ? 1 : -1); }
   });
