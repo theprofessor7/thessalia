@@ -9,6 +9,10 @@ Origine du verdict d'une réponse courte, par ordre de priorité :
   acceptée      lecture acceptée par `ocr` (règles mesurées) : verdict de la lecture
   deux lecteurs lecture en revue, mais un second lecteur indépendant et sûr donne le même verdict
                 (fichier optionnel `<classe>/lectures_secondaires.json`, rempli par n'importe quel lecteur)
+  mémoire       lecture en revue que l'enseignant a jugée au moins MEMORY_MIN fois, toujours de la même façon,
+                dans les AUTRES classes (même champ, même lecture) : chaque classe corrigée aide la suivante.
+                Mesuré le 19 octobre (classe par classe, les autres servant de mémoire, A à D) : 454 réponses
+                décidées sur 1 565, 1 erreur (`zéro` en minuscule lu `Zéro`) hors verdicts incohérents.
   proposé       sinon : verdict de la proposition, NON décidé (l'enseignant confirme ou change)
 Une zone détectée vide reste proposée (« vide ? ») : une écriture très pâle peut être prise pour du vide
 (mesuré le 19 octobre : 4 réponses justes sur 42 vides détectés, supC 1 et 2).
@@ -33,6 +37,41 @@ LISTS_DIR = Path("data/listes")
 DB_PATH = Path("data/correction.sqlite")
 SECOND = "lectures_secondaires.json"
 VERDICTS = (JUSTE, FORME, FAUX, VIDE)
+MEMORY_MIN = 10
+
+
+class Memory:
+    """Verdicts de l'enseignant par (champ, lecture), classe par classe. Une classe ne consulte que les
+    autres : la mesure du 19 octobre a été faite ainsi (une classe ne se renforce pas elle-même)."""
+
+    def __init__(self, minimum=MEMORY_MIN):
+        self.minimum, self.table, self.dirty = minimum, {}, True
+
+    def rebuild(self, classes):
+        from collections import Counter
+        table = {}
+        for c in classes:
+            for it in c.short_items(use_memory=False):
+                if it["lecture"] != "review" or it["origine"] not in ("vérité", "enseignant") or not it["proposition"]:
+                    continue
+                k = (c.exam_id, it["champ"], c.exam.clean(it["proposition"], it["champ"]))  # par sujet : FR et EN diffèrent
+                table.setdefault(k, {}).setdefault(c.name, Counter())[it["verdict"]] += 1
+        self.table, self.dirty = table, False
+
+    def lookup(self, exam_id, classe, fid, lecture):
+        """(verdict, nombre de fois) si la mémoire des autres classes est unanime et assez fournie, sinon None."""
+        from collections import Counter
+        per = self.table.get((exam_id, fid, lecture))
+        if not per:
+            return None
+        tot = Counter()
+        for name, cnt in per.items():
+            if name != classe:
+                tot.update(cnt)
+        if len(tot) == 1 and sum(tot.values()) >= self.minimum:
+            v, n = next(iter(tot.items()))
+            return v, n
+        return None
 
 
 def group_of(name: str) -> str:
@@ -114,6 +153,10 @@ class Exam:
     def kind(self, fid):
         return self.vocab.get("fields", {}).get(fid, {}).get("kind", "text")
 
+    def clean(self, answer, fid):
+        from .notes import clean
+        return clean(str(answer), self.kind(fid))
+
     def verdict(self, answer, fid):
         if answer is None:
             return None
@@ -129,7 +172,9 @@ def _num(cid):
 
 
 class Classe:
-    def __init__(self, results_dir, exams: dict, decisions: Decisions, truth_dir=TRUTH_DIR, lists_dir=LISTS_DIR):
+    def __init__(self, results_dir, exams: dict, decisions: Decisions, truth_dir=TRUTH_DIR, lists_dir=LISTS_DIR,
+                 memory: Memory | None = None):
+        self.memory = memory
         self.dir = Path(results_dir)
         self.name = self.dir.name
         self.group = group_of(self.name)
@@ -162,7 +207,7 @@ class Classe:
             return {r["copie"]: r["etudiant"] for r in csv.DictReader(fh, delimiter=";")}
 
     # état des réponses courtes ----------------------------------------------
-    def short_items(self):
+    def short_items(self, use_memory=True):
         truth = self._json(self.truth_dir / f"{self.name}.short_truth.json")
         second = self._json(self.dir / SECOND)
         dec = self.decisions.of(self.name)
@@ -196,8 +241,15 @@ class Classe:
                     v = self.exam.verdict(prop or "", fid)
                     agree = (s2 is not None and s2.get("sur") and prop is not None
                              and self.exam.verdict(s2.get("lecture", ""), fid) == v)
-                    it.update(verdict=v, origine="deux lecteurs" if agree else "proposé", decide=bool(agree),
-                              second=None if s2 is None else s2.get("lecture"))
+                    mem = (self.memory.lookup(self.exam_id, self.name, fid, self.exam.clean(prop, fid))
+                           if use_memory and self.memory and prop else None)
+                    if agree:
+                        it.update(verdict=v, origine="deux lecteurs", decide=True)
+                    elif mem:
+                        it.update(verdict=mem[0], origine="mémoire", decide=True, memoire=mem[1])
+                    else:
+                        it.update(verdict=v, origine="proposé", decide=False)
+                    it["second"] = None if s2 is None else s2.get("lecture")
                 it["points"] = None if it["verdict"] is None else pts * RATE.get(it["verdict"], 0.0)
                 items.append(it)
         return items

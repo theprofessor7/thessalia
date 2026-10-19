@@ -1,7 +1,7 @@
 "use strict";
 // Fonctions communes aux vues par question et par copie.
 const LIBELLE = {juste: "✓ juste", forme: "½ forme", faux: "✗ faux", vide: "∅ vide"};
-const TOUCHE = {"1": "juste", "2": "forme", "3": "faux"};
+const TOUCHE = {"1": "juste", "2": "forme", "3": "faux", "4": "vide"};
 
 function el(tag, props, ...kids) {
   const e = Object.assign(document.createElement(tag), props || {});
@@ -38,7 +38,9 @@ function carte(it, surDecision, opts = {}) {
     const titre = el("div", {className: "haut"},
       opts.lienCopie === false ? el("span", {textContent: it.champ}) :
         el("a", {href: "/c/" + it.classe + "/" + it.copie, textContent: it.classe + " · copie " + it.num, tabIndex: -1}),
-      el("span", {className: "origine " + (it.origine || "").replace(/\s|\?/g, ""), textContent: it.origine}));
+      el("span", {className: "origine " + (it.origine || "").replace(/\s|\?/g, ""),
+                  textContent: it.origine + (it.memoire ? " (" + it.memoire + "×)" : ""),
+                  title: it.memoire ? "vous avez jugé cette lecture ainsi " + it.memoire + " fois dans d'autres classes" : ""}));
     c.append(titre);
     if (it.img) c.append(el("img", {src: "/img/" + it.classe + "/" + it.img, loading: "lazy", alt: it.cle}));
     else c.append(el("div", {className: "manque", textContent: "pas d'image (page absente du scan ?) : voir la copie papier"}));
@@ -81,11 +83,13 @@ function carte(it, surDecision, opts = {}) {
         ok.onclick = () => envoyer({verdict: it.verdict});
         ligne.append(ok);
       }
-      for (const v of ["juste", "forme", "faux"]) {
-        const actif = it.verdict === v || (v === "faux" && it.verdict === "vide");
+      // vide et faux valent 0 tous les deux, mais ce sont deux constats différents : deux boutons distincts
+      for (const v of ["juste", "forme", "faux", "vide"]) {
+        const actif = it.verdict === v;
         const b = el("button", {className: "verdict " + v + (actif ? (it.decide ? " choisi" : " propose") : ""),
-                                textContent: v === "faux" && it.verdict === "vide" ? LIBELLE.vide : LIBELLE[v], tabIndex: -1});
-        b.onclick = () => envoyer({verdict: v === "faux" && it.verdict === "vide" ? "vide" : v});
+                                textContent: LIBELLE[v], tabIndex: -1,
+                                title: {juste: "1", forme: "2", faux: "3", vide: "4 : rien d'écrit"}[v]});
+        b.onclick = () => envoyer({verdict: v});
         ligne.append(b);
       }
       const stylo = el("button", {className: "verdict texte", textContent: "✎", title: "taper ce qui est écrit (T)", tabIndex: -1});

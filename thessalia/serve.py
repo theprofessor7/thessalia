@@ -13,7 +13,7 @@ import json
 import webbrowser
 from pathlib import Path
 
-from .correction import Classe, Decisions, DB_PATH, group_of
+from .correction import Classe, Decisions, DB_PATH, Memory, group_of
 from .notes import RATE
 
 
@@ -45,13 +45,19 @@ def create_app(paths, db_path=DB_PATH):
     web = Path(__file__).parent / "web"
     app = Flask(__name__, template_folder=str(web / "templates"), static_folder=str(web / "static"))
     app.json.ensure_ascii = False
-    decisions, exams = Decisions(db_path), {}
-    classes = {d.name: Classe(d, exams, decisions) for d in _classes(paths)}
+    decisions, exams, memory = Decisions(db_path), {}, Memory()
+    classes = {d.name: Classe(d, exams, decisions, memory=memory) for d in _classes(paths)}
     if not classes:
         raise SystemExit("Aucune classe trouvée (dossiers contenant results.json).")
     groups = {}
     for c in classes.values():
         groups.setdefault(c.group, []).append(c)
+
+    @app.before_request
+    def refresh_memory():
+        # mémoire des verdicts recalculée à l'ouverture d'une page après de nouvelles décisions (pas à chaque clic)
+        if memory.dirty and request.method == "GET" and not request.path.startswith(("/img/", "/static/")):
+            memory.rebuild(classes.values())
 
     def group(g):
         if g not in groups:
@@ -152,6 +158,7 @@ def create_app(paths, db_path=DB_PATH):
     def api_decision():
         d = request.get_json(force=True)
         c = classes.get(d.get("classe")) or abort(404)
+        memory.dirty = True
         if d.get("annuler"):
             c.undo(d["cle"])
         else:

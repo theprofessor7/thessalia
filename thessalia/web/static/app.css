@@ -66,6 +66,8 @@ details { margin-top:24px; } summary { cursor:pointer; color:var(--gris); margin
 .verdict.juste.choisi { background:var(--juste); color:#fff; border-color:var(--juste); }
 .verdict.forme.choisi { background:var(--forme); color:#fff; border-color:var(--forme); }
 .verdict.faux.choisi { background:var(--faux); color:#fff; border-color:var(--faux); }
+.verdict.vide { font-size:12px; color:var(--gris); }
+.verdict.vide.propose { border-color:var(--gris); } .verdict.vide.choisi { background:var(--gris); color:#fff; border-color:var(--gris); }
 .verdict.principal { background:var(--accent); color:#fff; border-color:var(--accent); }
 .options { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0; }
 .option { padding:3px 8px; border:1px solid var(--trait); border-radius:5px; background:var(--carte); color:var(--encre);
