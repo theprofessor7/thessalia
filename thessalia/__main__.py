@@ -55,6 +55,7 @@ def main(argv=None):
     o.add_argument("--batch", type=int, default=4,
                    help="vignettes lues à la fois (défaut 4 ; plus petit = moins de mémoire)")
 
+    o.add_argument("--confirm-model", help="second modèle TrOCR (lectures déjà en cache) dont l'accord est exigé pour accepter")
     o.add_argument("--digits-model", help="modèle du lecteur de chiffres (défaut : data/models/digits.npz s'il existe, sinon celui fourni)")
     o.add_argument("--no-digits", action="store_true",
                    help="ne pas utiliser le lecteur de chiffres pour proposer les nombres")
@@ -128,7 +129,8 @@ def main(argv=None):
         from .ocr_run import run
 
         run(a.results_dir, a.vocab, a.backend, a.truth, {"model": a.model} if a.model else None,
-            batch=max(1, a.batch), digits=not a.no_digits, digits_model=a.digits_model)
+            batch=max(1, a.batch), digits=not a.no_digits, digits_model=a.digits_model,
+            confirm_model=a.confirm_model)
     elif a.cmd == "digits-train":
         from . import digits_train
 

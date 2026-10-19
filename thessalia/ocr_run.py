@@ -22,11 +22,12 @@ from .common import load_json, save_json
 from .evaluate_ocr import evaluate, proposals, report, same
 from .ocr import get_backend
 from .ocr_prep import extra_word, struck_word
-from .vocab import parse_number, propose_digits, snap
+from .vocab import normalize, parse_number, propose_digits, snap
 
 EXTRA_WORD = "écriture séparée en plus du mot reconnu (deux mots, rature ?) : à vérifier"
 STRUCK = "mot barré à côté d'une autre écriture : à vérifier"
 FORM = "parenthèses ou guillemets lus autour de la réponse : forme à vérifier (notée 50 %)"
+CONFIRM = "les deux modèles de lecture ne lisent pas la même chose : à confirmer"
 FORM_CHARS = set("()\"'")
 
 
@@ -37,7 +38,11 @@ def form_marks(raw: str, value) -> bool:
 
 
 def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, log=print, batch=4,
-        digits=True, digits_model=None):
+        digits=True, digits_model=None, confirm_model=None):
+    """confirm_model : second modèle TrOCR dont les lectures sont DÉJÀ en cache dans le dossier ; une réponse
+    n'est acceptée que si ce modèle donne la même valeur. Mesuré le 19 octobre sur supF 2 (jamais vu) :
+    trocr_v3 seul lit mieux (78,5 % contre 70 % des lectures vérifiées) mais acceptait 3 réponses fausses
+    (`Booléen` lu `bool`, `return` lu `str`) ; avec l'accord de trocr_v2, aucune."""
     results_dir = Path(results_dir)
     vocab = load_json(vocab_path)["fields"]
     copies = sorted(results_dir.glob("copy_*/result.json"))
@@ -76,6 +81,14 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
     rest = [i for i, (k, h) in enumerate(zip(keys, sums)) if cache.get(k, {}).get("md5") != h]
     if len(rest) < len(todo):
         log(f"  {len(todo) - len(rest)} lectures déjà enregistrées ({cache_path.name}), {len(rest)} restantes")
+    confirm = None
+    if confirm_model:
+        ctag = "trocr_" + re.sub(r"[^\w.-]+", "_", str(confirm_model))
+        cpath = results_dir / f"ocr_lectures_{ctag}.json"
+        if not cpath.exists():
+            raise SystemExit(f"{cpath.name} absent : lire d'abord ce dossier avec --model {confirm_model}.")
+        confirm = load_json(cpath)
+        log(f"acceptation seulement si {confirm_model} lit la même chose ({cpath.name})")
     t0, last = time.time(), time.time()
     for n, j in enumerate(range(0, len(rest), batch)):
         idx = rest[j:j + batch]
@@ -123,6 +136,19 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
                 r.update(status="review", reason=STRUCK)
             elif form_marks(c[0][0] if c else "", r["value"]):
                 r.update(status="review", reason=FORM)
+            elif confirm is not None:
+                c2 = confirm.get(key) or {}
+                ok2 = False
+                if c2.get("md5") == cache[key].get("md5") and c2.get("candidates"):
+                    # lectures BRUTES identiques (avant rapprochement du vocabulaire : `Bifit` et `bool` se
+                    # rapprochent tous deux de `bool` mais ne sont pas la même lecture)
+                    top2, top1 = c2["candidates"][0][0], (c[0][0] if c else "")
+                    if spec.get("kind") == "number" and parse_number(str(r["value"])) is not None:
+                        ok2 = parse_number(top2) is not None and parse_number(top2) == parse_number(top1)
+                    else:
+                        ok2 = normalize(top2, "enum") == normalize(top1, "enum")
+                if not ok2:
+                    r.update(status="review", reason=CONFIRM)
             if r["status"] == "review":
                 flagged.add(key)
         proposed[key] = r["value"]
