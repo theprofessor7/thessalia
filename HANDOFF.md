@@ -1,9 +1,74 @@
-# Passation — état du projet au 18 octobre 2026
+# Passation — état du projet au 20 octobre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
 
-## 0. Point du 18 octobre 2026 (à lire en premier)
+## 0. Point du 19 octobre 2026 (à lire en premier)
+
+**La correction se fait désormais dans l'outil local** (remplace les pages `validation.html` du 18) :
+`pip install -e ".[serveur]"` puis
+`python -m thessalia serve sorties/booster sorties/supA_1_v3 --no-browser` → http://127.0.0.1:8765/.
+Motif (enseignant) : 30 minutes de validation par classe, « la correction manuelle serait plus rapide ».
+L'enseignant **juge** (verdict) au lieu de recopier la vérité ; il retouche la lecture seulement quand elle
+est fausse.
+
+- **Vues** : par question (réponses groupées par proposition identique, boutons de bloc « Confirmer le
+  bloc », « bien lu pour le bloc », « = attendu pour le bloc », sans confirmation) et par copie (pages avec
+  cadres colorés, note recalculée). Verdicts `juste` / `forme` / `faux` / `vide` / `illisible` (touches
+  1 à 5, Entrée valide la proposition) ; « ✓ bien lu » (L), « = attendu » (A, faux négatif de lecture),
+  « ✎ corriger la lecture » (T : le verdict est alors recalculé). Pages `/suivi` (erreurs de la machine
+  relevées par l'enseignant : 0 acceptée puis corrigée sur ~5 760) et `/revoir?cles=classe/cle,…` (cas
+  isolés à trancher). Notes : `/g/<groupe>/notes.csv`.
+- **Moteur** (`thessalia/correction.py`) : décisions dans `data/correction.sqlite` (hors dépôt).
+  Origine de chaque réponse, par priorité : enseignant > vérité validée > page absente > acceptée par la
+  machine > vide douteux > deux lecteurs d'accord > **mémoire** > proposition.
+- **Mémoire des verdicts** (par sujet, clé `exam_id` + champ + lecture nettoyée, jugements des **autres**
+  classes seulement) : décide seule à partir de 10 jugements et 95 % du même verdict (l'enseignant accepte
+  ~1 % d'erreur) ; sinon son verdict le plus fréquent est pré-sélectionné dès 3 jugements. `illisible`
+  n'entre pas dans la mémoire.
+- **Étiquettes d'apprentissage** écrites à chaque décision : `data/truth/<classe>.appris.json` (vérité
+  validée, textes tapés prioritaires, et « juste » quand lecture brute = valeur = corrigé). Ce sont elles
+  que lira le prochain réaffinage.
+- **Règles de notation ajoutées le 19** : décimal à virgule laissé **faux** (« laisse à faux
+  finalement ») ; une réponse numérique « calcul = bonne valeur » (`2^10 = 1024`, `7x2 = 14`) est juste
+  (« mathématiquement c'est juste »).
+- **Second lecteur** : fichier générique optionnel `<classe>/lectures_secondaires.json`
+  (`{cle: {lecture, sur}}`), jamais Claude en dur (projet distribuable). Mesuré TrOCR + Claude d'accord et
+  sûrs : 498 décidées sur 1 064, 1 erreur. Appliqué à aucun groupe à ce jour. Le 20, l'enseignant a écarté
+  l'idée de faire lire par Claude les désaccords v2/v3 (gain estimé modeste).
+- **Nombres** : la proposition vient maintenant de TrOCR, la lecture du lecteur de chiffres en second
+  choix (proposition juste : supA 3 155/173 contre 147, supB 3 139/157 contre 117). Réaffiner le lecteur
+  de chiffres n'a rien apporté en pratique.
+- **Résultats négatifs** : la probabilité TrOCR du texte attendu ne sépare pas juste/faux (TrOCR « voit »
+  le corrigé, `42` pour `41`). Détecteur point/virgule (branche `worktree-agent-a091ad9ede2b7d14e`,
+  `thessalia/separateur.py`, non fusionné) : ne décide pas seul, en indice 35 erreurs de séparateur contre
+  48 ; constat : `ocr_prep` efface la queue de la virgule près du soulignement. Sort à décider.
+
+**Groupes corrigés et notés** : A (complet), B 31/33 (restent supB 1 c05 q3.1, supB 2 c07 pages 6-7
+absentes), C 31/31, D 31/31, E 27/27, F 33/33. 9 décimaux litigieux tranchés à `/revoir` : 5 corrigés,
+2 notes changées.
+
+**`trocr_v3`** (`data/models/trocr_v3`, hors dépôt) : 1 passe depuis `trocr_v2` sur les étiquettes A à F
+(supF 2 tenu à l'écart), 2 536 vignettes. Lancé par l'enseignant dans une fenêtre PowerShell à part
+(`data/models/lancer_trocr_v3.ps1`) : la surveillance mémoire de Claude Code tuait l'entraînement ;
+`trocr-train` sauvegarde maintenant tous les 300 lots et reprend en cours de passe. Mesure sur supF 2
+(vérifié, jamais vu) : lecture juste 78,5 % contre 70 % pour v2, **mais 3 réponses fausses acceptées**
+(`Booléen` lu `bool`, `return` lu `str`). Correctif : `ocr --confirm-model data/models/trocr_v2` (une
+réponse n'est acceptée que si v2, déjà en cache, donne la même lecture brute) → 0 erreur, même volume
+accepté ; vocabulaire des types complété (`string`, `chaîne`, `entier`, `réel`, `booléen`, `return`…).
+
+**G, H, NA, NB relus le 19 au soir** avec
+`ocr … --model data/models/trocr_v3 --confirm-model data/models/trocr_v2` (en service). À décider
+(v2 → v3) : supG 1 273 → 270, supG 2 219 → 217, H 555 → 550, NA 571 → 567, NB 613 → 622. Le volume ne
+bouge pas (l'accord de v2 le borne) ; v3 change la proposition d'environ 15 % des vignettes (36 à 102 par
+classe). **À mesurer** après la correction d'une de ces classes : combien de propositions v3 l'enseignant
+a gardées.
+
+**Suite** : corriger G, H, NA, NB dans l'outil ; notes de ces groupes ; mesurer v3 sur une classe
+corrigée ; puis commande `apprendre` (réaffinage automatique à partir des `appris.json`), export Moodle
+(liste réelle), et le code (11 pts) par l'API Claude à la demande de l'enseignant.
+
+## 0 quater. Point du 18 octobre 2026
 
 **Modèle en service : `data/models/trocr_v2`** (hors dépôt, 1,3 Go), à passer avec
 `ocr … --model data/models/trocr_v2`. Affiné le 17 octobre au soir : `trocr-train --from
