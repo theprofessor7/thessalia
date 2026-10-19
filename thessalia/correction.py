@@ -9,11 +9,14 @@ Origine du verdict d'une réponse courte, par ordre de priorité :
   acceptée      lecture acceptée par `ocr` (règles mesurées) : verdict de la lecture
   deux lecteurs lecture en revue, mais un second lecteur indépendant et sûr donne le même verdict
                 (fichier optionnel `<classe>/lectures_secondaires.json`, rempli par n'importe quel lecteur)
-  mémoire       lecture en revue que l'enseignant a jugée au moins MEMORY_MIN fois, toujours de la même façon,
-                dans les AUTRES classes (même champ, même lecture) : chaque classe corrigée aide la suivante.
-                Mesuré le 19 octobre (classe par classe, les autres servant de mémoire, A à D) : 454 réponses
-                décidées sur 1 565, 1 erreur (`zéro` en minuscule lu `Zéro`) hors verdicts incohérents.
-  proposé       sinon : verdict de la proposition, NON décidé (l'enseignant confirme ou change)
+  mémoire       lecture en revue que l'enseignant a jugée au moins MEMORY_MIN fois dans les AUTRES classes
+                (même sujet, même champ, même lecture), avec le même verdict au moins MEMORY_SHARE des fois :
+                chaque classe corrigée aide la suivante. Seuil de 95 % choisi par l'enseignant le 19 octobre,
+                en connaissance de cause : mesure classe par classe sur A à D, 580 réponses décidées sur 1 514
+                pour 6 verdicts différents des siens (unanimité : 438 pour 2) ; « gagner du temps » contre
+                environ 1 réponse mal notée sur 100 décidées par la mémoire (surtout favorisée à tort).
+  proposé       sinon : NON décidé (l'enseignant confirme ou change). Verdict pré-sélectionné : son verdict le
+                plus fréquent pour cette lecture dans les autres classes (dès 3 fois), sinon celui de la lecture.
 Une zone détectée vide reste proposée (« vide ? ») : une écriture très pâle peut être prise pour du vide
 (mesuré le 19 octobre : 4 réponses justes sur 42 vides détectés, supC 1 et 2).
 
@@ -37,15 +40,17 @@ LISTS_DIR = Path("data/listes")
 DB_PATH = Path("data/correction.sqlite")
 SECOND = "lectures_secondaires.json"
 VERDICTS = (JUSTE, FORME, FAUX, VIDE)
-MEMORY_MIN = 10
+MEMORY_MIN = 10       # jugements des autres classes nécessaires pour décider seul
+MEMORY_SHARE = 0.95   # part minimale du verdict majoritaire (choix de l'enseignant, 19 octobre)
+SUGGEST_MIN = 3       # jugements nécessaires pour pré-sélectionner son verdict le plus fréquent
 
 
 class Memory:
     """Verdicts de l'enseignant par (champ, lecture), classe par classe. Une classe ne consulte que les
     autres : la mesure du 19 octobre a été faite ainsi (une classe ne se renforce pas elle-même)."""
 
-    def __init__(self, minimum=MEMORY_MIN):
-        self.minimum, self.table, self.dirty = minimum, {}, True
+    def __init__(self, minimum=MEMORY_MIN, share=MEMORY_SHARE):
+        self.minimum, self.share, self.table, self.dirty = minimum, share, {}, True
 
     def rebuild(self, classes):
         from collections import Counter
@@ -58,20 +63,22 @@ class Memory:
                 table.setdefault(k, {}).setdefault(c.name, Counter())[it["verdict"]] += 1
         self.table, self.dirty = table, False
 
-    def lookup(self, exam_id, classe, fid, lecture):
-        """(verdict, nombre de fois) si la mémoire des autres classes est unanime et assez fournie, sinon None."""
+    def history(self, exam_id, classe, fid, lecture):
+        """Verdicts de l'enseignant pour cette lecture dans les autres classes : (verdict majoritaire, nombre, total)."""
         from collections import Counter
-        per = self.table.get((exam_id, fid, lecture))
-        if not per:
-            return None
         tot = Counter()
-        for name, cnt in per.items():
+        for name, cnt in (self.table.get((exam_id, fid, lecture)) or {}).items():
             if name != classe:
                 tot.update(cnt)
-        if len(tot) == 1 and sum(tot.values()) >= self.minimum:
-            v, n = next(iter(tot.items()))
-            return v, n
-        return None
+        if not tot:
+            return None
+        v, n = tot.most_common(1)[0]
+        return v, n, sum(tot.values())
+
+    def lookup(self, exam_id, classe, fid, lecture):
+        """(verdict, nombre, total) si la mémoire des autres classes est assez fournie et assez nette, sinon None."""
+        h = self.history(exam_id, classe, fid, lecture)
+        return h if h and h[2] >= self.minimum and h[1] / h[2] >= self.share else None
 
 
 def group_of(name: str) -> str:
@@ -241,12 +248,16 @@ class Classe:
                     v = self.exam.verdict(prop or "", fid)
                     agree = (s2 is not None and s2.get("sur") and prop is not None
                              and self.exam.verdict(s2.get("lecture", ""), fid) == v)
-                    mem = (self.memory.lookup(self.exam_id, self.name, fid, self.exam.clean(prop, fid))
-                           if use_memory and self.memory and prop else None)
+                    hist = (self.memory.history(self.exam_id, self.name, fid, self.exam.clean(prop, fid))
+                            if use_memory and self.memory and prop else None)
+                    if hist:
+                        it["historique"] = {"verdict": hist[0], "n": hist[1], "total": hist[2]}
                     if agree:
                         it.update(verdict=v, origine="deux lecteurs", decide=True)
-                    elif mem:
-                        it.update(verdict=mem[0], origine="mémoire", decide=True, memoire=mem[1])
+                    elif hist and hist[2] >= self.memory.minimum and hist[1] / hist[2] >= self.memory.share:
+                        it.update(verdict=hist[0], origine="mémoire", decide=True)
+                    elif hist and hist[2] >= SUGGEST_MIN:
+                        it.update(verdict=hist[0], origine="proposé", decide=False)  # son verdict le plus fréquent
                     else:
                         it.update(verdict=v, origine="proposé", decide=False)
                     it["second"] = None if s2 is None else s2.get("lecture")
@@ -315,6 +326,36 @@ class Classe:
                          "provisoire": g.get("total", 0) + provisoire, "max": mx,
                          "en_attente": wait_c + wait_q, "etat": "complète" if wait_c + wait_q == 0 else "incomplète"})
         return rows
+
+    # étiquettes pour l'affinage ------------------------------------------------------
+    def labels(self):
+        """Transcriptions sûres pour affiner le lecteur (format de --truth : {cNN_qX.Y: texte}).
+
+        Seulement ce que l'enseignant a vérifié : vérité validée, texte qu'il a tapé, ou réponse qu'il a
+        jugée juste quand la lecture brute du moteur ET la valeur retenue sont exactement le corrigé
+        (un `Error` lu puis rapproché en `ERREUR` n'en fait pas partie). Jamais les acceptées non revues,
+        ni la mémoire, ni le second lecteur : le modèle n'apprend pas de ses propres décisions."""
+        truth = self._json(self.truth_dir / f"{self.name}.short_truth.json")
+        dec = self.decisions.of(self.name)
+        out = {k: v for k, v in truth.items() if not v.endswith("?")}
+        expected = self.exam.key.get("short_answers", {})
+        for cid in self.copy_ids:
+            n, doc = _num(cid), self.doc(cid)
+            for fid in self.exam.points:
+                key = f"c{n:02d}_{fid}"
+                d = dec.get(key)
+                if not d or key in out:
+                    continue
+                if d.get("texte") is not None:
+                    out[key] = d["texte"]
+                    continue
+                o = doc.get("fields", {}).get(fid, {}).get("ocr") or {}
+                raw = (o.get("candidates") or [[None]])[0][0]
+                if (d.get("verdict") == JUSTE and o.get("value") is not None and raw is not None
+                        and self.exam.clean(o["value"], fid) == self.exam.clean(raw, fid)
+                        == self.exam.clean(expected[fid], fid)):
+                    out[key] = o["value"]
+        return out
 
     # décisions ---------------------------------------------------------------------
     def decide(self, cle, verdict=None, texte=None, options=None):

@@ -69,11 +69,11 @@ def _keep_awake():
         ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)
 
 
-def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=print, replay=None):
+def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=print, replay=None, new=1):
     """lots : [(dossier de résultats, vocabulaire, vérité validée), …] ; le premier est le lot principal.
 
     base : modèle de départ (d'origine, ou un modèle déjà affiné) ; replay : ne garder que N vignettes
-    tirées au hasard dans les lots autres que le premier.
+    tirées au hasard dans les lots autres que les `new` premiers (appris en entier).
     """
     try:
         import torch
@@ -88,7 +88,7 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
     for k, (rd, vp, tp) in enumerate(lots):
         its = list(labelled_items(rd, load_json(vp)["fields"], load_json(tp)))
         log(f"{Path(rd).name} : {len(its)} vignettes étiquetées")
-        (train if k == 0 or replay is None else old).extend(its)
+        (train if k < new or replay is None else old).extend(its)
     if replay is not None:
         random.Random(seed).shuffle(old)
         log(f"rappel : {min(replay, len(old))} vignettes tirées sur {len(old)} des lots déjà appris")

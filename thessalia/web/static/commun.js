@@ -39,8 +39,11 @@ function carte(it, surDecision, opts = {}) {
       opts.lienCopie === false ? el("span", {textContent: it.champ}) :
         el("a", {href: "/c/" + it.classe + "/" + it.copie, textContent: it.classe + " · copie " + it.num, tabIndex: -1}),
       el("span", {className: "origine " + (it.origine || "").replace(/\s|\?/g, ""),
-                  textContent: it.origine + (it.memoire ? " (" + it.memoire + "×)" : ""),
-                  title: it.memoire ? "vous avez jugé cette lecture ainsi " + it.memoire + " fois dans d'autres classes" : ""}));
+                  textContent: it.origine + (it.historique && (it.origine === "mémoire" || it.origine === "proposé")
+                    ? (it.origine === "mémoire" ? " (" : " · vous : " + it.historique.verdict + " ") + it.historique.n + "/" + it.historique.total + (it.origine === "mémoire" ? ")" : "")
+                    : ""),
+                  title: it.historique ? "dans les autres classes, vous avez jugé cette lecture « " + it.historique.verdict + " » "
+                    + it.historique.n + " fois sur " + it.historique.total : ""}));
     c.append(titre);
     if (it.img) c.append(el("img", {src: "/img/" + it.classe + "/" + it.img, loading: "lazy", alt: it.cle}));
     else c.append(el("div", {className: "manque", textContent: "pas d'image (page absente du scan ?) : voir la copie papier"}));
