@@ -43,6 +43,10 @@ from .ocr import _pad
 BASE = "microsoft/trocr-base-handwritten"
 OUT = Path("data/models/trocr")
 BATCH, ACCUM = 2, 2  # gradients cumulés sur 2 lots de 2 : même apprentissage qu'un lot de 4
+# sauvegarde en cours de passe (le 19 octobre, une passe de 70 min tuée faute de mémoire à 47 % : tout perdu).
+# Une reprise relit le modèle sauvegardé et saute les lots déjà faits (même ordre : mêmes tirages) ; seul
+# l'état de l'optimiseur (moments d'AdamW) repart de zéro.
+CHECKPOINT = 300
 # Étiquettes SANS le jeton de début <s> : TrOCR ne le produit pas (il écrit « texte </s> » après son jeton
 # de départ). Jusqu'au 11 octobre 2026 les étiquettes le gardaient : l'affinage commençait par apprendre à
 # l'écrire (modèle d'origine : log P d'une lecture juste -0,7 sans <s>, -41 avec). Noté dans etat.json :
@@ -100,7 +104,7 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
         train = train[:limit]
     n_lots = (len(train) + BATCH - 1) // BATCH
 
-    state_path, first = out / "etat.json", 0
+    state_path, first, skip = out / "etat.json", 0, 0
     if state_path.exists():
         st = load_json(state_path)
         if (st.get("entrainement") != len(train) or st.get("lots") != [str(Path(l[0])) for l in lots]
@@ -110,15 +114,16 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
         if st.get("etiquettes") != LABELS:
             raise SystemExit(f"{out} a été affiné avec l'ancien format d'étiquettes (jeton de début) : il ne "
                              f"se reprend pas. Choisir un autre dossier avec -o, ou supprimer celui-ci.")
-        first = st["passes_faites"]
+        first, skip = st["passes_faites"], st.get("lots_faits", 0)
         if first >= passes:
             log(f"{out} : les {passes} passes sont déjà faites.")
             return out
-        log(f"reprise : {first} passe(s) déjà faite(s), modèle relu dans {out}")
+        log(f"reprise : {first} passe(s) déjà faite(s)" + (f" et {skip} lots de la passe {first + 1}" if skip else "")
+            + f", modèle relu dans {out}")
     _keep_awake()
     torch.manual_seed(seed)
     proc = TrOCRProcessor.from_pretrained(str(base))
-    model = VisionEncoderDecoderModel.from_pretrained(str(out) if first else str(base))
+    model = VisionEncoderDecoderModel.from_pretrained(str(out) if first or skip else str(base))
     tok = proc.tokenizer
     start = getattr(model.generation_config, "decoder_start_token_id", None)
     model.config.pad_token_id = tok.pad_token_id
@@ -128,7 +133,20 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
     def pil(path):  # même préparation que le moteur de lecture (`ocr.TrOCRBackend`)
         return Image.fromarray(cv2.cvtColor(_pad(cv2.imread(path, cv2.IMREAD_GRAYSCALE), 12), cv2.COLOR_GRAY2RGB))
 
-    log(f"affinage de {base} : {len(train)} vignettes, passes {first + 1} à {passes}, {n_lots} lots par passe")
+    def save(passes_faites, lots_faits):
+        out.mkdir(parents=True, exist_ok=True)
+        model.save_pretrained(out)
+        proc.save_pretrained(out)
+        with open(state_path, "w", encoding="utf-8") as fh:
+            json.dump({"base": str(base), "rappel": replay, "passes_faites": passes_faites, "lots_faits": lots_faits,
+                       "passes_prevues": passes, "entrainement": len(train),
+                       "lots": [str(Path(l[0])) for l in lots], "etiquettes": LABELS}, fh, ensure_ascii=False,
+                      indent=1)
+
+    log(f"affinage de {base} : {len(train)} vignettes, passes {first + 1} à {passes}, {n_lots} lots par passe"
+        f", sauvegarde tous les {CHECKPOINT} lots")
+    for e in range(first):  # mêmes tirages que l'exécution interrompue : l'ordre de la passe reprise est identique
+        random.Random(seed + e).shuffle(train)
     t0, done = time.time(), 0
     for ep in range(first, passes):
         random.Random(seed + ep).shuffle(train)
@@ -136,6 +154,8 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
         opt.zero_grad()
         tot = 0.0
         for n, i in enumerate(range(0, len(train), BATCH), 1):
+            if ep == first and n <= skip:
+                continue  # déjà fait avant l'interruption
             b = train[i:i + BATCH]
             px = proc(images=[pil(p) for p, _ in b], return_tensors="pt").pixel_values
             lab = tok([t for _, t in b], padding=True, return_tensors="pt").input_ids
@@ -154,13 +174,11 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
                 dt = (time.time() - t0) / done
                 left = ((passes - ep - 1) * n_lots + n_lots - n) * dt / 60
                 log(f"  passe {ep + 1} lot {n}/{n_lots} : {dt:.1f} s/lot, reste ~{left:.0f} min")
-        out.mkdir(parents=True, exist_ok=True)
-        model.save_pretrained(out)
-        proc.save_pretrained(out)
-        with open(state_path, "w", encoding="utf-8") as fh:
-            json.dump({"base": str(base), "rappel": replay, "passes_faites": ep + 1, "passes_prevues": passes, "entrainement": len(train),
-                       "lots": [str(Path(l[0])) for l in lots], "etiquettes": LABELS}, fh, ensure_ascii=False,
-                      indent=1)
-        log(f"passe {ep + 1}/{passes} : perte moyenne {tot / n_lots:.3f} -> {out} enregistré")
+            if n % CHECKPOINT == 0 and n < n_lots and n % ACCUM == 0:
+                save(ep, n)
+                log(f"  sauvegarde intermédiaire : passe {ep + 1}, lot {n}/{n_lots}")
+        save(ep + 1, 0)
+        fait = n_lots - (skip if ep == first else 0)
+        log(f"passe {ep + 1}/{passes} : perte moyenne {tot / max(fait, 1):.3f} -> {out} enregistré")
     log(f"-> {out} (hors dépôt). Mesurer sur un lot jamais vu : ocr <lot> -v … --model {out} --truth …")
     return out
