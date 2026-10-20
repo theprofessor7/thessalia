@@ -6,6 +6,9 @@ def test_exact_and_teacher_equivalences():
     assert judge("Error", "ERREUR", "number") == JUSTE      # décision du 14 octobre, toute casse
     assert judge("erreur", "ERREUR", "number") == JUSTE
     assert judge("Zero", "Zéro", "enum") == JUSTE
+    assert judge("Zéro", "Zero", "enum") == FAUX     # copie EN : q14 demande l'affichage anglais (21 octobre)
+    assert judge("Grand", "Large", "enum") == FAUX
+    assert judge("ERROR", "ERREUR", "number") == JUSTE and judge("ERREUR", "ERROR", "number") == JUSTE
     assert judge("Bonjour  Alice ", "Bonjour Alice", "text") == JUSTE
 
 

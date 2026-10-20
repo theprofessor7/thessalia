@@ -40,7 +40,10 @@ TRUTH_DIR = Path("data/truth")
 LISTS_DIR = Path("data/listes")
 
 # décision de l'enseignant (14 octobre 2026) : langue d'examen, pas une faute ; toute casse
-EQUIV_GROUPS = [{"erreur", "error"}, {"zéro", "zero"}]
+EQUIV_GROUPS = [{"erreur", "error"}]
+# dans un seul sens (réponse, corrigé) : `Zero` reste juste pour `Zéro` (copie FR, décision du 14 octobre) ;
+# sur copie EN, q14 demande ce que le programme affiche (`print("Zero")`) : `Zéro` est faux (21 octobre)
+EQUIV_ONE_WAY = {("zero", "zéro")}
 
 JUSTE, FORME, FAUX, VIDE, ATTENTE = "juste", "forme", "faux", "vide", "en attente"
 ILLISIBLE = "illisible"  # décision de l'enseignant seulement (rare) : 0 point, distinct dans le suivi
@@ -57,7 +60,7 @@ def clean(s: str, kind: str) -> str:
 
 def _equiv(a: str, b: str) -> bool:
     a, b = a.casefold(), b.casefold()
-    return any(a in g and b in g for g in EQUIV_GROUPS)
+    return any(a in g and b in g for g in EQUIV_GROUPS) or (a, b) in EQUIV_ONE_WAY
 
 
 def judge(answer, expected: str, kind: str, accept=(), reject=()) -> str:

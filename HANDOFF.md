@@ -1,9 +1,57 @@
-# Passation — état du projet au 20 octobre 2026
+# Passation — état du projet au 21 octobre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
 
-## 0. Point du 19 octobre 2026 (à lire en premier)
+## 0. Point du 21 octobre 2026 (à lire en premier)
+
+**Groupes corrigés et notés** : A à H (G et H les 20-21 octobre). **Reste : NA (prévu le 22), NB** (sujet EN :
+la mémoire des verdicts y sera presque vide, autre `exam_id`). Puis notes, export Moodle, le code (11 pts).
+
+**Ajouts à l'outil** (commits cffbaa2, f9b3fd9) :
+- **Détecteur point/virgule branché** (cf. §0 du 19 plus bas) : `separateur sorties/booster sorties/supA_1_v3
+  --save image+lecteur` puis `separateur <classes> --indices` → `<classe>/separateur.json`. Indices écrits pour
+  G, H, NA, NB. **À lancer à la main après `ocr` pour une nouvelle classe** (pas encore automatique).
+- **Autres lectures en un clic** : jusqu'à 3 lectures de la machine sous la proposition (boutons « ou : »,
+  touches 6, 7, 8), jamais pré-sélectionnées. Jugé par l'enseignant « gain de temps phénoménal ».
+- **QCM** : un clic sur une case enregistre (plus de « valider » ; q1 à plusieurs cases : le dernier état fait foi).
+- **Espace de q7.3** (`Classe._espace`) : lecture qui ne diffère du corrigé que par des espaces (`X Y` / `XY`) :
+  blanc entre lettres mesuré, corrigé proposé si < 0,5 hauteur (seuil `ESPACE_SERRE`). Indice, jamais mémoire.
+
+**Mesures sur G et H** (lectures confirmées ou tapées par l'enseignant = cas difficiles) :
+
+| | G | H |
+|---|---|---|
+| lectures vérifiées | 254-258 | 272 |
+| proposition juste | 133 (52 %) | 160 (59 %) |
+| bonne lecture dans les boutons, si proposition fausse | 77/125 | 84/112 |
+| v3 / v2 lecture brute juste | 149 / 144 | 171 / 172 |
+| décidées par la mémoire | 225 | 232 |
+
+- **v3 n'apporte presque rien sur les cas difficiles** (désaccords v2/v3 : G 28 contre 23, H 31 contre 32). Son
+  gain sur supF 2 portait sur les réponses faciles, acceptées de toute façon. Avant un v4 : viser les réponses
+  difficiles et fausses (étiquettes tapées), pas le volume.
+- **Séparateur sur H** : 53/55 justes (lecture brute seule : 47) ; 6 propositions changées, 6 à raison.
+- **Espace q7.3 sur H** : `X Y` proposé → faux 17/17 ; `XY` proposé → 1 juste, 2 faux.
+- **Limite des boutons** : TrOCR ne garde que 3 candidats ; sur 390 lectures corrigées (A-G), la bonne est
+  absente 131 fois, au rang 4-5 seulement 6 fois. Garder 5 à 8 candidats demande une relecture (heures) : pour
+  les prochaines copies.
+- Réponses fantaisistes (`"42","7"`) : illisibles pour le modèle, l'enseignant les tape (étiquettes de
+  réponses fausses, les plus utiles à l'apprentissage).
+
+**Sujet EN (NA, NB)** : traduction exacte du FR (enseignant, 21 octobre). `traduction_de` dans
+`keys/python_core_EN.key.json` : la mémoire des verdicts est commune FR/EN pour les 29 champs de même corrigé
+(`Classe.memory_id`) → 442 réponses EN décidées par la mémoire au lieu de 0. q14 EN : l'énoncé demande ce que
+le programme affiche (`print("Large")`…) → les mots français sont faux, `Zéro` compris (`notes.EQUIV_ONE_WAY` :
+`Zero` reste juste pour `Zéro` sur copie FR). **Piège** : TrOCR lit `Zéro` (accent ajouté) sur presque toutes
+les copies EN en q14.3 — biais du modèle appris sur le FR, pas une preuve que l'étudiant a écrit en français.
+Ne PAS ajouter les mots français au vocabulaire EN (tout `Zero` deviendrait faux) ; les `Zero` acceptés gardent
+le bénéfice du doute. Seul cas net vu : supNA_2 c12 q14.4, lu `Négatif`, accepté `Negative` (à revoir).
+
+**Gardé pour plus tard** : VLM local comme second lecteur via `lectures_secondaires.json` (essai sur ~50
+vignettes de supF 2 ; risque : il « corrige » l'étudiant).
+
+## 0 bis. Point du 19 octobre 2026
 
 **La correction se fait désormais dans l'outil local** (remplace les pages `validation.html` du 18) :
 `pip install -e ".[serveur]"` puis

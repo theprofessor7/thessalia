@@ -68,7 +68,8 @@ class Memory:
                 if (it["lecture"] != "review" or it["origine"] not in ("vérité", "enseignant") or not it["proposition"]
                         or it["verdict"] == ILLISIBLE):  # « illisible » tient à l'image, pas à la lecture
                     continue
-                k = (c.exam_id, it["champ"], c.exam.clean(it["proposition"], it["champ"]))  # par sujet : FR et EN diffèrent
+                # par sujet (FR et EN diffèrent), sauf les champs de même corrigé d'une traduction exacte
+                k = (c.memory_id(it["champ"]), it["champ"], c.exam.clean(it["proposition"], it["champ"]))
                 table.setdefault(k, {}).setdefault(c.name, Counter())[it["verdict"]] += 1
         self.table, self.dirty = table, False
 
@@ -205,10 +206,24 @@ class Classe:
         if self.exam_id not in exams:
             exams[self.exam_id] = Exam.load(self.exam_id)
         self.exam: Exam = exams[self.exam_id]
+        # traduction exacte d'un autre sujet (`traduction_de` dans le corrigé, décision de l'enseignant le
+        # 21 octobre pour le sujet EN) : la mémoire des verdicts est commune pour les champs de même corrigé
+        src = self.exam.key.get("traduction_de")
+        self.partage = set()
+        if src:
+            if src not in exams:
+                exams[src] = Exam.load(src)
+            autre = exams[src].key.get("short_answers", {})
+            self.partage = {f for f, v in self.exam.key.get("short_answers", {}).items() if autre.get(f) == v}
+            self.source = src
         self.copy_ids = [c["copy_id"] for c in res["copies"]]
         self.decisions = decisions
         self.truth_dir, self.lists_dir = Path(truth_dir), Path(lists_dir)
         self._docs = {}
+
+    def memory_id(self, fid):
+        """Sujet sous lequel la mémoire des verdicts range ce champ."""
+        return self.source if fid in self.partage else self.exam_id
 
     # sources --------------------------------------------------------------
     def doc(self, cid):
@@ -266,7 +281,7 @@ class Classe:
                     v = self.exam.verdict(prop or "", fid)
                     agree = (s2 is not None and s2.get("sur") and prop is not None
                              and self.exam.verdict(s2.get("lecture", ""), fid) == v)
-                    hist = (self.memory.history(self.exam_id, self.name, fid, self.exam.clean(prop, fid))
+                    hist = (self.memory.history(self.memory_id(fid), self.name, fid, self.exam.clean(prop, fid))
                             if use_memory and self.memory and prop else None)
                     if hist:
                         it["historique"] = {"verdict": hist[0], "n": hist[1], "total": hist[2]}
@@ -501,7 +516,7 @@ class Classe:
                         or (d.get("verdict") and d["verdict"] != rule):
                     st["acceptees_fausses"] += 1
             if self.memory and d.get("verdict") and prop:
-                m = self.memory.lookup(self.exam_id, self.name, it["champ"], self.exam.clean(prop, it["champ"]))
+                m = self.memory.lookup(self.memory_id(it["champ"]), self.name, it["champ"], self.exam.clean(prop, it["champ"]))
                 if m and m[0] != d["verdict"]:
                     st["memoire_contredite"] += 1
         return st, erreurs
