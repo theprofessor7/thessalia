@@ -45,6 +45,8 @@ LISTS_DIR = Path("data/listes")
 DB_PATH = Path("data/correction.sqlite")
 SECOND = "lectures_secondaires.json"
 SEPARATEUR = "separateur.json"
+ESPACE_SERRE = 0.5    # écart (en hauteurs de lettre) sous lequel « X Y » est proposé « XY » (cf. _espace)
+ALTERNATIVES = 3      # autres lectures proposées en un clic (touches 6, 7, 8)
 VERDICTS = (JUSTE, FORME, FAUX, VIDE, ILLISIBLE)
 MEMORY_MIN = 10       # jugements des autres classes nécessaires pour décider seul
 MEMORY_SHARE = 0.95   # part minimale du verdict majoritaire (choix de l'enseignant, 19 octobre)
@@ -259,7 +261,7 @@ class Classe:
                 elif st == "blank":
                     it.update(verdict=VIDE, origine="vide ?", decide=False)
                 else:
-                    indice = self._separateur(it, sep.get(key))
+                    indice = self._separateur(it, sep.get(key)) or self._espace(it, info, fid)
                     prop = it["proposition"]
                     v = self.exam.verdict(prop or "", fid)
                     agree = (s2 is not None and s2.get("sur") and prop is not None
@@ -278,9 +280,69 @@ class Classe:
                     else:
                         it.update(verdict=v, origine="proposé", decide=False)
                     it["second"] = None if s2 is None else s2.get("lecture")
+                it["alternatives"] = self._alternatives(it, o, fid) if st and st != "blank" else []
                 it["points"] = None if it["verdict"] is None else pts * RATE.get(it["verdict"], 0.0)
                 items.append(it)
         return items
+
+    def _alternatives(self, it, o, fid, n=ALTERNATIVES):
+        """Autres lectures de la machine, de la plus probable à la moins probable, distinctes de la proposition
+        (après nettoyage) : un clic les prend comme lecture, sans rien taper. Jamais pré-sélectionnées.
+        Décimal : l'autre séparateur d'abord. Mesuré le 20 octobre sur 279 lectures corrigées à la main :
+        la bonne était la 2e lecture 110 fois, la 3e ou 4e 72 fois."""
+        prop = it["proposition"]
+        cands = [it.get("lecture_machine")] + ([other_separator(str(prop))] if prop else [])
+        cands += list(o.get("suggestions") or []) + [c[0] for c in o.get("candidates") or []]
+        seen = {self.exam.clean(str(prop), fid)} if prop is not None else set()
+        out = []
+        for c in cands:
+            if c is None or not str(c).strip():
+                continue
+            k = self.exam.clean(str(c), fid)
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(str(c).strip())
+            if len(out) == n:
+                break
+        return out
+
+    def _espace(self, it, info, fid):
+        """Lecture qui ne diffère du corrigé que par des espaces (`X Y` pour `XY`, q7.3) : le moteur met un
+        espace presque toujours. On mesure le plus grand blanc entre lettres (en hauteurs d'écriture) et on
+        propose le corrigé si l'écart est serré. Indice seulement, jamais décidé par la mémoire.
+        Mesuré le 20 octobre sur 84 verdicts de l'enseignant (q7.3, FR) : écart < 0,5 : 18 XY / 9 faux ;
+        >= 0,5 : 7 XY / 50 faux ; >= 1,1 : 1 XY (tache) / 35 faux."""
+        prop, att = it["proposition"], it.get("attendu")
+        if (not prop or not att or " " in att or " " not in str(prop) or str(prop).replace(" ", "") != att
+                or not info.get("clean")):
+            return False
+        import cv2
+        import numpy as np
+        img = cv2.imread(str(self.dir / info["clean"].replace("\\", "/")), cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            return False
+        ink = img < 160
+        ys, xs = np.nonzero(ink)
+        if len(xs) < 20:
+            return False
+        col = ink[:, xs.min():xs.max() + 1].any(0)
+        runs, r = [0], 0
+        for v in col:
+            if not v:
+                r += 1
+            else:
+                runs.append(r)
+                r = 0
+        e = max(runs) / (ys.max() - ys.min() + 1)
+        it["ecart"] = round(float(e), 2)
+        if e < ESPACE_SERRE:
+            it["lecture_machine"] = prop
+            it["proposition"] = att
+        txt = f"{e:.2f}".replace(".", ",")
+        it["raison"] = (f"espace mesuré {txt} × hauteur : « {it['proposition']} » proposé "
+                        f"(serré si < {str(ESPACE_SERRE).replace('.', ',')}), à vérifier")
+        return True
 
     @staticmethod
     def _separateur(it, s):

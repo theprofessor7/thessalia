@@ -118,3 +118,5 @@ table.notes tr.fini td:first-child { box-shadow:inset 4px 0 var(--juste); }
 @media (max-width: 900px) { .vue-copie { grid-template-columns:1fr; } .panneau { position:static; max-height:none; } }
 .revoir .carte img { width:100%; }
 .grille.large.revoir { grid-template-columns:repeat(auto-fill, minmax(520px, 1fr)); }
+.alternatives { font-size:12px; margin:2px 0 4px; }
+.lecture.alt code { color:var(--encre); }

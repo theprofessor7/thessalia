@@ -61,7 +61,9 @@ function carte(it, surDecision, opts = {}) {
           let ch = it.choix.slice();
           if (ch.includes(o.id)) ch = ch.filter(x => x !== o.id);
           else ch = it.mode === "single" ? [o.id] : [...ch, o.id].sort();
-          it.choix = ch; it.decide = false; redessiner(); c.focus();
+          // le clic enregistre directement (plus besoin de « valider ») ; q1 à plusieurs cases : chaque clic
+          // enregistre l'état courant, le dernier fait foi
+          it.choix = ch; envoyer({options: ch}).then(() => c.focus());
         };
         cases.append(b);
       }
@@ -97,11 +99,26 @@ function carte(it, surDecision, opts = {}) {
         att.onclick = () => envoyer({texte: it.attendu, verdict: "juste"});
         ligneLu.append(" ", att);
       }
+      // autres lectures de la machine : un clic (ou 6, 7, 8) les prend comme lecture, le verdict est recalculé
+      const alts = (!verifiee && it.alternatives) ? it.alternatives : [];
+      let ligneAlt = null;
+      if (alts.length) {
+        ligneAlt = el("div", {className: "alternatives gris"}, "ou : ");
+        alts.forEach((a, i) => {
+          const b = el("button", {className: "lecture alt", tabIndex: -1,
+                                  title: "l'étudiant a écrit « " + a + " » (" + (6 + i) + ")"},
+                       el("code", {textContent: a}), el("span", {className: "gris", textContent: " " + (6 + i)}));
+          b.onclick = () => envoyer({texte: a});
+          ligneAlt.append(b, " ");
+        });
+      }
+      c.alternatives = alts;
       const corr = el("button", {className: "lecture", textContent: "✎ corriger la lecture", tabIndex: -1,
                                  title: "taper ce qui est réellement écrit (T) : sert à l'apprentissage"});
       corr.onclick = () => saisir();
       ligneLu.append(" ", corr);
       c.append(ligneLu);
+      if (ligneAlt) c.append(ligneAlt);
       if (it.attendu != null) c.append(el("div", {className: "attendu-carte"}, "attendu : ", el("code", {textContent: it.attendu})));
       const ligne = el("div", {className: "verdicts"});
       if (!it.decide && it.verdict) {
@@ -148,6 +165,9 @@ function carte(it, surDecision, opts = {}) {
     else if (!it.qcm && TOUCHE[ev.key]) { ev.preventDefault(); envoyer({verdict: TOUCHE[ev.key]}, true); }
     else if (!it.qcm && (ev.key === "t" || ev.key === "T")) { ev.preventDefault(); saisir(); }
     else if (!it.qcm && (ev.key === "l" || ev.key === "L") && it.proposition != null) { ev.preventDefault(); envoyer({texte: it.proposition}); }
+    else if (!it.qcm && ["6", "7", "8"].includes(ev.key) && (c.alternatives || [])[+ev.key - 6] != null) {
+      ev.preventDefault(); envoyer({texte: c.alternatives[+ev.key - 6]});
+    }
     else if (!it.qcm && (ev.key === "a" || ev.key === "A") && it.attendu != null) { ev.preventDefault(); envoyer({texte: it.attendu, verdict: "juste"}, true); }
     else if (ev.key === "Delete" && it.origine === "enseignant") { ev.preventDefault(); envoyer({annuler: true}); }
     else if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); bouger(c, ev.key === "ArrowDown" ? 1 : -1); }
