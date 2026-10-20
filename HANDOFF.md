@@ -40,9 +40,14 @@ est fausse.
   choix (proposition juste : supA 3 155/173 contre 147, supB 3 139/157 contre 117). Réaffiner le lecteur
   de chiffres n'a rien apporté en pratique.
 - **Résultats négatifs** : la probabilité TrOCR du texte attendu ne sépare pas juste/faux (TrOCR « voit »
-  le corrigé, `42` pour `41`). Détecteur point/virgule (branche `worktree-agent-a091ad9ede2b7d14e`,
-  `thessalia/separateur.py`, non fusionné) : ne décide pas seul, en indice 35 erreurs de séparateur contre
-  48 ; constat : `ocr_prep` efface la queue de la virgule près du soulignement. Sort à décider.
+  le corrigé, `42` pour `41`). Détecteur point/virgule (`thessalia/separateur.py`) :
+  ne décide pas seul ; constat : `ocr_prep` efface la queue de la virgule près du soulignement.
+  **Fusionné et branché le 20 octobre** comme indice : modèle `image+lecteur` (`separateur … --save
+  image+lecteur`, `data/models/separateur.npz`), puis `separateur <classes> --indices` écrit
+  `<classe>/separateur.json` ; l'outil y prend le séparateur de la proposition des décimaux en revue
+  (virgule si P >= 0,5), jamais décidés par la mémoire. Mesure croisée sur 239 décimaux corrigés : 27
+  séparateurs faux contre 46 (pénalisants 11 = 11, favorables 16 contre 35). Indices écrits pour G, H, NA,
+  NB : 241 décimaux, 15 propositions changées. Pas encore automatique après `ocr`.
 
 **Groupes corrigés et notés** : A (complet), B 31/33 (restent supB 1 c05 q3.1, supB 2 c07 pages 6-7
 absentes), C 31/31, D 31/31, E 27/27, F 33/33. 9 décimaux litigieux tranchés à `/revoir` : 5 corrigés,

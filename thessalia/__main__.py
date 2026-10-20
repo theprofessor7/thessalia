@@ -6,6 +6,7 @@
     digits-train  Niveau 2 : affiner le lecteur de chiffres sur un lot dont la vérité est validée
     trocr-train   Niveau 2 : affiner TrOCR sur des lots validés (long, ~6 Go de mémoire)
     truth-page    Niveau 2 : page HTML locale pour valider la vérité terrain des réponses courtes
+    separateur    Niveau 2 : mesurer / apprendre le détecteur de séparateur décimal (point ou virgule)
     serve      outil de correction local (navigateur) : vue par question, vue par copie, notes en direct
     notes      notes partielles : QCM + réponses courtes, par classe (et fichier commun d'un groupe)
     simulate   génère des copies remplies + scannées synthétiques (tests)
@@ -101,6 +102,20 @@ def main(argv=None):
     sv.add_argument("--port", type=int, default=8765)
     sv.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
 
+    sp = sub.add_parser("separateur", help="Niveau 2 : mesurer / apprendre le détecteur point ou virgule")
+    sp.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
+    sp.add_argument("--kind", action="append", choices=("image", "lecteur", "image+lecteur"),
+                    help="modèle(s) à mesurer (défaut : les trois)")
+    sp.add_argument("--save", choices=("image", "lecteur", "image+lecteur"),
+                    help="apprendre ce modèle sur tous les exemples et l'enregistrer (data/models/separateur.npz)")
+    sp.add_argument("--l2", type=float, default=10.0, help="régularisation de la régression logistique")
+    sp.add_argument("--truth-dir", default="data/truth")
+    sp.add_argument("--lists-dir", default="data/listes")
+    sp.add_argument("--db", default="data/correction.sqlite", help="base des décisions (lue seulement)")
+    sp.add_argument("-o", "--out", default="data/models/separateur.npz")
+    sp.add_argument("--indices", action="store_true",
+                    help="avec le modèle enregistré, écrire <classe>/separateur.json (lu par l'outil de correction)")
+
     e = sub.add_parser("evaluate", help="résultats vs vérité terrain")
     e.add_argument("results_dir")
     e.add_argument("truth")
@@ -161,6 +176,15 @@ def main(argv=None):
         from .simulate import main as smain
 
         smain(a)
+    elif a.cmd == "separateur":
+        from .separateur import KINDS, Separateur, class_dirs, run as seprun, write_indices
+
+        if a.indices:
+            det = Separateur.load(a.out)
+            for d in class_dirs(a.dossiers):
+                write_indices(d, det)
+        else:
+            seprun(a.dossiers, a.kind or KINDS, a.l2, a.save, a.truth_dir, a.lists_dir, a.db, out=a.out)
     elif a.cmd == "evaluate":
         from .evaluate import main as emain
 

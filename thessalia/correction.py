@@ -17,6 +17,10 @@ Origine du verdict d'une réponse courte, par ordre de priorité :
                 environ 1 réponse mal notée sur 100 décidées par la mémoire (surtout favorisée à tort).
   proposé       sinon : NON décidé (l'enseignant confirme ou change). Verdict pré-sélectionné : son verdict le
                 plus fréquent pour cette lecture dans les autres classes (dès 3 fois), sinon celui de la lecture.
+Nombre décimal en revue : si `<classe>/separateur.json` existe (`separateur --indices`), le séparateur de la
+proposition suit le détecteur point/virgule (virgule si P(virgule) >= 0,5 ; mesuré le 20 octobre : 27 erreurs
+de séparateur sur 240 contre 46). Ce n'est qu'une proposition : un tel décimal n'est jamais décidé par la
+mémoire, l'enseignant le juge toujours.
 Une zone détectée vide reste proposée (« vide ? ») : une écriture très pâle peut être prise pour du vide
 (mesuré le 19 octobre : 4 réponses justes sur 42 vides détectés, supC 1 et 2).
 
@@ -33,12 +37,14 @@ from pathlib import Path
 
 from .common import load_json
 from .grade import grade_copy
+from .vocab import other_separator
 from .notes import ATTENTE, FAUX, FORME, ILLISIBLE, JUSTE, RATE, VIDE, judge
 
 TRUTH_DIR = Path("data/truth")
 LISTS_DIR = Path("data/listes")
 DB_PATH = Path("data/correction.sqlite")
 SECOND = "lectures_secondaires.json"
+SEPARATEUR = "separateur.json"
 VERDICTS = (JUSTE, FORME, FAUX, VIDE, ILLISIBLE)
 MEMORY_MIN = 10       # jugements des autres classes nécessaires pour décider seul
 MEMORY_SHARE = 0.95   # part minimale du verdict majoritaire (choix de l'enseignant, 19 octobre)
@@ -224,6 +230,7 @@ class Classe:
     def short_items(self, use_memory=True):
         truth = self._json(self.truth_dir / f"{self.name}.short_truth.json")
         second = self._json(self.dir / SECOND)
+        sep = self._json(self.dir / SEPARATEUR)
         dec = self.decisions.of(self.name)
         items = []
         for cid in self.copy_ids:
@@ -252,6 +259,8 @@ class Classe:
                 elif st == "blank":
                     it.update(verdict=VIDE, origine="vide ?", decide=False)
                 else:
+                    indice = self._separateur(it, sep.get(key))
+                    prop = it["proposition"]
                     v = self.exam.verdict(prop or "", fid)
                     agree = (s2 is not None and s2.get("sur") and prop is not None
                              and self.exam.verdict(s2.get("lecture", ""), fid) == v)
@@ -261,7 +270,8 @@ class Classe:
                         it["historique"] = {"verdict": hist[0], "n": hist[1], "total": hist[2]}
                     if agree:
                         it.update(verdict=v, origine="deux lecteurs", decide=True)
-                    elif hist and hist[2] >= self.memory.minimum and hist[1] / hist[2] >= self.memory.share:
+                    elif (hist and not indice and hist[2] >= self.memory.minimum
+                          and hist[1] / hist[2] >= self.memory.share):
                         it.update(verdict=hist[0], origine="mémoire", decide=True)
                     elif hist and hist[2] >= SUGGEST_MIN:
                         it.update(verdict=hist[0], origine="proposé", decide=False)  # son verdict le plus fréquent
@@ -271,6 +281,24 @@ class Classe:
                 it["points"] = None if it["verdict"] is None else pts * RATE.get(it["verdict"], 0.0)
                 items.append(it)
         return items
+
+    @staticmethod
+    def _separateur(it, s):
+        """Séparateur de la proposition d'un décimal d'après le détecteur (indice, jamais décision).
+        Retourne True si l'indice s'applique (entrée à jour pour cette lecture)."""
+        prop = it["proposition"]
+        if not s or s.get("p_virgule") is None or not prop or s.get("lecture") != prop or not other_separator(prop):
+            return False
+        p = float(s["p_virgule"])
+        want = "," if p >= 0.5 else "."
+        if want not in prop:
+            it["proposition"] = other_separator(prop)
+            it["lecture_machine"] = prop
+        it["p_virgule"] = p
+        sens = "virgule proposée" if want == "," else "point proposé"
+        it["raison"] = (f"nombre décimal : {sens} par le détecteur de séparateur "
+                        f"(P(virgule) = {p:.2f}), à vérifier".replace(f"{p:.2f}", f"{p:.2f}".replace(".", ",")))
+        return True
 
     # QCM en revue ----------------------------------------------------------------
     def qcm_items(self):
