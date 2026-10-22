@@ -48,7 +48,63 @@ function carte(it, surDecision, opts = {}) {
     c.append(titre);
     if (it.img) c.append(el("img", {src: "/img/" + it.classe + "/" + it.img, loading: "lazy", alt: it.cle}));
     else c.append(el("div", {className: "manque", textContent: "pas d'image (page absente du scan ?) : voir la copie papier"}));
-    if (it.qcm) {
+    if (it.code) {
+      // code noté au barème : chaque clic enregistre (critères cochés = options) ; la note est leur somme
+      if (it.raison) c.append(el("div", {className: "raison", textContent: "doute : " + it.raison}));
+      if (it.transcription) c.append(el("pre", {className: "transcription", textContent: it.transcription}));
+      const coches = new Set(it.choix || []);
+      const enregistrer = (corps, clavier = false) => envoyer(corps, clavier).then(() => c.focus());
+      const basculer = id => {
+        const s = new Set(coches);
+        s.has(id) ? s.delete(id) : s.add(id);
+        enregistrer({options: [...s].sort()});
+      };
+      const liste = el("div", {className: "criteres"});
+      it.criteres.forEach((cr, i) => {
+        const b = el("button", {className: "critere" + (coches.has(cr.id) && it.verdict !== "vide" ? " on" : ""), tabIndex: -1,
+                                title: "touche " + (i + 1)},
+                     el("kbd", {textContent: String(i + 1)}), " " + cr.libelle + " ",
+                     el("span", {className: "gris", textContent: "(" + fmt(cr.points) + ")"}));
+        b.onclick = () => basculer(cr.id);
+        liste.append(b);
+      });
+      if (it.malus) {
+        const b = el("button", {className: "critere malus" + (coches.has(it.malus.id) ? " on" : ""), tabIndex: -1, title: "touche M"},
+                     el("kbd", {textContent: "M"}), " " + it.malus.libelle + " ",
+                     el("span", {className: "gris", textContent: "(" + fmt(it.malus.points) + ")"}));
+        b.onclick = () => basculer(it.malus.id);
+        liste.append(b);
+      }
+      c.append(liste);
+      const tous = it.criteres.map(cr => cr.id);
+      const juste = el("button", {className: "verdict juste", textContent: "✓ tout juste", tabIndex: -1, title: "J"});
+      juste.onclick = () => enregistrer({options: tous});
+      const vide = el("button", {className: "verdict vide" + (it.verdict === "vide" ? (it.decide ? " choisi" : " propose") : ""),
+                                 textContent: LIBELLE.vide, tabIndex: -1, title: "V : rien d'écrit (0)"});
+      vide.onclick = () => enregistrer({verdict: "vide", options: []});
+      const zero = el("button", {className: "verdict faux", textContent: "✗ rien de juste", tabIndex: -1, title: "0 : écrit mais aucun critère (0)"});
+      zero.onclick = () => enregistrer({options: []});
+      const ligne = el("div", {className: "verdicts"}, juste, zero, vide);
+      if (!it.decide) {
+        const ok = el("button", {className: "verdict principal", tabIndex: -1, title: "Entrée",
+                                 textContent: it.verdict === "vide" ? "✓ confirmer vide" : "✓ valider (" + fmt(it.points || 0) + ")"});
+        ok.onclick = () => c.valider();
+        ligne.prepend(ok);
+      }
+      if (it.origine === "enseignant") {
+        const annul = el("button", {className: "verdict annuler", textContent: "↺", title: "annuler ma décision (Suppr)", tabIndex: -1});
+        annul.onclick = () => envoyer({annuler: true});
+        ligne.append(annul);
+      }
+      c.append(ligne);
+      c.append(el("div", {className: "points", textContent: fmt(it.points || 0) + " / " + fmt(it.max) + " pt"}));
+      c.valider = (clavier = false) => it.verdict === "vide" ? envoyer({verdict: "vide", options: []}, clavier)
+                                                               : envoyer({options: [...coches].sort()}, clavier);
+      c.basculer = basculer;
+      c.toutJuste = () => enregistrer({options: tous});
+      c.vide = () => enregistrer({verdict: "vide", options: []});
+      c.zero = () => enregistrer({options: []});
+    } else if (it.qcm) {
       if (it.raison) c.append(el("div", {className: "raison", textContent: "doute : " + it.raison}));
       const cases = el("div", {className: "options"});
       for (const o of it.options) {
@@ -169,6 +225,16 @@ function carte(it, surDecision, opts = {}) {
   c.addEventListener("keydown", ev => {
     if (ev.target !== c) return;
     if (ev.key === "Enter") { ev.preventDefault(); c.valider(true); }
+    else if (it.code) {
+      const k = ev.key.toLowerCase(), n = parseInt(ev.key, 10);
+      if (n >= 1 && n <= it.criteres.length) { ev.preventDefault(); c.basculer(it.criteres[n - 1].id); }
+      else if (k === "m" && it.malus) { ev.preventDefault(); c.basculer(it.malus.id); }
+      else if (k === "j") { ev.preventDefault(); c.toutJuste(); }
+      else if (k === "v") { ev.preventDefault(); c.vide(); }
+      else if (ev.key === "0") { ev.preventDefault(); c.zero(); }
+      else if (ev.key === "Delete" && it.origine === "enseignant") { ev.preventDefault(); envoyer({annuler: true}); }
+      else if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); bouger(c, ev.key === "ArrowDown" ? 1 : -1); }
+    }
     else if (it.qcm && ev.key === "5") {
       ev.preventDefault();
       if (it.verdict === "illisible") envoyer({annuler: true}); else envoyer({verdict: "illisible", options: []}, true);

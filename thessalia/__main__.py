@@ -8,6 +8,8 @@
     truth-page    Niveau 2 : page HTML locale pour valider la vérité terrain des réponses courtes
     separateur    Niveau 2 : mesurer / apprendre le détecteur de séparateur décimal (point ou virgule)
     serve      outil de correction local (navigateur) : vue par question, vue par copie, notes en direct
+    identite   proposer l'élève de chaque copie (vignettes Nom/Prénom + liste), à confirmer dans l'outil
+    transcrire lire le code manuscrit par un service en ligne (option : clé de l'utilisateur, plafond de dépense)
     bilan      ce que les décisions de l'enseignant disent de la machine, par groupe (après correction)
     notes      notes partielles : QCM + réponses courtes, par classe (et fichier commun d'un groupe)
     simulate   génère des copies remplies + scannées synthétiques (tests)
@@ -103,6 +105,16 @@ def main(argv=None):
     sv.add_argument("--port", type=int, default=8765)
     sv.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
 
+    idt = sub.add_parser("identite", help="lire les noms des copies et les rapprocher de la liste des élèves")
+    idt.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
+    idt.add_argument("--liste", help="liste des élèves .xlsx/.csv (défaut : data/listes/*.xlsx)")
+    idt.add_argument("--force", action="store_true", help="relire les vignettes même si déjà lues")
+
+    tr = sub.add_parser("transcrire", help="lire le code manuscrit par un service en ligne (option payante, plafonnée)")
+    tr.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
+    tr.add_argument("--champ", action="append", required=True, help="champ(s) de code : q12, q18…")
+    tr.add_argument("--limite", type=int, help="nombre maximal de cadres envoyés ce lancement")
+
     bl = sub.add_parser("bilan", help="bilan d'un groupe corrigé : propositions, boutons, v2/v3, mémoire, indices")
     bl.add_argument("groupes", nargs="+", help="groupes (A, B, …, NA, NB)")
     bl.add_argument("--dossiers", nargs="+", default=["sorties/booster"],
@@ -183,6 +195,14 @@ def main(argv=None):
         from .simulate import main as smain
 
         smain(a)
+    elif a.cmd == "identite":
+        from .identite import run as irun
+
+        irun(a.dossiers, a.liste, a.force)
+    elif a.cmd == "transcrire":
+        from .lecteur_code import run as trun
+
+        trun(a.dossiers, a.champ, a.limite)
     elif a.cmd == "bilan":
         from .bilan import run as brun
 

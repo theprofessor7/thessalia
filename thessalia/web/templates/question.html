@@ -14,8 +14,11 @@
   <button id="tout-valider" class="bouton principal">Valider toutes les propositions</button>
   <a id="suivante" class="bouton" href="#" hidden></a>
 </div>
+{% if code %}<p class="aide">Code noté au barème : chaque clic enregistre. <kbd>1</kbd>…<kbd>5</kbd> cocher / décocher un critère ·
+  <kbd>J</kbd> tout juste · <kbd>0</kbd> rien de juste · <kbd>V</kbd> vide · <kbd>M</kbd> entorse grave · <kbd>Entrée</kbd> valider tel quel ·
+  <kbd>Suppr</kbd> annuler · <kbd>↑</kbd><kbd>↓</kbd> naviguer</p>{% else %}
 <p class="aide"><kbd>Entrée</kbd> confirmer le verdict proposé · <kbd>1</kbd> juste · <kbd>2</kbd> forme (50 %) ·
-  <kbd>3</kbd> faux · <kbd>4</kbd> vide · <kbd>5</kbd> illisible · <kbd>L</kbd> bien lu · <kbd>A</kbd> = attendu · <kbd>6</kbd><kbd>7</kbd><kbd>8</kbd> autre lecture · <kbd>T</kbd> corriger la lecture · <kbd>Suppr</kbd> annuler · <kbd>↑</kbd><kbd>↓</kbd> naviguer</p>
+  <kbd>3</kbd> faux · <kbd>4</kbd> vide · <kbd>5</kbd> illisible · <kbd>L</kbd> bien lu · <kbd>A</kbd> = attendu · <kbd>6</kbd><kbd>7</kbd><kbd>8</kbd> autre lecture · <kbd>T</kbd> corriger la lecture · <kbd>Suppr</kbd> annuler · <kbd>↑</kbd><kbd>↓</kbd> naviguer</p>{% endif %}
 <div id="a-decider"></div>
 <details id="decidees"><summary></summary><div id="liste-decidees" class="grille"></div></details>
 {% endblock %}

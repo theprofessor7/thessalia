@@ -128,3 +128,28 @@ table.notes tr.fini td:first-child { box-shadow:inset 4px 0 var(--juste); }
 .bandeau-papier { background:var(--fauxf); color:var(--faux); border:1px solid var(--faux); border-radius:6px;
                   padding:6px 12px; margin:6px 0 10px; }
 .bouton.alerte { border-color:var(--faux); color:var(--faux); }
+
+/* identification des copies */
+.noms { display:flex; flex-direction:column; gap:6px; }
+.ligne-nom { display:grid; grid-template-columns:130px minmax(0,292px) minmax(0,292px) 1fr; gap:10px; align-items:center;
+             background:var(--carte); border:1px solid var(--trait); border-left:5px solid var(--doute); border-radius:6px; padding:6px 10px; }
+.ligne-nom.confirme { border-left-color:var(--juste); }
+.ligne-nom img { width:100%; height:auto; border:1px solid var(--trait); background:#fff; }
+.ligne-nom input { width:100%; max-width:320px; font:inherit; padding:4px 6px; }
+.ligne-nom .etat { margin-left:8px; font-size:12px; color:var(--gris); } .ligne-nom.confirme .etat { color:var(--juste); }
+.ligne-nom .props button { margin:3px 4px 0 0; font-size:12px; }
+@media (prefers-color-scheme: dark) { .ligne-nom img { filter: invert(.88) hue-rotate(180deg); } }
+@media (max-width: 800px) { .ligne-nom { grid-template-columns:1fr; } }
+.ligne-nom.maj input { animation: maj 1.2s ease-out; }
+@keyframes maj { from { background:var(--doutef); } to { background:transparent; } }
+
+/* code noté au barème */
+.grille.code { grid-template-columns:1fr; }
+.grille.code .carte img { max-width:100%; }
+.criteres { display:flex; flex-direction:column; gap:4px; margin:6px 0; }
+.critere { text-align:left; padding:5px 8px; border:1px solid var(--trait); border-radius:6px; background:var(--carte);
+           color:var(--encre); font:inherit; cursor:pointer; }
+.critere.on { background:var(--justef); border-color:var(--juste); }
+.critere.malus.on { background:var(--fauxf); border-color:var(--faux); }
+.transcription { background:var(--fond); border:1px solid var(--trait); padding:6px 8px; font-size:13px; white-space:pre-wrap; }
+.ligne-nom.erreur { border-color:var(--faux); border-left-color:var(--faux); }

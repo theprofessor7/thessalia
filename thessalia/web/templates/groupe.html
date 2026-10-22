@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block titre %}Groupe {{ groupe }}{% endblock %}
 {% block nav %}<a href="/">Tableau de bord</a> › Groupe {{ groupe }}{% endblock %}
-{% block outils %}<a class="bouton" href="/g/{{ groupe }}/copies">Copies et notes</a>
+{% block outils %}<a class="bouton" href="/g/{{ groupe }}/noms">Identifier les copies</a>
+<a class="bouton" href="/g/{{ groupe }}/copies">Copies et notes</a>
 <a class="bouton" href="/g/{{ groupe }}/notes.csv">Exporter les notes</a>{% endblock %}
 {% block contenu %}
 <h1>Groupe {{ groupe }}</h1>

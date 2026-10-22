@@ -19,3 +19,29 @@ def test_decisions_roundtrip(tmp_path):
     d.clear("supD", "c01_q3.1")
     assert "c01_q3.1" not in d.of("supD")
     assert d.of("supE") == {}
+
+
+def test_bareme_verifie_les_points():
+    import pytest
+    from thessalia.correction import _verifier_bareme
+    tpl = {"questions": [{"num": 12, "points": 1.0}],
+           "pages": [{"page": 8, "fields": [{"id": "q12", "type": "code_grid", "question": 12}]}]}
+    ok = {"champs": {"q12": {"points": 1.0, "criteres": [{"id": "1", "points": 0.5}, {"id": "2", "points": 0.5}]}}}
+    _verifier_bareme(ok, tpl)
+    faux = {"champs": {"q12": {"points": 1.0, "criteres": [{"id": "1", "points": 0.5}]}}}
+    with pytest.raises(SystemExit):
+        _verifier_bareme(faux, tpl)
+
+
+def test_code_vide_crayon_pale():
+    import numpy as np
+    from thessalia.code_vide import encre
+    img = np.full((400, 800), 250, np.uint8)
+    img[::20, :] = 225          # quadrillage clair
+    img[:, ::20] = 225
+    assert encre(img) < 2.0      # quadrillage seul : vide
+    for y in range(80, 300, 40):  # écriture au crayon pâle (gris ~170) : lettres de 3 px d'épaisseur
+        for x in range(100, 600, 14):
+            img[y:y + 12, x:x + 3] = 170
+            img[y + 9:y + 12, x:x + 8] = 170
+    assert encre(img) > 2.0

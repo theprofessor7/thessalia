@@ -77,7 +77,7 @@ def copies_a_la_main(copies, template):
     résumé avec copy_id, missing_pages, unreadable)."""
     par_page = {}
     for p in template["pages"]:
-        par_page[p["page"]] = [f["id"] for f in p["fields"] if f["type"] in ("mcq", "truefalse", "short_text")]
+        par_page[p["page"]] = [f["id"] for f in p["fields"] if f["type"] in ("mcq", "truefalse", "short_text", "text_box", "code_grid")]
     out = []
     for c in copies:
         manq, ill = c.get("missing_pages") or [], c.get("unreadable") or []

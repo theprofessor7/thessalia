@@ -79,7 +79,8 @@ def create_app(paths, db_path=DB_PATH):
     def items_of(cs, fid):
         out = []
         for c in cs:
-            pool = c.qcm_items() if fid in _qcm_fids(c) else c.short_items()
+            pool = (c.qcm_items() if fid in _qcm_fids(c)
+                    else c.code_items() if fid in c.exam.bareme.get("champs", {}) else c.short_items())
             out += [i for i in pool if i["champ"] == fid]
         return out
 
@@ -90,7 +91,7 @@ def create_app(paths, db_path=DB_PATH):
         """Champs du groupe avec le nombre de réponses à décider (QCM en revue compris)."""
         todo, total = {}, {}
         for c in cs:
-            for i in c.short_items() + c.qcm_items():
+            for i in c.all_items():
                 total[i["champ"]] = total.get(i["champ"], 0) + 1
                 todo[i["champ"]] = todo.get(i["champ"], 0) + (not i["decide"])
         return [{"champ": f, "a_decider": todo[f], "total": total[f]} for f in sorted(total, key=_qkey)]
@@ -126,11 +127,17 @@ def create_app(paths, db_path=DB_PATH):
         if fid not in ids:
             abort(404)
         ex = cs[0].exam
-        payload = {"groupe": g, "champ": fid, "items": items_of(cs, fid),
-                   "attendu": ex.key.get("short_answers", {}).get(fid) or ", ".join(ex.key.get("answers", {}).get(fid, [])),
-                   "consigne": ex.prompts.get(fid, ""), "questions": qs}
+        code = fid in ex.bareme.get("champs", {})
+        consigne = ex.prompts.get(fid, "")
+        if code:   # énoncé de la question (gabarit) ; le barème tient lieu de corrigé
+            num = ex.fields.get(fid, {}).get("question")
+            consigne = next((q.get("prompt", "") for q in ex.template["questions"] if q["num"] == num), "")
+        payload = {"groupe": g, "champ": fid, "items": items_of(cs, fid), "code": code,
+                   "attendu": "barème ci-dessous" if code else
+                   ex.key.get("short_answers", {}).get(fid) or ", ".join(ex.key.get("answers", {}).get(fid, [])),
+                   "consigne": consigne, "questions": qs}
         i = ids.index(fid)
-        return render_template("question.html", data=payload, groupe=g, champ=fid,
+        return render_template("question.html", data=payload, groupe=g, champ=fid, code=code,
                                prec=ids[i - 1] if i else None, suiv=ids[i + 1] if i + 1 < len(ids) else None)
 
     @app.route("/suivi")
@@ -152,8 +159,79 @@ def create_app(paths, db_path=DB_PATH):
             name, cle = w.split("/", 1)
             c = classes.get(name)
             if c:
-                items += [i for i in c.short_items() + c.qcm_items() if i["cle"] == cle]
+                items += [i for i in c.all_items() if i["cle"] == cle]
         return render_template("revoir.html", data={"items": items}, titre=request.args.get("titre", "Réponses à revoir"))
+
+    def identification(g):
+        """Copies du groupe avec leur élève confirmé ou proposé (répartition d'ensemble sur ce qui reste)."""
+        from .identite import LECTURES, classer, lire_attributions, lire_liste, repartir
+        cs = group(g)
+        eleves = lire_liste().get(g, [])
+        att = {c.name: lire_attributions(c.name, c.lists_dir) for c in cs}
+        # un élève peut avoir composé avec un autre groupe : pris dans TOUTES les classes
+        pris = {e for o in classes.values() for e in lire_attributions(o.name, o.lists_dir).values()}
+        libres = [e for e in eleves if e not in pris]
+        rows, scores = [], {}
+        for c in cs:
+            lus = c._json(c.dir / LECTURES)
+            for cid in c.copy_ids:
+                rang = classer(lus.get(cid, {}), eleves) if lus.get(cid) else []
+                if rang and not att[c.name].get(cid):
+                    scores[(c.name, cid)] = dict(rang)
+                rows.append({"classe": c.name, "copie": cid, "num": int(cid.split("_")[-1]),
+                             "nom": f"{cid}/crops/identity.nom.png", "prenom": f"{cid}/crops/identity.prenom.png",
+                             "confirme": att[c.name].get(cid),
+                             "propositions": [{"eleve": e, "score": sc} for e, sc in rang[:3]]})
+        # proposition pré-remplie : répartition d'ensemble sur les copies non confirmées et les élèves libres
+        rep = repartir({k: {e: v[e] for e in libres} for k, v in scores.items()}, libres)
+        for r in rows:
+            e = rep.get((r["classe"], r["copie"]))
+            if e:
+                r["repartition"] = e
+                if all(p["eleve"] != e for p in r["propositions"]):
+                    r["propositions"].insert(0, {"eleve": e, "score": scores[(r["classe"], r["copie"])][e]})
+        return rows, eleves, pris
+
+    @app.route("/g/<g>/noms")
+    def noms_page(g):
+        """Identification : chaque copie du groupe, vignettes Nom/Prénom, élève proposé ou confirmé."""
+        rows, eleves, pris = identification(g)
+        data = {"groupe": g, "eleves": eleves, "copies": rows, "lus": any(r["propositions"] for r in rows)}
+        return render_template("noms.html", data=data, groupe=g,
+                               absents=[e for e in eleves if e not in pris], n_conf=sum(bool(r["confirme"]) for r in rows))
+
+    @app.route("/g/<g>/repartition")
+    def repartition(g):
+        """Propositions recalculées après une confirmation (moins de copies et d'élèves en jeu : meilleures).
+        Simulé sur NB le 22 octobre : 32 justes sur 37 au moment de les voir, contre 27 figées au chargement."""
+        rows, eleves, pris = identification(g)
+        return jsonify({"repartition": {r["classe"] + "/" + r["copie"]: r.get("repartition") for r in rows
+                                        if not r["confirme"]},
+                        "absents": [e for e in eleves if e not in pris]})
+
+    @app.post("/api/identite")
+    def api_identite():
+        from .identite import ecrire_attribution, lire_attributions, lire_liste
+        d = request.get_json(force=True)
+        c = classes.get(d.get("classe")) or abort(404)
+        cid, e = d.get("copie"), (d.get("etudiant") or "").strip()
+        if cid not in c.copy_ids:
+            abort(404)
+        if e:
+            liste = lire_liste()
+            if e not in liste.get(c.group, []):
+                autre = next((g for g, v in liste.items() if e in v), None)
+                if autre is None:
+                    return jsonify({"erreur": f"« {e} » n'est sur aucune liste (vérifier l'orthographe : NOM Prénom)"}), 409
+                if not d.get("autre_groupe"):   # élève qui a composé avec un autre groupe : confirmation demandée
+                    return jsonify({"erreur": f"« {e} » est sur la liste du groupe {autre}, pas {c.group}",
+                                    "autre_groupe": autre}), 409
+            for o in classes.values():   # un élève n'a qu'une copie, tous groupes confondus
+                for oc, oe in lire_attributions(o.name, o.lists_dir).items():
+                    if oe == e and (o.name, oc) != (c.name, cid):
+                        return jsonify({"erreur": f"déjà attribué à {o.name} · copie {int(oc.split('_')[-1])}"}), 409
+        ecrire_attribution(c.name, c.copy_ids, cid, e, c.lists_dir)
+        return jsonify({"ok": True, "etudiant": e})
 
     @app.route("/g/<g>/copies")
     def copies_page(g):
@@ -172,7 +250,7 @@ def create_app(paths, db_path=DB_PATH):
         for num, p in sorted(doc.get("pages", {}).items(), key=lambda kv: int(kv[0])):
             if p.get("overlay"):
                 pages.append({"page": int(num), "img": p["overlay"].replace("\\", "/")})
-        items = [it for it in c.short_items() + c.qcm_items() if it["copie"] == cid]
+        items = [it for it in c.all_items() if it["copie"] == cid]
         for it in items:  # position de la réponse sur la page (overlay à l'échelle 0,6)
             f = c.exam.fields.get(it["champ"], {})
             it["page"] = f.get("page")
@@ -205,7 +283,7 @@ def create_app(paths, db_path=DB_PATH):
             c.decide(d["cle"], d.get("verdict"), texte, d.get("options"))  # ce qui manque est conservé
         c.save_labels()  # data/truth/<classe>.appris.json à jour : rien à exporter à la main
         cid = next((x for x in c.copy_ids if f"c{int(x.split('_')[-1]):02d}_" == d["cle"][:4]), None)
-        item = next((i for i in c.short_items() + c.qcm_items() if i["cle"] == d["cle"]), None)
+        item = next((i for i in c.all_items() if i["cle"] == d["cle"]), None)
         note = next((r for r in c.notes() if r["copie"] == cid), None)
         return jsonify({"item": item, "note": note})
 
@@ -214,10 +292,10 @@ def create_app(paths, db_path=DB_PATH):
         rows = [r for c in group(g) for r in c.notes()]
         buf = io.StringIO()
         w = csv.writer(buf, delimiter=";")
-        w.writerow(["classe", "copie", "étudiant", "QCM", "réponses courtes", "total", "sur", "en attente", "état"])
+        w.writerow(["classe", "copie", "étudiant", "QCM", "réponses courtes", "code", "total", "sur", "en attente", "état"])
         fmt = lambda x: f"{x:.3f}".rstrip("0").rstrip(".").replace(".", ",")
         for r in rows:
-            w.writerow([r["classe"], r["copie"], r["etudiant"], fmt(r["qcm"]), fmt(r["courtes"]), fmt(r["total"]),
+            w.writerow([r["classe"], r["copie"], r["etudiant"], fmt(r["qcm"]), fmt(r["courtes"]), fmt(r["code"]), fmt(r["total"]),
                         fmt(r["max"]), r["en_attente"], r["etat"]])
         return Response("﻿" + buf.getvalue(), mimetype="text/csv",
                         headers={"Content-Disposition": f"attachment; filename=notes_{g}.csv"})

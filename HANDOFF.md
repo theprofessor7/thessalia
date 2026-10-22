@@ -5,7 +5,7 @@
 
 ## 0. Point du 22 octobre 2026 (à lire en premier)
 
-**Tous les groupes sont corrigés : A à NB, 334 copies complètes** (QCM + réponses courtes). Reste : noms des
+**Tous les groupes sont corrigés : A à NB, 314 copies complètes** (QCM + réponses courtes). Reste : noms des
 étudiants (`data/listes/<classe>.csv`, noms provisoires jusqu'ici ; liste fournie le 22), export Moodle, puis
 le code Python (11 pts, « prochaine phase »).
 

@@ -15,7 +15,7 @@ function note(n) {
   const z = document.getElementById("note");
   z.textContent = "";
   z.append(el("div", {className: "grand"}, fmt(n.total), el("span", {textContent: " / " + fmt(n.max)})),
-           el("div", {className: "gris", textContent: "QCM " + fmt(n.qcm) + " · réponses courtes " + fmt(n.courtes)}),
+           el("div", {className: "gris", textContent: "QCM " + fmt(n.qcm) + " · réponses courtes " + fmt(n.courtes) + " · code " + fmt(n.code)}),
            el("div", {className: n.etat === "complète" ? "ok" : "attente",
                       textContent: n.etat === "complète" ? "note complète" : n.en_attente + " à décider (note si l'on accepte tout : " + fmt(n.provisoire) + ")"}),
            el("div", {className: "gris", textContent: D.note.etudiant}));

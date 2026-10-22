@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block titre %}Identifier · groupe {{ groupe }}{% endblock %}
+{% block nav %}<a href="/">Tableau de bord</a> › <a href="/g/{{ groupe }}">Groupe {{ groupe }}</a> › Identifier les copies{% endblock %}
+{% block outils %}<a class="bouton" href="/g/{{ groupe }}/copies">Copies et notes</a>{% endblock %}
+{% block contenu %}
+<h1>Identifier les copies · groupe {{ groupe }}</h1>
+<p class="aide"><b id="nconf">{{ n_conf }}</b>/{{ data.copies|length }} copies confirmées · {{ data.eleves|length }} élèves sur la liste.
+  Le nom pré-rempli est une <b>proposition</b> de la machine (lecture de la vignette) : vérifiez-le sur l'image.
+  <kbd>Entrée</kbd> confirmer et passer à la suivante · tapez quelques lettres pour chercher dans la liste ·
+  champ vidé + <kbd>Entrée</kbd> : retirer l'attribution. Après chaque confirmation, les noms proposés plus bas se recalculent (surlignés) ; un nom que vous avez tapé n'est jamais remplacé, et il est enregistré dès que vous quittez le champ.
+  {% if not data.lus %}<br><span class="attente">Pas encore de proposition : lancer <code>python -m thessalia identite sorties/booster</code>.</span>{% endif %}</p>
+<datalist id="eleves">{% for e in data.eleves %}<option value="{{ e }}">{% endfor %}</datalist>
+<p><button class="bouton principal" id="tout1">✓ Confirmer toute la page</button>
+  <span class="gris">après avoir vérifié chaque image et corrigé les noms faux</span></p>
+<div id="lignes" class="noms"></div>
+<p><button class="bouton principal" id="tout2">✓ Confirmer toute la page</button></p>
+<h2>Élèves de la liste sans copie ({{ absents|length }})</h2>
+<p class="aide">Absents, ou copies pas encore identifiées. À la fin, il ne doit rester que les absents.</p>
+<p id="absents">{{ absents|join(' · ') }}</p>
+{% endblock %}
+{% block scripts %}
+<script id="donnees" type="application/json">{{ data | tojson }}</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("donnees").textContent);
+const lignes = document.getElementById("lignes");
+const el = (t, p, ...k) => { const e = Object.assign(document.createElement(t), p || {}); for (const x of k) if (x != null) e.append(x); return e; };
+const pris = new Set(D.copies.filter(c => c.confirme).map(c => c.confirme));
+let enLot = false;
+// après chaque confirmation : nouvelle répartition sur les copies et élèves restants (champs non touchés seulement)
+async function recalculer() {
+  const r = await fetch("/g/" + D.groupe + "/repartition");
+  if (!r.ok) return;
+  const j = await r.json();
+  for (const l of lignes.querySelectorAll(".ligne-nom")) {
+    const c = l.copie, e = j.repartition[c.classe + "/" + c.copie];
+    if (c.confirme || c.touche || !e || l.champ.value === e) continue;
+    l.champ.value = e;
+    l.classList.remove("maj"); void l.offsetWidth; l.classList.add("maj");   // signale le changement
+  }
+  document.getElementById("absents").textContent = j.absents.join(" · ");
+}
+function compter() { document.getElementById("nconf").textContent = D.copies.filter(c => c.confirme).length; }
+D.copies.forEach((c, i) => {
+  // proposition : répartition d'ensemble du serveur, sinon le plus ressemblant parmi les élèves libres
+  const prop = c.repartition ? {eleve: c.repartition} : c.propositions.find(p => !pris.has(p.eleve));
+  const champ = el("input", {type: "text", value: c.confirme || (prop ? prop.eleve : ""), spellcheck: false,
+                             placeholder: "NOM Prénom"});
+  champ.setAttribute("list", "eleves");
+  const etat = el("span", {className: "etat"});
+  const ligne = el("div", {className: "ligne-nom"});
+  const envoyer = async (silencieux = false, autreGroupe = false) => {
+    const r = await fetch("/api/identite", {method: "POST", headers: {"Content-Type": "application/json"},
+                          body: JSON.stringify({classe: c.classe, copie: c.copie, etudiant: champ.value.trim(),
+                                                autre_groupe: autreGroupe})});
+    const j = await r.json();
+    // élève d'un autre groupe (il a composé ailleurs) : on demande, jamais en lot
+    if (!r.ok && j.autre_groupe && !silencieux && !autreGroupe
+        && confirm(j.erreur + ".\n\nIl a composé avec ce groupe-ci ? L'attribuer quand même à cette copie ?"))
+      return envoyer(false, true);
+    if (!r.ok) { ligne.erreur = j.erreur || ("erreur " + r.status); if (!silencieux) alert(ligne.erreur); return false; }
+    ligne.classList.remove("erreur");
+    if (c.confirme) pris.delete(c.confirme);
+    c.confirme = j.etudiant || null;
+    if (c.confirme) pris.add(c.confirme);
+    peindre(); compter();
+    if (!enLot) recalculer();
+    return true;
+  };
+  champ.addEventListener("input", () => { c.touche = true; });   // tapé à la main : jamais écrasé
+  // champ modifié puis quitté : enregistré sans Entrée (un champ seulement traversé n'est pas confirmé)
+  champ.addEventListener("change", () => {
+    if (c.touche && champ.value.trim() !== (c.confirme || "")) envoyer();
+  });
+  const props = el("div", {className: "gris props"});
+  for (const p of c.propositions) {
+    const b = el("button", {className: "lecture", tabIndex: -1, textContent: p.eleve + " · " + Math.round(p.score * 100) + " %"});
+    b.onclick = () => { champ.value = p.eleve; envoyer(); };
+    props.append(b);
+  }
+  ligne.append(el("span", {className: "num", textContent: c.classe + " · copie " + c.num}),
+    el("img", {src: "/img/" + c.classe + "/" + c.nom, alt: "nom", loading: "lazy"}),
+    el("img", {src: "/img/" + c.classe + "/" + c.prenom, alt: "prénom", loading: "lazy"}),
+    el("div", {className: "choix"}, champ, etat, props));
+  const peindre = () => {
+    ligne.classList.toggle("confirme", !!c.confirme);
+    etat.textContent = c.confirme ? "✓ confirmé" : (champ.value ? "proposé" : "");
+  };
+  champ.onkeydown = async ev => {
+    if (ev.key !== "Enter") return;
+    ev.preventDefault();
+    if (await envoyer()) {
+      const suiv = lignes.querySelectorAll("input")[i + 1];
+      if (suiv) { suiv.focus(); suiv.select(); suiv.scrollIntoView({block: "center", behavior: "smooth"}); }
+    }
+  };
+  peindre();
+  ligne.envoyer = envoyer;
+  ligne.champ = champ;
+  ligne.copie = c;
+  lignes.append(ligne);
+});
+// « Confirmer toute la page » : seulement les copies non confirmées dont le champ est rempli, après accord
+async function toutConfirmer() {
+  const restantes = [...lignes.querySelectorAll(".ligne-nom")].filter(l => !l.copie.confirme && l.champ.value.trim());
+  if (!restantes.length) { alert("Rien à confirmer."); return; }
+  if (!confirm("Confirmer les " + restantes.length + " noms affichés et non encore confirmés ?\n\n"
+               + "Ce sont des propositions de la machine (sur NB, environ 1 sur 4 était fausse) : "
+               + "vérifiez chaque image avant.")) return;
+  let n = 0;
+  const rates = [];
+  enLot = true;
+  // une copie en erreur (nom déjà pris, hors liste) n'arrête pas les autres : elle est signalée à la fin
+  for (const l of restantes) { if (await l.envoyer(true)) n++; else rates.push(l); }
+  enLot = false;
+  await recalculer();
+  rates.forEach(l => l.classList.add("erreur"));
+  alert(n + " copie(s) confirmée(s)." + (rates.length ? "\n\nNon confirmées (encadrées en rouge) :\n"
+        + rates.map(l => l.copie.classe + " · copie " + l.copie.num + " : " + l.erreur).join("\n") : ""));
+}
+for (const id of ["tout1", "tout2"]) document.getElementById(id).onclick = toutConfirmer;
+const premier = [...lignes.querySelectorAll(".ligne-nom")].find(l => !l.classList.contains("confirme"));
+if (premier) { const x = premier.querySelector("input"); x.focus(); x.select(); }
+</script>
+{% endblock %}

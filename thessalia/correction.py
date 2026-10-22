@@ -148,6 +148,7 @@ class Exam:
     points: dict = field(default_factory=dict)   # champ court -> points
     prompts: dict = field(default_factory=dict)
     fields: dict = field(default_factory=dict)   # id -> champ du gabarit
+    bareme: dict = field(default_factory=dict)   # code : {champ: {points, criteres}}, + "malus"
 
     @classmethod
     def load(cls, exam_id, keys_dir="keys", templates_dir="templates"):
@@ -171,6 +172,13 @@ class Exam:
                 ex.points[f["id"]] = (by_q.get(f["question"], {}).get("points") or 0) / count[f["question"]]
                 ex.prompts[f["id"]] = f.get("prompt") or ""
         ex.fields = {f["id"]: f for p in ex.template["pages"] for f in p["fields"]}
+        # barème du code : celui du sujet, sinon celui du sujet dont il est la traduction exacte
+        for eid in (exam_id, ex.key.get("traduction_de")):
+            b = _bareme(eid, keys_dir) if eid else None
+            if b:
+                _verifier_bareme(b, ex.template)
+                ex.bareme = b
+                break
         return ex
 
     def kind(self, fid):
@@ -186,6 +194,38 @@ class Exam:
         k = self.key.get("short_answers", {})
         return judge(answer, k[fid], self.kind(fid), self.key.get("short_accept", {}).get(fid, ()),
                      self.key.get("short_reject", {}).get(fid, ()))
+
+
+def _bareme(exam_id, keys_dir="keys"):
+    for p in sorted(Path(keys_dir).glob("*.bareme.json")):
+        b = load_json(p)
+        if b.get("exam_id") == exam_id:
+            return b
+    return None
+
+
+def _verifier_bareme(b, template):
+    """Un barème faux donnerait des notes fausses en silence : critères = points du champ, champs d'une
+    question = points de la question (gabarit)."""
+    by_q = {q["num"]: q.get("points") or 0 for q in template["questions"]}
+    champs = {f["id"]: f for p in template["pages"] for f in p["fields"]}
+    par_q = {}
+    for fid, c in b.get("champs", {}).items():
+        if fid not in champs:
+            raise SystemExit(f"Barème : champ inconnu du gabarit « {fid} ».")
+        tot = sum(x["points"] for x in c["criteres"])
+        if abs(tot - c["points"]) > 1e-9:
+            raise SystemExit(f"Barème {fid} : critères {tot} ≠ points du champ {c['points']}.")
+        q = champs[fid]["question"]
+        par_q[q] = par_q.get(q, 0) + c["points"]
+    for q, tot in par_q.items():
+        if abs(tot - by_q.get(q, 0)) > 1e-9:
+            raise SystemExit(f"Barème q{q} : {tot} pt ≠ {by_q.get(q)} pt dans le gabarit.")
+
+
+CODE_ENCRE = "code_encre.json"
+CODE_VIDE = 2.0       # ‰ d'écriture sous lequel un cadre est proposé vide (mesuré le 22 octobre : vides < 1,2 ;
+                      # réponse au crayon pâle de q18 : 40 ; q16 : saut de 1,1 à 3,5)
 
 
 # ---------------------------------------------------------------- classe
@@ -422,9 +462,81 @@ class Classe:
                 items.append(it)
         return items
 
+    # code (barème) ----------------------------------------------------------------
+    def _encre(self):
+        """‰ d'écriture de chaque cadre de code, calculé une fois (`<classe>/code_encre.json`)."""
+        if getattr(self, "_encre_cache", None) is None:
+            p = self.dir / CODE_ENCRE
+            data = self._json(p)
+            manque = [(cid, fid) for cid in self.copy_ids for fid in self.exam.bareme.get("champs", {})
+                      if fid not in data.get(cid, {}) and (self.doc(cid).get("fields", {}).get(fid) or {}).get("crop")]
+            if manque:
+                import cv2
+                from .code_vide import encre
+                for cid, fid in manque:
+                    crop = self.doc(cid)["fields"][fid]["crop"].replace("\\", "/")
+                    data.setdefault(cid, {})[fid] = round(encre(cv2.imread(str(self.dir / crop), cv2.IMREAD_GRAYSCALE)), 2)
+                p.write_text(json.dumps(data, indent=1), encoding="utf-8")
+            self._encre_cache = data
+        return self._encre_cache
+
+    def code_items(self):
+        """Cadres de code notés au barème. Décision : `options` = critères cochés (+ « grave » pour le malus),
+        verdict « vide » = 0. Cadre presque sans écriture : « vide ? » proposé, jamais décidé seul."""
+        b = self.exam.bareme.get("champs", {})
+        if not b:
+            return []
+        malus = self.exam.bareme.get("malus")
+        dec, enc = self.decisions.of(self.name), self._encre()
+        lus = self._json(self.dir / "code_lectures.json")   # transcriptions (option `transcrire`)
+        items = []
+        for cid in self.copy_ids:
+            n, doc = _num(cid), self.doc(cid)
+            for fid, bar in b.items():
+                key = f"c{n:02d}_{fid}"
+                info = doc.get("fields", {}).get(fid) or {}
+                e = enc.get(cid, {}).get(fid)
+                it = {"classe": self.name, "copie": cid, "num": n, "cle": key, "champ": fid, "code": True,
+                      "img": (info.get("crop") or "").replace("\\", "/"), "box": info.get("box_px"), "max": bar["points"], "encre": e,
+                      "criteres": bar["criteres"], "malus": malus, "choix": [], "verdict": None,
+                      "attendu": None, "proposition": None, "raison": None,
+                      "transcription": (lus.get(key) or {}).get("code")}
+                d = dec.get(key)
+                if d and (d.get("verdict") or d.get("options") is not None):
+                    it.update(origine="enseignant", decide=True, choix=d.get("options") or [],
+                              verdict=d.get("verdict"))
+                elif not info.get("crop"):
+                    it.update(origine="page absente", decide=False)
+                elif e is not None and e < CODE_VIDE:
+                    it.update(origine="vide ?", decide=False, verdict=VIDE,
+                              raison=f"presque rien d'écrit ({str(e).replace('.', ',')} ‰)")
+                elif (lus.get(key) or {}).get("criteres_proposes") is not None:
+                    # lecture (session ou service en ligne) : critères PRÉ-COCHÉS, jamais validés seuls
+                    l = lus[key]
+                    it.update(origine="proposé", decide=False, choix=list(l["criteres_proposes"]),
+                              raison=l.get("doute") or None)
+                    if l.get("code", "").strip() == "(vide)":
+                        it.update(verdict=VIDE, choix=[])
+                else:
+                    it.update(origine="à noter", decide=False)
+                it["points"] = self._points_code(it)
+                items.append(it)
+        return items
+
+    def all_items(self):
+        return self.short_items() + self.qcm_items() + self.code_items()
+
+    def _points_code(self, it):
+        if it["verdict"] in (VIDE, ILLISIBLE):
+            return 0.0
+        pts = sum(c["points"] for c in it["criteres"] if c["id"] in it["choix"])
+        if it.get("malus") and it["malus"]["id"] in it["choix"]:
+            pts += it["malus"]["points"]
+        return round(min(max(pts, 0.0), it["max"]), 3)
+
     # notes --------------------------------------------------------------------
     def notes(self):
-        shorts, qcms = self.short_items(), self.qcm_items()
+        shorts, qcms, codes = self.short_items(), self.qcm_items(), self.code_items()
         students = self.students()
         by_copy = {}
         for it in shorts:
@@ -449,11 +561,16 @@ class Classe:
             court = sum(i["points"] or 0 for i in its if i["decide"])
             provisoire = sum(i["points"] or 0 for i in its)
             wait_c = sum(not i["decide"] for i in its)
-            mx = g.get("max", 0) + sum(i["max"] for i in its)
+            cs = [i for i in codes if i["copie"] == cid]
+            code = sum(i["points"] for i in cs if i["decide"])
+            wait_k = sum(not i["decide"] for i in cs)
+            mx = g.get("max", 0) + sum(i["max"] for i in its) + sum(i["max"] for i in cs)
+            attente = wait_c + wait_q + wait_k
             rows.append({"classe": self.name, "copie": cid, "etudiant": students.get(cid, f"{self.name}_{cid}"),
-                         "qcm": g.get("total", 0), "courtes": court, "total": g.get("total", 0) + court,
-                         "provisoire": g.get("total", 0) + provisoire, "max": mx,
-                         "en_attente": wait_c + wait_q, "etat": "complète" if wait_c + wait_q == 0 else "incomplète"})
+                         "qcm": g.get("total", 0), "courtes": court, "code": code,
+                         "total": g.get("total", 0) + court + code,
+                         "provisoire": g.get("total", 0) + provisoire + code, "max": mx,
+                         "en_attente": attente, "etat": "complète" if attente == 0 else "incomplète"})
         return rows
 
     # copies à reprendre sur le papier ---------------------------------------------------
@@ -466,13 +583,14 @@ class Classe:
         if not liste:
             return []
         items = {}
-        for it in self.short_items() + self.qcm_items():
+        for it in self.short_items() + self.qcm_items() + self.code_items():
             items.setdefault(it["copie"], {})[it["champ"]] = it
         qmax = grade_copy({}, self.exam.template, self.exam.key)["details"] if self.exam.key.get("answers") else {}
         for c in liste:
             its = [items.get(c["copie"], {}).get(f) for f in c["champs"]]
             c.update(classe=self.name, groupe=self.group, num=_num(c["copie"]),
-                     points=round(sum(self.exam.points.get(f) or qmax.get(f, {}).get("max", 0) for f in c["champs"]), 3),
+                     points=round(sum(self.exam.points.get(f) or qmax.get(f, {}).get("max", 0)
+                                    or self.exam.bareme.get("champs", {}).get(f, {}).get("points", 0) for f in c["champs"]), 3),
                      restants=[i["champ"] for i in its if i and not i["decide"]],
                      decides=[{"champ": i["champ"], "verdict": i.get("verdict") or ", ".join(i.get("choix") or []) or "aucune case"}
                               for i in its if i and i["decide"]])

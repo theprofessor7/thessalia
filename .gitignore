@@ -22,3 +22,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 sim/
+# transcription en ligne : réglages, clé et dépenses (jamais dans le dépôt)
+data/lecteur.json
+data/lecteur.cle
+data/lecteur_depenses.json

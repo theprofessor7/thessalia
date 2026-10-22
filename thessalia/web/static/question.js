@@ -40,6 +40,7 @@ function progres() {
 }
 
 function cleBloc(it) {
+  if (it.code) return it.verdict === "vide" && !it.decide ? "code:vide" : "code:" + it.cle;   // seuls les vides se groupent
   return it.qcm ? "qcm:" + it.choix.join(",") : (it.verdict || "?") + "|" + (it.proposition == null ? "?" : it.proposition);
 }
 
@@ -56,10 +57,11 @@ function dessiner() {
   if (!ordre.length) zone.append(el("p", {className: "vide-ok", textContent: "Rien à décider pour cette question."}));
   for (const its of ordre) {
     const ex = its[0];
-    const grille = el("div", {className: "grille" + (D.champ.startsWith("q7") || ex.qcm ? " large" : "")});
+    const grille = el("div", {className: "grille" + (D.champ.startsWith("q7") || ex.qcm ? " large" : ex.code ? " code" : "")});
     const cartes = its.map(it => carte(it, (rep, c, clavier) => { progres(); if (clavier) suivanteADecider(c); }));
     grille.append(...cartes);
-    const titre = ex.qcm ? "cases lues : " + (ex.choix.join(", ") || "aucune")
+    const titre = ex.code ? (ex.verdict === "vide" ? "presque rien d'écrit → vide ?" : "à noter")
+      : ex.qcm ? "cases lues : " + (ex.choix.join(", ") || "aucune")
       : "lu « " + (ex.proposition == null ? "?" : ex.proposition === "" ? "(vide)" : ex.proposition) + " » → " + (LIBELLE[ex.verdict] || "?");
     const tete = el("div", {className: "bloc"}, el("span", {textContent: titre + " · " + its.length}));
     if (its.length > 1 && !ex.qcm && ex.verdict) {

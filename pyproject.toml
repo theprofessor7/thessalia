@@ -24,6 +24,11 @@ trocr = ["torch>=2.1", "transformers>=4.40", "sentencepiece"]
 sujets = ["weasyprint>=60"]
 # Outil de correction dans le navigateur (python -m thessalia serve)
 serveur = ["flask>=3"]
+# Transcription du code par un service en ligne (OPTION payante, clé de l'utilisateur, plafond de dépense) :
+# installer celui dont on a la clé. « openai » = format compatible OpenAI : ChatGPT, Azure OpenAI / Foundry,
+# DeepSeek, Mistral, modèles locaux (Ollama…) ; « claude » = API Anthropic.
+lecteur-claude = ["anthropic>=0.70"]
+lecteur-openai = ["openai>=1.40"]
 dev = ["pytest>=7"]
 
 [project.scripts]
