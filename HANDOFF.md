@@ -1,9 +1,50 @@
-# Passation — état du projet au 21 octobre 2026
+# Passation — état du projet au 22 octobre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
 
-## 0. Point du 21 octobre 2026 (à lire en premier)
+## 0. Point du 22 octobre 2026 (à lire en premier)
+
+**Tous les groupes sont corrigés : A à NB, 334 copies complètes** (QCM + réponses courtes). Reste : noms des
+étudiants (`data/listes/<classe>.csv`, noms provisoires jusqu'ici ; liste fournie le 22), export Moodle, puis
+le code Python (11 pts, « prochaine phase »).
+
+**Ajouts** (commit d3d2f4b) :
+- **Copies à reprendre sur le papier** (`/a-la-main`, bouton rouge en en-tête, bandeaux groupe et copie ;
+  même liste à la fin de `process`, `report.copies_a_la_main`) : pages absentes du scan ou illisibles, réponses
+  touchées, points en jeu. Cas : supNA_2 c12 (p. 4-5), supB_2 c7 (p. 6-7), supB_3 c1 (p. 12-13, pages de code),
+  supA_1 c1 (page illisible en trop).
+- **Erreur silencieuse corrigée** : un QCM d'une page absente n'avait pas de réponse lue, `grade_copy` le
+  comptait 0 (« missing ») et la note passait « complète » (supNA_2 c12, q9). Il est maintenant à décider.
+- **QCM « illisible »** (touche 5, second clic annule) : 0 point, même avec la règle par option (sinon
+  « aucune case » rapporterait les cases laissées vides à raison).
+- **Commande `bilan <groupes>`** (`thessalia/bilan.py`) : mesures ci-dessous, lecture seule.
+
+**Mémoire et `3.14` en q10.3** : avec NA/NB, la lecture `3.14` est tombée à 150 « juste » sur 159 (< 95 %) ;
+37 réponses E-H décidées par la mémoire sont revenues à l'enseignant : **4 étaient des `3,14`** notés justes à
+tort. Le seuil a joué son rôle, mais une décision de la mémoire n'est pas définitive : les notes d'un groupe
+peuvent repasser « incomplètes » quand d'autres classes s'ajoutent (vérifier avant tout export).
+
+**Bilan** (`bilan G H NA NB`, lectures vérifiées par l'enseignant = cas difficiles ; G/H recalculés avec la
+mémoire du 22) :
+
+| | G | H | NA | NB |
+|---|---|---|---|---|
+| lectures vérifiées | 261 | 295 | 314 | 310 |
+| proposition juste | 142 (54 %) | 183 (62 %) | 222 (71 %) | 231 (75 %) |
+| bonne lecture dans les boutons, si proposition fausse | 71/119 | 77/112 | 59/92 | 66/79 |
+| lecture brute juste v3 / v2 | 152 / 147 | 174 / 175 | 213 / 202 | 222 / 199 |
+| décidées par la mémoire | 225 | 230 | 201 | 275 |
+
+- Sujet EN mieux lu : q7.4 n'y coûte presque rien (27 et 25 propositions fausses en G et H) ; sans q7.4,
+  G/H ≈ 61-68 %. **v3 dépasse v2 sur les cas difficiles EN** (+11, +23), pas sur le FR.
+- **Séparateur sur l'EN : sans gain.** NA 50/61 comme la lecture brute ; NB 58/67 contre 61 (3 changements,
+  0 à raison). Sur H : 6 sur 6. Petits nombres : à surveiller avant de s'y fier.
+- Espace q7.3 (lecture) : `X Y` proposé juste 23/24 sur NA+NB.
+- q14 EN : aucune réponse en français tapée hors supNA_2 c12 ; le biais `Zéro` de TrOCR est resté sans effet.
+- Propositions fausses les plus fréquentes : q6.1, q6.2, q3.4, q7.1 (cibles d'un futur v4).
+
+## 0 (suite). Point du 21 octobre 2026
 
 **Groupes corrigés et notés** : A à H (G et H les 20-21 octobre). **Reste : NA (prévu le 22), NB** (sujet EN :
 la mémoire des verdicts y sera presque vide, autre `exam_id`). Puis notes, export Moodle, le code (11 pts).

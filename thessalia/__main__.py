@@ -8,6 +8,7 @@
     truth-page    Niveau 2 : page HTML locale pour valider la vérité terrain des réponses courtes
     separateur    Niveau 2 : mesurer / apprendre le détecteur de séparateur décimal (point ou virgule)
     serve      outil de correction local (navigateur) : vue par question, vue par copie, notes en direct
+    bilan      ce que les décisions de l'enseignant disent de la machine, par groupe (après correction)
     notes      notes partielles : QCM + réponses courtes, par classe (et fichier commun d'un groupe)
     simulate   génère des copies remplies + scannées synthétiques (tests)
     evaluate   compare des résultats à une vérité terrain
@@ -102,6 +103,12 @@ def main(argv=None):
     sv.add_argument("--port", type=int, default=8765)
     sv.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
 
+    bl = sub.add_parser("bilan", help="bilan d'un groupe corrigé : propositions, boutons, v2/v3, mémoire, indices")
+    bl.add_argument("groupes", nargs="+", help="groupes (A, B, …, NA, NB)")
+    bl.add_argument("--dossiers", nargs="+", default=["sorties/booster"],
+                    help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
+    bl.add_argument("--db", default="data/correction.sqlite", help="base des décisions (lue seulement)")
+
     sp = sub.add_parser("separateur", help="Niveau 2 : mesurer / apprendre le détecteur point ou virgule")
     sp.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     sp.add_argument("--kind", action="append", choices=("image", "lecteur", "image+lecteur"),
@@ -176,6 +183,10 @@ def main(argv=None):
         from .simulate import main as smain
 
         smain(a)
+    elif a.cmd == "bilan":
+        from .bilan import run as brun
+
+        brun(a.groupes, a.dossiers, a.db)
     elif a.cmd == "separateur":
         from .separateur import KINDS, Separateur, class_dirs, run as seprun, write_indices
 
