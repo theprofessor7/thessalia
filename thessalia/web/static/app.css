@@ -153,3 +153,7 @@ table.notes tr.fini td:first-child { box-shadow:inset 4px 0 var(--juste); }
 .critere.malus.on { background:var(--fauxf); border-color:var(--faux); }
 .transcription { background:var(--fond); border:1px solid var(--trait); padding:6px 8px; font-size:13px; white-space:pre-wrap; }
 .ligne-nom.erreur { border-color:var(--faux); border-left-color:var(--faux); }
+
+/* page entière sous une carte de code */
+.page-entiere { display: block; width: 100%; margin-top: .4em; border: 1px solid #999; }
+.page-entiere[hidden] { display: none; }

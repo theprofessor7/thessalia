@@ -489,6 +489,8 @@ class Classe:
         malus = self.exam.bareme.get("malus")
         dec, enc = self.decisions.of(self.name), self._encre()
         lus = self._json(self.dir / "code_lectures.json")   # transcriptions (option `transcrire`)
+        # page de chaque cadre : l'élève écrit souvent sous le cadre imprimé, la page entière le montre
+        page_de = {f["id"]: pg["page"] for pg in self.exam.template["pages"] for f in pg["fields"]}
         items = []
         for cid in self.copy_ids:
             n, doc = _num(cid), self.doc(cid)
@@ -501,6 +503,9 @@ class Classe:
                       "criteres": bar["criteres"], "malus": malus, "choix": [], "verdict": None,
                       "attendu": None, "proposition": None, "raison": None,
                       "transcription": (lus.get(key) or {}).get("code")}
+                pg = f"{cid}/pages/p{page_de.get(fid, 0):02d}_overlay.jpg"
+                if (self.dir / pg).exists():
+                    it["page"] = pg
                 d = dec.get(key)
                 if d and (d.get("verdict") or d.get("options") is not None):
                     it.update(origine="enseignant", decide=True, choix=d.get("options") or [],

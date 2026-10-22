@@ -1,9 +1,44 @@
-# Passation — état du projet au 22 octobre 2026
+# Passation — état du projet au 23 octobre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
 
-## 0. Point du 22 octobre 2026 (à lire en premier)
+## 0. Point du 23 octobre 2026 (à lire en premier)
+
+**Examen blanc Booster terminé : 314 copies notées sur 20** (QCM + réponses courtes + code), classeur
+`sorties/notes/notes.xlsx` (hors dépôt, contient les noms). Moyenne 12,02 (code 5,15 / 11), 86 copies sous 10.
+Reste : 2 copies dont 3 cadres de code sont sur une page absente du scan (feuille « À vérifier », note
+provisoire), à noter sur le papier dans l'outil puis relancer `excel`.
+
+**Identification** (commit 1fe6538) : 314 copies sur 314 attribuées (`data/listes/<classe>.csv`), 12 absents.
+Un élève de la liste E a composé avec F : accepté après confirmation, il sort dans son groupe de la liste.
+
+**Code (11 pts) : lu en session Claude Code, pas par l'API.** 2 560 cadres transcrits et notés au barème
+(`keys/socle_python_FR.bareme.json`) par des sous-agents, en paquets de 75 cadres (planches de 3 cadres sans
+identité), rangés dans `<classe>/code_lectures.json` (`fournisseur: session`, `criteres_proposes`).
+Coût mesuré : ~5 % du quota hebdomadaire de l'abonnement (≈ 15-25 $ par l'API, estimation). L'option API
+(`transcrire`) reste dans le code, opt-in et plafonnée.
+- Lecture **stricte** voulue par l'enseignant (« l'humain a des biais positifs »), avec ses arbitrages :
+  q17 `*` au lieu de `x` accepté ; q13 `int(input())` sur un prénom refusé (contresens) ; q13 prénom et nom
+  collés acceptés ; q18 boucle qui s'arrête à 0 sans rien compter : critère 1 refusé ; q19 affichages
+  présents mais valeurs fausses : laissé accordé (non tranché).
+- **Toutes les propositions validées automatiquement à la demande de l'enseignant** (2 441 propositions,
+  233 cadres « vide ? » sous 2 ‰ d'encre) ; ses 149 décisions manuelles conservées. Les validations auto
+  portent `texte = "auto: lecture session"` / `"auto: vide (encre)"` dans `data/correction.sqlite` : on
+  peut les retrouver et les annuler.
+- Constat : beaucoup d'élèves écrivent **sous le cadre imprimé** (q15 surtout) → bouton **« voir la page »**
+  sur chaque carte de code (page entière `pages/pNN_overlay.jpg`, au clic). Une copie de q19 renvoie à la
+  page 17 : non couvert.
+- Pièges de la lecture par sous-agents : donner à chacun **son propre dossier de brouillon** (trois agents
+  q13 ont partagé un fichier ; vérifié sans mélange) ; règles de barème non écrites tranchées différemment
+  d'un paquet à l'autre → lister les cas récurrents et les faire trancher par l'enseignant.
+- **Identité** : chaque page porte Nom/Prénom en en-tête ; seuls les cadres découpés (`crops/`) sont sans
+  nom. Ne jamais envoyer une page entière à un service externe.
+
+**Ajouts** : `excel` (`thessalia/excel.py`, xlsx sans dépendance : feuilles Notes, Absents, À vérifier ;
+mémoire des verdicts reconstruite comme dans l'outil, sinon ~1 300 réponses courtes paraissent en attente).
+
+## 0. Point du 22 octobre 2026
 
 **Tous les groupes sont corrigés : A à NB, 314 copies complètes** (QCM + réponses courtes). Reste : noms des
 étudiants (`data/listes/<classe>.csv`, noms provisoires jusqu'ici ; liste fournie le 22), export Moodle, puis

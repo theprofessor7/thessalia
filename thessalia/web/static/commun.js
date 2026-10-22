@@ -52,6 +52,19 @@ function carte(it, surDecision, opts = {}) {
       // code noté au barème : chaque clic enregistre (critères cochés = options) ; la note est leur somme
       if (it.raison) c.append(el("div", {className: "raison", textContent: "doute : " + it.raison}));
       if (it.transcription) c.append(el("pre", {className: "transcription", textContent: it.transcription}));
+      // l'élève a pu écrire sous le cadre : la page entière, affichée à la demande
+      if (it.page) {
+        const vue = el("img", {className: "page-entiere", alt: "page entière", hidden: true});
+        const b = el("button", {className: "lecture", tabIndex: -1, textContent: "voir la page"});
+        b.onclick = ev => {
+          ev.stopPropagation();
+          if (!vue.src) vue.src = "/img/" + it.classe + "/" + it.page;
+          vue.hidden = !vue.hidden;
+          b.textContent = vue.hidden ? "voir la page" : "masquer la page";
+          c.focus();
+        };
+        c.append(el("div", {}, b), vue);
+      }
       const coches = new Set(it.choix || []);
       const enregistrer = (corps, clavier = false) => envoyer(corps, clavier).then(() => c.focus());
       const basculer = id => {

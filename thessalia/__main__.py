@@ -11,6 +11,7 @@
     identite   proposer l'élève de chaque copie (vignettes Nom/Prénom + liste), à confirmer dans l'outil
     transcrire lire le code manuscrit par un service en ligne (option : clé de l'utilisateur, plafond de dépense)
     bilan      ce que les décisions de l'enseignant disent de la machine, par groupe (après correction)
+    excel      notes finales (QCM + réponses courtes + code, sur 20) dans un classeur Excel, absents compris
     notes      notes partielles : QCM + réponses courtes, par classe (et fichier commun d'un groupe)
     simulate   génère des copies remplies + scannées synthétiques (tests)
     evaluate   compare des résultats à une vérité terrain
@@ -121,6 +122,10 @@ def main(argv=None):
                     help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     bl.add_argument("--db", default="data/correction.sqlite", help="base des décisions (lue seulement)")
 
+    xl = sub.add_parser("excel", help="notes finales dans un classeur Excel (sorties/notes/notes.xlsx)")
+    xl.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
+    xl.add_argument("-o", "--sortie", default="sorties/notes/notes.xlsx")
+
     sp = sub.add_parser("separateur", help="Niveau 2 : mesurer / apprendre le détecteur point ou virgule")
     sp.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     sp.add_argument("--kind", action="append", choices=("image", "lecteur", "image+lecteur"),
@@ -207,6 +212,10 @@ def main(argv=None):
         from .bilan import run as brun
 
         brun(a.groupes, a.dossiers, a.db)
+    elif a.cmd == "excel":
+        from .excel import run as xrun
+
+        xrun(a.dossiers, a.sortie)
     elif a.cmd == "separateur":
         from .separateur import KINDS, Separateur, class_dirs, run as seprun, write_indices
 

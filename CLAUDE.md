@@ -33,6 +33,7 @@ python -m thessalia truth-page sorties/<classe> -t templates/<gabarit>.json [--t
 python -m thessalia notes sorties/<classe> [sorties/<classe2> …] -t templates/<gabarit>.json -k keys/<x>.key.json -v keys/<x>.vocab.json [-o sorties/notes/<groupe>.csv]   # QCM + réponses courtes, sur 9
 python -m thessalia serve sorties/booster [sorties/<autre> …] --no-browser   # outil de correction local (extra [serveur]), http://127.0.0.1:8765/
 python -m thessalia bilan NA NB [--dossiers sorties/booster sorties/supA_1_v3]   # après correction : propositions, boutons, v2/v3, mémoire, indices
+python -m thessalia excel sorties/booster sorties/supA_1_v3 [-o sorties/notes/notes.xlsx]   # notes finales sur 20, absents, copies à vérifier
 python -m thessalia digits-train sorties/<classe> -v keys/<x>.vocab.json --truth data/truth/<x>.json   # vérité validée
 python -m thessalia trocr-train sorties/<classe> -v keys/<x>.vocab.json --truth data/truth/<x>.json [--also …] [--limit 160]   # long, ~6 Go ; mesurer ensuite avec ocr --model data/models/trocr sur un lot jamais vu
 python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m thessalia evaluate out/lot sim/lot/truth.json
@@ -52,7 +53,7 @@ python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m 
 de page · `omr` cases à cocher · `extract` vignettes · `ocr_prep` nettoyage des réponses courtes ·
 `ocr` moteurs · `digits` lecteur de chiffres (nombres) · `vocab` rapprochement · `ocr_run` commande ocr · `truth_page` page de validation de la vérité · `pipeline` orchestration · `report` sorties ·
 `grade` notation QCM · `notes` notes QCM + réponses courtes (règle globale de l'enseignant) · `correction` décisions, mémoire des
-verdicts, étiquettes `appris.json` · `serve` + `web/` outil de correction Flask · `bilan` mesures après correction · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
+verdicts, étiquettes `appris.json` · `serve` + `web/` outil de correction Flask · `bilan` mesures après correction · `excel` classeur des notes finales · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
 
 ## Pièges connus
 
