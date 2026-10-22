@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titre %}Copies à reprendre sur le papier{% endblock %}
+{% block nav %}<a href="/">Tableau de bord</a>{% if groupe %} › <a href="/g/{{ groupe }}">Groupe {{ groupe }}</a>{% endif %} › Copies à reprendre sur le papier{% endblock %}
+{% block contenu %}
+<h1>Copies à reprendre sur le papier{% if groupe %} · groupe {{ groupe }}{% endif %}</h1>
+<p class="aide">Une page de ces copies manque au scan ou n'a pas pu être lue : leurs réponses n'ont pas d'image.
+  Sortez la copie papier, puis décidez ces réponses dans la vue de la copie (QCM : cochez les cases d'après le papier).
+  Une décision déjà prise sans le papier reste modifiable.</p>
+{% if not copies %}<p class="ok">Aucune : toutes les pages ont été lues.</p>{% endif %}
+<table class="a-la-main">
+  <tr><th>Copie</th><th>Problème</th><th>Réponses touchées</th><th class="n">Points en jeu</th><th>À décider</th><th>Déjà décidées</th></tr>
+  {% for c in copies %}
+  <tr class="{{ 'fini' if not c.restants }}">
+    <td><a href="/c/{{ c.classe }}/{{ c.copie }}">{{ c.classe }} · copie {{ c.num }}</a></td>
+    <td>{% if c.pages %}page{{ 's' if c.pages|length > 1 }} {{ c.pages|join(', ') }} absente{{ 's' if c.pages|length > 1 }} du scan{% endif %}
+        {% for u in c.illisibles %}<div class="gris">page illisible : {{ u }}</div>{% endfor %}</td>
+    <td>{{ c.champs|join(', ') if c.champs else '—' }}</td>
+    <td class="n">{{ '%g'|format(c.points) }}</td>
+    <td>{% if c.restants %}<span class="attente">{{ c.restants|join(', ') }}</span>{% else %}<span class="ok">rien</span>{% endif %}</td>
+    <td class="gris">{% for d in c.decides %}{{ d.champ }} ({{ d.verdict }}){{ ', ' if not loop.last }}{% endfor %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -17,6 +17,7 @@
           <td class="n">{% if c.a_decider %}{{ c.a_decider }} à décider{% else %}<span class="ok">terminé</span>{% endif %}</td></tr>
       {% endfor %}
     </table>
+    {% if g.a_la_main %}<p class="bandeau-papier"><a href="/a-la-main?g={{ g.groupe }}">{{ g.a_la_main|length }} copie{{ 's' if g.a_la_main|length > 1 }} à reprendre sur le papier</a></p>{% endif %}
     <p class="liens"><a href="/g/{{ g.groupe }}">Corriger</a> · <a href="/g/{{ g.groupe }}/copies">Copies et notes</a> ·
       <a href="/g/{{ g.groupe }}/notes.csv">Exporter</a></p>
   </section>

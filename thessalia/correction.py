@@ -385,12 +385,21 @@ class Classe:
         for cid in self.copy_ids:
             n, doc = _num(cid), self.doc(cid)
             reasons = {r["item"]: r for r in doc.get("review", [])}
-            for fid, ans in doc.get("answers", {}).items():
+            answers = doc.get("answers", {})
+            # QCM d'une page absente du scan (ou illisible) : sans réponse lue. Il est à décider sur le papier,
+            # sinon `grade_copy` le compte 0 en silence et la note passe « complète » (supNA_2 copie 12, q9).
+            absents = {} if not doc.get("pages") else {
+                fid: {"type": f["type"], "status": "review", "mode": f.get("mode", "multi"), "selected": [],
+                      "absent": True, "options": {o["id"]: {"label": o.get("label", o["id"]), "state": "absent"}
+                                                  for o in f["options"]}}
+                for fid, f in self.exam.fields.items()
+                if f["type"] in ("mcq", "truefalse") and fid not in answers}
+            for fid, ans in list(answers.items()) + list(absents.items()):
                 if ans.get("type") not in ("mcq", "truefalse") or ans.get("status") != "review":
                     continue
                 key = f"c{n:02d}_{fid}"
                 d, t = dec.get(key), truth.get(key)
-                it = {"classe": self.name, "copie": cid, "num": n, "cle": key, "champ": fid, "qcm": True,
+                it = {"classe": self.name, "copie": cid, "num": n, "cle": key, "champ": fid, "qcm": True, "verdict": None,
                       "mode": ans.get("mode", "multi"), "raison": reasons.get(fid, {}).get("reason"),
                       "img": f"{cid}/crops/qcm_{fid}.jpg" if (self.dir / cid / "crops" / f"qcm_{fid}.jpg").exists() else "",
                       "overlay": (reasons.get(fid, {}).get("overlay") or "").replace("\\", "/"),
@@ -398,10 +407,16 @@ class Classe:
                                   for k, o in ans["options"].items()],
                       "proposition": sorted(ans.get("selected", [])),
                       "attendu": sorted(self.exam.key.get("answers", {}).get(fid, []))}
-                if d and d.get("options") is not None:
+                if d and d.get("verdict") == ILLISIBLE:
+                    # copie papier inutilisable (page absente, cases illisibles) : 0 point, pas de cases cochées
+                    it.update(choix=[], verdict=ILLISIBLE, origine="enseignant", decide=True)
+                elif d and d.get("options") is not None:
                     it.update(choix=d["options"], origine="enseignant", decide=True)
                 elif t is not None and not t.endswith("?"):
                     it.update(choix=[x for x in t.split(",") if x], origine="vérité", decide=True)
+                elif ans.get("absent"):
+                    it.update(choix=[], origine="page absente", decide=False,
+                              raison="page absente du scan : cocher d'après la copie papier")
                 else:
                     it.update(choix=it["proposition"], origine="proposé", decide=False)
                 items.append(it)
@@ -423,8 +438,10 @@ class Classe:
             answers = json.loads(json.dumps(self.doc(cid).get("answers", {})))
             wait_q = 0
             for it in q_by_copy.get(cid, []):
-                if it["decide"]:
-                    answers[it["champ"]].update(status="ok", selected=it["choix"])
+                if it.get("verdict") == ILLISIBLE:
+                    answers.pop(it["champ"], None)  # compté 0 (« missing ») même avec la règle par option
+                elif it["decide"]:
+                    answers.setdefault(it["champ"], {}).update(status="ok", selected=it["choix"])
                 else:
                     wait_q += 1
             g = grade_copy(answers, self.exam.template, key) if key.get("answers") else {"total": 0, "max": 0}
@@ -438,6 +455,28 @@ class Classe:
                          "provisoire": g.get("total", 0) + provisoire, "max": mx,
                          "en_attente": wait_c + wait_q, "etat": "complète" if wait_c + wait_q == 0 else "incomplète"})
         return rows
+
+    # copies à reprendre sur le papier ---------------------------------------------------
+    def a_la_main(self):
+        """Copies dont une page manque au scan ou est illisible, avec les réponses touchées encore à décider
+        et les points en jeu (cf. `report.copies_a_la_main`)."""
+        from .report import copies_a_la_main
+        docs = [self.doc(cid) | {"copy_id": cid} for cid in self.copy_ids]
+        liste = copies_a_la_main(docs, self.exam.template)
+        if not liste:
+            return []
+        items = {}
+        for it in self.short_items() + self.qcm_items():
+            items.setdefault(it["copie"], {})[it["champ"]] = it
+        qmax = grade_copy({}, self.exam.template, self.exam.key)["details"] if self.exam.key.get("answers") else {}
+        for c in liste:
+            its = [items.get(c["copie"], {}).get(f) for f in c["champs"]]
+            c.update(classe=self.name, groupe=self.group, num=_num(c["copie"]),
+                     points=round(sum(self.exam.points.get(f) or qmax.get(f, {}).get("max", 0) for f in c["champs"]), 3),
+                     restants=[i["champ"] for i in its if i and not i["decide"]],
+                     decides=[{"champ": i["champ"], "verdict": i.get("verdict") or ", ".join(i.get("choix") or []) or "aucune case"}
+                              for i in its if i and i["decide"]])
+        return liste
 
     # étiquettes pour l'affinage ------------------------------------------------------
     def labels(self):
@@ -528,7 +567,8 @@ class Classe:
         (même lecture) garde le verdict déjà choisi (ex. une indulgence de l'enseignant)."""
         if verdict is not None and verdict not in VERDICTS:
             raise ValueError(f"verdict inconnu : {verdict}")
-        clear = False
+        # QCM : cocher des cases après « illisible » remplace ce verdict
+        clear = options is not None and verdict is None
         if texte is not None and verdict is None:
             cur = next((i for i in self.short_items(use_memory=False) if i["cle"] == cle), None)
             if cur is not None:

@@ -72,9 +72,16 @@ function carte(it, surDecision, opts = {}) {
         el("code", {textContent: (it.attendu || []).join(", ") || "aucune case"}), el("span", {className: "gris", textContent: "  (✓ vert sur les bonnes cases)"})));
       if (it.options.some(o => o.state === "ambiguous"))
         c.append(el("div", {className: "legende", textContent: "orange : case douteuse, comptée seulement si vous la cochez"}));
-      const ok = el("button", {className: "verdict principal", textContent: it.decide ? "✓ validé" : "✓ valider ces cases", tabIndex: -1});
+      const ok = el("button", {className: "verdict principal",
+                               textContent: it.verdict === "illisible" ? "✓ valider ces cases" : it.decide ? "✓ validé" : "✓ valider ces cases", tabIndex: -1});
       ok.onclick = () => envoyer({options: it.choix});
-      c.append(el("div", {className: "verdicts"}, ok,
+      // copie inutilisable pour ce QCM (page absente, cases illisibles) : 0 point
+      const ill = el("button", {className: "verdict illisible" + (it.verdict === "illisible" ? " choisi" : ""),
+                                textContent: LIBELLE.illisible, tabIndex: -1,
+                                title: it.verdict === "illisible" ? "5 : annuler « illisible »" : "5 : impossible à lire (0 point)"});
+      // second clic : annule (retour à la lecture de la machine, à décider)
+      ill.onclick = () => envoyer(it.verdict === "illisible" ? {annuler: true} : {verdict: "illisible", options: []});
+      c.append(el("div", {className: "verdicts"}, ok, ill,
         el("span", {className: "gris", textContent: "machine : " + (it.proposition.join(", ") || "aucune case")})));
       c.valider = (clavier = false) => envoyer({options: it.choix}, clavier);
     } else {
@@ -162,6 +169,10 @@ function carte(it, surDecision, opts = {}) {
   c.addEventListener("keydown", ev => {
     if (ev.target !== c) return;
     if (ev.key === "Enter") { ev.preventDefault(); c.valider(true); }
+    else if (it.qcm && ev.key === "5") {
+      ev.preventDefault();
+      if (it.verdict === "illisible") envoyer({annuler: true}); else envoyer({verdict: "illisible", options: []}, true);
+    }
     else if (!it.qcm && TOUCHE[ev.key]) { ev.preventDefault(); envoyer({verdict: TOUCHE[ev.key]}, true); }
     else if (!it.qcm && (ev.key === "t" || ev.key === "T")) { ev.preventDefault(); saisir(); }
     else if (!it.qcm && (ev.key === "l" || ev.key === "L") && it.proposition != null) { ev.preventDefault(); envoyer({texte: it.proposition}); }

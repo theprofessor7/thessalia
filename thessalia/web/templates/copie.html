@@ -7,6 +7,11 @@
 {% if suiv %}<a class="bouton" id="suiv" href="/c/{{ classe }}/{{ suiv }}">copie suivante →</a>{% endif %}
 {% endblock %}
 {% block contenu %}
+{% if a_la_main %}<div class="bandeau-papier"><b>Copie papier nécessaire</b> :
+  {% if a_la_main.pages %}page{{ 's' if a_la_main.pages|length > 1 }} {{ a_la_main.pages|join(', ') }} absente{{ 's' if a_la_main.pages|length > 1 }} du scan{% endif %}
+  {% for u in a_la_main.illisibles %} · page illisible ({{ u }}){% endfor %}
+  {% if a_la_main.champs %} → {{ a_la_main.champs|join(', ') }} ({{ '%g'|format(a_la_main.points) }} pts){% endif %}.
+  {% if a_la_main.restants %}Encore à décider : {{ a_la_main.restants|join(', ') }}.{% endif %}</div>{% endif %}
 <div class="vue-copie">
   <div id="pages" class="pages"></div>
   <aside class="panneau">

@@ -21,7 +21,7 @@ from .grade import grade_copy
 from .loader import load_scans
 from .ocr_prep import PrepConfig, mark_stacking, prepare_field
 from .omr import OMRConfig, read_page
-from .report import draw_overlay, write_batch_csv, write_review_csv
+from .report import copies_a_la_main, draw_overlay, texte_a_la_main, write_batch_csv, write_review_csv
 
 
 def _is_blank(gray, px_mm, max_ink=0.002):
@@ -133,9 +133,11 @@ class Processor:
         self._check_template(copies)
         for c in copies:
             self._finalize(c, out_dir)
+        for ligne in texte_a_la_main(copies_a_la_main(copies, self.template)):
+            self.log(ligne)
         save_json({"schema": RESULT_SCHEMA + "/batch", "exam_id": self.template["exam_id"],
                    "n_copies": len(copies), "blank_pages": self.blank_pages, "other_pages": self.other_pages, "elapsed_s": round(time.time() - t0, 1),
-                   "copies": [{k: c[k] for k in ("copy_id", "missing_pages", "flat")}
+                   "copies": [{k: c[k] for k in ("copy_id", "missing_pages", "unreadable", "flat")}
                               | {"n_review": len(c["review"]), "grade": c.get("grade")} for c in copies]},
                   out_dir / "results.json")
         write_batch_csv(copies, self.template, out_dir / "results.csv")

@@ -6,6 +6,9 @@
 {% block contenu %}
 <h1>Groupe {{ groupe }}</h1>
 <p class="aide">{% for c in classes %}{{ c.classe }} ({{ c.copies }} copies){{ ", " if not loop.last }}{% endfor %}</p>
+{% if a_la_main %}<div class="bandeau-papier">Copie{{ 's' if a_la_main|length > 1 }} à reprendre sur le papier (page absente ou illisible) :
+  {% for c in a_la_main %}<a href="/c/{{ c.classe }}/{{ c.copie }}">{{ c.classe }} · copie {{ c.num }}</a>{{ ', ' if not loop.last }}{% endfor %}
+  · <a href="/a-la-main?g={{ groupe }}">détail</a></div>{% endif %}
 <h2>Par question</h2>
 <div class="questions">
 {% for q in questions %}

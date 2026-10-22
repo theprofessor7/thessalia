@@ -95,15 +95,28 @@ def create_app(paths, db_path=DB_PATH):
                 todo[i["champ"]] = todo.get(i["champ"], 0) + (not i["decide"])
         return [{"champ": f, "a_decider": todo[f], "total": total[f]} for f in sorted(total, key=_qkey)]
 
+    def a_la_main(g=None):
+        return [x for gg in sorted(groups, key=_gkey) if g in (None, gg) for c in groups[gg] for x in c.a_la_main()]
+
+    @app.context_processor
+    def nb_a_la_main():
+        # compteur du bouton de l'en-tête : copies à reprendre sur le papier dont des réponses attendent encore
+        return {"nb_a_la_main": sum(bool(x["restants"]) for x in a_la_main())}
+
     @app.route("/")
     def home():
-        data = [{"groupe": g, "classes": summary(groups[g])} for g in sorted(groups, key=_gkey)]
+        data = [{"groupe": g, "classes": summary(groups[g]), "a_la_main": a_la_main(g)} for g in sorted(groups, key=_gkey)]
         return render_template("accueil.html", groupes=data)
+
+    @app.route("/a-la-main")
+    def a_la_main_page():
+        g = request.args.get("g")
+        return render_template("a_la_main.html", copies=a_la_main(g), groupe=g)
 
     @app.route("/g/<g>")
     def group_page(g):
         cs = group(g)
-        return render_template("groupe.html", groupe=g, classes=summary(cs), questions=questions(cs))
+        return render_template("groupe.html", groupe=g, classes=summary(cs), questions=questions(cs), a_la_main=a_la_main(g))
 
     @app.route("/g/<g>/q/<fid>")
     def question_page(g, fid):
@@ -163,14 +176,15 @@ def create_app(paths, db_path=DB_PATH):
         for it in items:  # position de la réponse sur la page (overlay à l'échelle 0,6)
             f = c.exam.fields.get(it["champ"], {})
             it["page"] = f.get("page")
-            if it.get("qcm"):
+            if it.get("qcm") and it["champ"] in doc.get("answers", {}):  # QCM d'une page absente : pas de cadre
                 boxes = [o["box_px"] for o in doc["answers"][it["champ"]]["options"].values()]
                 it["box"] = [min(b[0] for b in boxes) - 10, min(b[1] for b in boxes) - 10,
                              max(b[2] for b in boxes) + 10, max(b[3] for b in boxes) + 10]
         note = next(r for r in c.notes() if r["copie"] == cid)
         payload = {"classe": classe, "copie": cid, "groupe": c.group, "pages": pages, "items": items, "note": note,
                    "attendus": c.exam.key.get("short_answers", {}), "echelle": 0.6}
-        return render_template("copie.html", data=payload, classe=classe, copie=cid, groupe=c.group,
+        main = next((x for x in c.a_la_main() if x["copie"] == cid), None)
+        return render_template("copie.html", data=payload, classe=classe, copie=cid, groupe=c.group, a_la_main=main,
                                prec=c.copy_ids[i - 1] if i else None,
                                suiv=c.copy_ids[i + 1] if i + 1 < len(c.copy_ids) else None)
 

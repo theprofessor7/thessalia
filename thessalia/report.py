@@ -67,3 +67,38 @@ def write_review_csv(copies, path: Path):
         for c in copies:
             for r in c["review"]:
                 w.writerow([c["copy_id"], r["item"], r["reason"], r.get("overlay", "")])
+
+
+def copies_a_la_main(copies, template):
+    """Copies qu'il faut reprendre sur le papier : page absente du scan ou page illisible.
+
+    Les réponses de ces pages n'ont pas d'image : l'outil les laisse à décider (jamais « vide »), mais il faut
+    savoir AVANT de corriger quelles copies papier sortir. `copies` : documents result.json (ou leur
+    résumé avec copy_id, missing_pages, unreadable)."""
+    par_page = {}
+    for p in template["pages"]:
+        par_page[p["page"]] = [f["id"] for f in p["fields"] if f["type"] in ("mcq", "truefalse", "short_text")]
+    out = []
+    for c in copies:
+        manq, ill = c.get("missing_pages") or [], c.get("unreadable") or []
+        if not manq and not ill:
+            continue
+        out.append({"copie": c["copy_id"], "pages": list(manq),
+                    "illisibles": [u.get("source", "?") + " : " + u.get("error", "") for u in ill],
+                    "champs": [fid for p in manq for fid in par_page.get(p, [])]})
+    return out
+
+
+def texte_a_la_main(liste):
+    """Lignes de terminal pour `process` (vide si rien à signaler)."""
+    if not liste:
+        return []
+    lignes = [f"!! {len(liste)} copie(s) à reprendre sur le papier (page absente ou illisible) :"]
+    for c in liste:
+        quoi = []
+        if c["pages"]:
+            quoi.append("page(s) absente(s) " + ", ".join(map(str, c["pages"]))
+                        + (f" → {', '.join(c['champs'])}" if c["champs"] else " (aucune réponse lue sur ces pages)"))
+        quoi += [f"page illisible ({u})" for u in c["illisibles"]]
+        lignes.append(f"   {c['copie']} : " + " ; ".join(quoi))
+    return lignes

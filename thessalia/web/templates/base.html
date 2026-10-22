@@ -11,6 +11,7 @@
   <a class="logo" href="/">Thessalia</a>
   <nav>{% block nav %}{% endblock %}</nav>
   <span class="espace"></span>
+  {% if nb_a_la_main %}<a class="bouton alerte" href="/a-la-main" title="page absente du scan ou illisible">{{ nb_a_la_main }} copie{{ 's' if nb_a_la_main > 1 }} à reprendre sur le papier</a>{% endif %}
   <a class="bouton" href="/suivi">Suivi de la machine</a>
   {% block outils %}{% endblock %}
 </header>

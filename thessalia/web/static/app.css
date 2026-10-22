@@ -120,3 +120,11 @@ table.notes tr.fini td:first-child { box-shadow:inset 4px 0 var(--juste); }
 .grille.large.revoir { grid-template-columns:repeat(auto-fill, minmax(520px, 1fr)); }
 .alternatives { font-size:12px; margin:2px 0 4px; }
 .lecture.alt code { color:var(--encre); }
+
+/* copies à reprendre sur le papier (page absente ou illisible) */
+.a-la-main { border-collapse:collapse; background:var(--carte); font-size:13px; }
+.a-la-main th, .a-la-main td { padding:5px 8px; border-bottom:1px solid var(--trait); text-align:left; vertical-align:top; }
+.a-la-main tr.fini td { opacity:.6; }
+.bandeau-papier { background:var(--fauxf); color:var(--faux); border:1px solid var(--faux); border-radius:6px;
+                  padding:6px 12px; margin:6px 0 10px; }
+.bouton.alerte { border-color:var(--faux); color:var(--faux); }
