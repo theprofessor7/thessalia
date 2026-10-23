@@ -22,7 +22,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 from .correction import group_of
-from .identite import _norm, lire_attributions, lire_liste
+from .identite import _norm, lire_attributions, lire_convoques, lire_liste
 
 SEUIL_PROCHE = 0.75     # ressemblance de NOM au-delà de laquelle deux élèves d'un groupe sont « proches »
 RANGS_ABSENT = 2        # distance (dans la liste triée du groupe) à un absent
@@ -34,10 +34,14 @@ def _nom(eleve):
     return " ".join(parts[:k]) or eleve
 
 
-def risques(attributions, liste, seuil=SEUIL_PROCHE, rangs=RANGS_ABSENT):
-    """attributions : [(classe, copie, élève)] ; liste : {groupe: [élèves]} -> {(classe, copie): [raisons]}."""
+def risques(attributions, liste, seuil=SEUIL_PROCHE, rangs=RANGS_ABSENT, convoques=None):
+    """attributions : [(classe, copie, élève)] ; liste : {groupe: [élèves]} -> {(classe, copie): [raisons]}.
+    convoques : {classe: [élèves]} pour une session à part (BIS) : seuls les convoqués comptent comme absents
+    possibles, et un convoqué n'est pas « d'un autre groupe »."""
+    convoques = convoques or {}
     groupe_de = {e: g for g, es in liste.items() for e in es}
     pris = {e for _, _, e in attributions}
+    attendus = set().union(*map(set, convoques.values())) if any(convoques.values()) else set(groupe_de)
     out = {}
     for cl, cid, e in attributions:
         raisons = []
@@ -52,11 +56,11 @@ def risques(attributions, liste, seuil=SEUIL_PROCHE, rangs=RANGS_ABSENT):
                 raisons.append("nom proche de " + ", ".join(proches))
             i = eleves.index(e)
             debut = _norm(_nom(e))[:2]
-            absents = [x for j, x in enumerate(eleves) if x not in pris
+            absents = [x for j, x in enumerate(eleves) if x not in pris and x in attendus
                        and (abs(j - i) <= rangs or _norm(_nom(x))[:2] == debut)]
             if absents:
                 raisons.append("proche d'un absent : " + ", ".join(absents))
-            if g != group_of(cl):
+            if g != group_of(cl) and e not in convoques.get(cl, ()):
                 raisons.append(f"élève du groupe {g}, copie scannée en {group_of(cl)}")
         out[(cl, cid)] = raisons
     return out
@@ -76,7 +80,7 @@ def run(dossiers, sortie="sorties/notes/verif_identites.html", liste=None):
         dirs[d.name] = d
         for cid, e in sorted(lire_attributions(d.name).items()):
             attributions.append((d.name, cid, e))
-    r = risques(attributions, liste)
+    r = risques(attributions, liste, convoques={n: lire_convoques(n) for n in dirs})
     ordre = sorted(attributions, key=lambda a: (not r[(a[0], a[1])], a[0], a[1]))
 
     def img(cl, cid, z, cls=""):

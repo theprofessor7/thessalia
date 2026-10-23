@@ -164,9 +164,11 @@ def create_app(paths, db_path=DB_PATH):
 
     def identification(g):
         """Copies du groupe avec leur élève confirmé ou proposé (répartition d'ensemble sur ce qui reste)."""
-        from .identite import LECTURES, classer, lire_attributions, lire_liste, repartir
+        from .identite import LECTURES, classer, lire_attributions, lire_convoques, lire_liste, repartir
         cs = group(g)
-        eleves = lire_liste().get(g, [])
+        # session à part (BIS) : les convoqués, quel que soit leur groupe ; sinon la liste du groupe
+        convoques = sorted({e for c in cs for e in lire_convoques(c.name, c.lists_dir)})
+        eleves = convoques or lire_liste().get(g, [])
         att = {c.name: lire_attributions(c.name, c.lists_dir) for c in cs}
         # un élève peut avoir composé avec un autre groupe : pris dans TOUTES les classes
         pris = {e for o in classes.values() for e in lire_attributions(o.name, o.lists_dir).values()}
@@ -211,7 +213,7 @@ def create_app(paths, db_path=DB_PATH):
 
     @app.post("/api/identite")
     def api_identite():
-        from .identite import ecrire_attribution, lire_attributions, lire_liste
+        from .identite import ecrire_attribution, lire_attributions, lire_convoques, lire_liste
         d = request.get_json(force=True)
         c = classes.get(d.get("classe")) or abort(404)
         cid, e = d.get("copie"), (d.get("etudiant") or "").strip()
@@ -219,7 +221,7 @@ def create_app(paths, db_path=DB_PATH):
             abort(404)
         if e:
             liste = lire_liste()
-            if e not in liste.get(c.group, []):
+            if e not in (lire_convoques(c.name, c.lists_dir) or liste.get(c.group, [])):
                 autre = next((g for g, v in liste.items() if e in v), None)
                 if autre is None:
                     return jsonify({"erreur": f"« {e} » n'est sur aucune liste (vérifier l'orthographe : NOM Prénom)"}), 409

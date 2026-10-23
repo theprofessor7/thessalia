@@ -46,3 +46,18 @@ def test_liste_unique_exigee(tmp_path, monkeypatch):
     ecrire_xlsx(tmp_path / "Liste classe SUP et SPE.xlsx", [("SUP", lignes, [10, 10, 10])])
     with pytest.raises(ValueError, match="Plusieurs listes"):
         identite.lire_liste()
+
+
+def test_convoques_session_bis(tmp_path, monkeypatch):
+    import pytest
+    from thessalia import identite
+    from thessalia.excel import ecrire_xlsx
+    monkeypatch.setattr(identite, "LISTS_DIR", tmp_path)
+    ecrire_xlsx(tmp_path / "Liste SUP.xlsx", [("Feuil1", [["NOM", "Prénom", "Classe"], ["DUPONT", "Léa", "SUPA"],
+                                                          ["MARTIN", "Paul", "SUPB"]], [10, 10, 10])])
+    assert identite.lire_convoques("BIS", tmp_path) == []                 # session normale : pas de fichier
+    (tmp_path / "BIS.convoques.txt").write_text("# émargement\nDUPONT Léa\n\nMARTIN Paul\n", encoding="utf-8")
+    assert identite.lire_convoques("BIS", tmp_path) == ["DUPONT Léa", "MARTIN Paul"]
+    (tmp_path / "BIS.convoques.txt").write_text("DUPONT Lea\n", encoding="utf-8")   # orthographe différente
+    with pytest.raises(ValueError, match="absents de la liste"):
+        identite.lire_convoques("BIS", tmp_path)

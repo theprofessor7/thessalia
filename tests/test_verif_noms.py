@@ -32,3 +32,14 @@ def test_autre_groupe_et_hors_liste():
     r = risques(att, LISTE)
     assert "élève du groupe B, copie scannée en D" in r[("supD", "copy_001")]
     assert r[("supD", "copy_002")] == ["élève absent de la liste"]
+
+
+def test_session_bis_convoques():
+    # BIS : MOREL non convoqué n'est pas un absent possible ; un convoqué d'un autre groupe n'est pas signalé
+    att = [("BIS", "copy_001", "MAURY Eve"), ("BIS", "copy_002", "COLIN Marc")]
+    conv = {"BIS": ["MAURY Eve", "COLIN Marc", "VIDAL Max"]}
+    r = risques(att, LISTE, convoques=conv)
+    assert r[("BIS", "copy_001")] == []
+    assert r[("BIS", "copy_002")] == []
+    r2 = risques([("BIS", "copy_001", "PAGE Tom")], LISTE, convoques={"BIS": ["PAGE Tom", "RIOU Zoe"]})
+    assert r2[("BIS", "copy_001")] == ["proche d'un absent : RIOU Zoe"]

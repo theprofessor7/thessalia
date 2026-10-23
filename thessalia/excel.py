@@ -119,7 +119,7 @@ def ecrire_xlsx(path, feuilles):
 
 def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None):
     from .correction import DB_PATH, Classe, Decisions, Memory, group_of
-    from .identite import lire_liste
+    from .identite import lire_convoques, lire_liste
     from .serve import GROUP_ORDER, _classes
 
     dec = Decisions(db or DB_PATH)
@@ -143,7 +143,17 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None):
     rang = lambda g: GROUP_ORDER.index(g) if g in GROUP_ORDER else len(GROUP_ORDER)
     notes.sort(key=lambda l: (rang(l[0]), l[1]))
     pris = {l[1] for l in notes if l[1]}
-    absents = sorted(([g, e] for g, es in liste.items() for e in es if e not in pris), key=lambda l: (rang(l[0]), l[1]))
+    # session à part (BIS) : seuls les convoqués peuvent être absents ; sinon toute la liste
+    convoques = [set(lire_convoques(c.name)) for c in classes]
+    if any(convoques):
+        if not all(convoques):
+            raise ValueError("mélange d'une session à part (fichier .convoques.txt) et d'une session normale : "
+                             "exporter chaque session dans son propre classeur")
+        attendus = set().union(*convoques)
+    else:
+        attendus = set(groupe_de)
+    absents = sorted(([g, e] for g, es in liste.items() for e in es if e in attendus and e not in pris),
+                     key=lambda l: (rang(l[0]), l[1]))
     copie = sauvegarder(sortie)
     if copie:
         print(f"Ancien fichier conservé : {copie}")

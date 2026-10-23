@@ -170,6 +170,21 @@ def repartir(scores, eleves):
 
 
 # ---------------------------------------------------------------- fichier copie;etudiant
+def lire_convoques(classe, lists_dir=LISTS_DIR):
+    """Élèves convoqués à une session à part (rattrapage « BIS ») : `data/listes/<classe>.convoques.txt`,
+    un « NOM Prénom » par ligne, tel qu'écrit dans la liste de l'école. [] si la classe n'en a pas (session
+    normale : on compare à toute la liste). Un nom absent de la liste de l'école est une erreur, pas un oubli."""
+    p = Path(lists_dir) / f"{classe}.convoques.txt"
+    if not p.exists():
+        return []
+    noms = [l.strip() for l in p.read_text(encoding="utf-8-sig").splitlines() if l.strip() and not l.startswith("#")]
+    connus = {e for es in lire_liste().values() for e in es}
+    inconnus = [n for n in noms if n not in connus]
+    if inconnus:
+        raise ValueError(f"{p.name} : absents de la liste des élèves : " + ", ".join(inconnus))
+    return noms
+
+
 def provisoire(classe, cid):
     return f"{classe}_copie{int(cid.split('_')[-1]):03d}"
 
