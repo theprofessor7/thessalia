@@ -7,6 +7,12 @@ les passe au moteur choisi, rapproche du vocabulaire et enrichit les résultats.
     short_answers.csv   une ligne par copie, une colonne par blanc (valeur ou vide)
     ocr_review.csv      les réponses à valider par un humain, avec propositions
 Avec --truth : évalue contre une vérité terrain (format cNN_qX.Y, voir evaluate_ocr).
+
+Sujet nouveau : tant que le corrigé ne porte pas `"lecture_validee": true`, AUCUNE réponse n'est acceptée
+d'office (toutes en revue, vides exceptées). Mesuré le 23 octobre 2026 sur le sujet B (BIS, 7 copies) avec
+trocr_v3 + accord de trocr_v2, affinés sur le sujet A : 3 réponses fausses acceptées sur 80 (« Impair » lu
+« ERREUR » par les deux modèles en q14.2). L'accord de deux modèles ne protège pas d'un biais commun. Le drapeau
+se pose à la main, après une mesure sur des copies du sujet corrigées par l'enseignant.
 """
 from __future__ import annotations
 
@@ -28,6 +34,17 @@ EXTRA_WORD = "écriture séparée en plus du mot reconnu (deux mots, rature ?) :
 STRUCK = "mot barré à côté d'une autre écriture : à vérifier"
 FORM = "parenthèses ou guillemets lus autour de la réponse : forme à vérifier (notée 50 %)"
 CONFIRM = "les deux modèles de lecture ne lisent pas la même chose : à confirmer"
+NOUVEAU = "sujet pas encore validé (corrigé sans « lecture_validee ») : aucune réponse acceptée d'office"
+
+
+def lecture_validee(vocab_path, keys_dir=None) -> bool:
+    """Le corrigé du sujet du vocabulaire porte-t-il `"lecture_validee": true` ? (absent = non : sujet nouveau)"""
+    eid = load_json(vocab_path).get("exam_id")
+    for k in sorted(Path(keys_dir or Path(vocab_path).parent).glob("*.key.json")):
+        key = load_json(k)
+        if key.get("exam_id") == eid:
+            return key.get("lecture_validee") is True
+    return False
 FORM_CHARS = set("()\"'")
 
 
@@ -45,6 +62,10 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
     (`Booléen` lu `bool`, `return` lu `str`) ; avec l'accord de trocr_v2, aucune."""
     results_dir = Path(results_dir)
     vocab = load_json(vocab_path)["fields"]
+    valide = lecture_validee(vocab_path)
+    if not valide:
+        log("SUJET NON VALIDÉ : aucune réponse acceptée d'office, toutes en revue "
+            "(poser \"lecture_validee\": true dans le corrigé après mesure sur des copies corrigées)")
     copies = sorted(results_dir.glob("copy_*/result.json"))
     if not copies:
         raise SystemExit(f"Aucun résultat dans {results_dir} (lancer d'abord `process`).")
@@ -149,6 +170,8 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
                         ok2 = normalize(top2, "enum") == normalize(top1, "enum")
                 if not ok2:
                     r.update(status="review", reason=CONFIRM)
+            if r["status"] == "ok" and not valide:
+                r.update(status="review", reason=NOUVEAU)
             if r["status"] == "review":
                 flagged.add(key)
         proposed[key] = r["value"]
