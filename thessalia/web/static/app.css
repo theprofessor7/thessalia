@@ -157,3 +157,10 @@ table.notes tr.fini td:first-child { box-shadow:inset 4px 0 var(--juste); }
 /* page entière sous une carte de code */
 .page-entiere { display: block; width: 100%; margin-top: .4em; border: 1px solid #999; }
 .page-entiere[hidden] { display: none; }
+
+/* pinceau : lecture appliquée d'un geste aux vignettes cliquées ou survolées bouton enfoncé */
+body.pinceau-actif .carte { cursor: copy; user-select: none; }
+body.pinceau-actif .carte:hover { outline: 3px solid var(--accent); }
+.carte.peinte { outline: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--carte)); }
+#bandeau-pinceau { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 50;
+  background: var(--accent); color: #fff; padding: 7px 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }

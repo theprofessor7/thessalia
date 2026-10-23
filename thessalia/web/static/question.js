@@ -94,6 +94,20 @@ function dessiner() {
       };
       tete.append(a);
     }
+    // zones « vides mais encre à proximité » : la machine ne propose rien, l'enseignant constate le vide.
+    // Mesuré sur le Booster : 90 des 540 « vide » saisis à la main l'étaient ainsi, carte par carte.
+    // Seulement sur un bloc SANS lecture : un bloc où quelque chose a été lu ne se vide pas d'un clic.
+    if (its.length > 1 && !ex.qcm && !ex.code && (ex.proposition == null || ex.proposition === "")
+        && ex.verdict !== "vide") {
+      const v = el("button", {className: "bouton", textContent: "vide pour le bloc (" + its.length + ")",
+                              title: "rien n'est écrit dans aucune de ces zones : 0 point, « vide »"});
+      v.onclick = async () => {
+        v.disabled = true;
+        for (const c of cartes) if (c.classList.contains("a-decider") && c.vide) await c.vide();
+        v.textContent = "bloc vide";
+      };
+      tete.append(v);
+    }
     zone.append(tete, grille);
   }
   for (const it of D.items.filter(i => i.decide)) dec.append(carte(it, () => progres()));

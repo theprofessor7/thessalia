@@ -227,12 +227,15 @@ def run(dirs, liste=None, force=False):
     for d in classes:
         g = group_of(d.name)
         lus = json.loads((d / LECTURES).read_text(encoding="utf-8"))
-        b = bilan.setdefault(g, {"copies": 0, "nettes": 0})
+        b = bilan.setdefault(g, {"copies": 0, "nettes": 0, "eleves": set()})
+        # session à part (BIS) : les convoqués, comme dans l'outil ; sinon la liste du groupe
+        eleves = lire_convoques(d.name) or groupes.get(g, [])
+        b["eleves"].update(eleves)
         for cid, lec in lus.items():
             b["copies"] += 1
-            r = classer(lec, groupes.get(g, []))
+            r = classer(lec, eleves)
             b["nettes"] += len(r) > 1 and r[0][1] >= 0.6 and r[0][1] - r[1][1] >= 0.15
     for g, b in sorted(bilan.items()):
-        print(f"  groupe {g} : {b['copies']} copies, {len(groupes.get(g, []))} élèves sur la liste, "
+        print(f"  groupe {g} : {b['copies']} copies, {len(b['eleves'])} élèves attendus, "
               f"{b['nettes']} propositions nettes")
     print("Confirmer dans l'outil : /g/<groupe>/noms")

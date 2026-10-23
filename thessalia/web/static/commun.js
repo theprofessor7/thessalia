@@ -18,6 +18,23 @@ async function decider(corps) {
 
 function fmt(x) { return (Math.round(x * 100) / 100).toString().replace(".", ","); }
 
+// Pinceau (idée de l'enseignant, 23 octobre 2026) : une lecture prise sur une carte (🖌 ou touche P) s'applique
+// aux vignettes cliquées, ou survolées bouton de la souris enfoncé ; Échap le repose. Même enregistrement qu'un
+// clic sur une autre lecture (verdict recalculé) ; chaque carte reste visible et annulable (↺).
+const PINCEAU = {valeur: null, appui: false, faites: new Set()};
+function afficherPinceau() {
+  let b = document.getElementById("bandeau-pinceau");
+  if (!b) { b = el("div", {id: "bandeau-pinceau"}); document.body.append(b); }
+  document.body.classList.toggle("pinceau-actif", PINCEAU.valeur != null);
+  b.hidden = PINCEAU.valeur == null;
+  b.textContent = PINCEAU.valeur == null ? "" : "🖌 pinceau : « " + PINCEAU.valeur
+    + " » · cliquez ou glissez (bouton enfoncé) sur les vignettes · Échap pour reposer";
+}
+function prendrePinceau(v) { PINCEAU.valeur = v; PINCEAU.faites.clear(); afficherPinceau(); }
+function poserPinceau() { PINCEAU.valeur = null; PINCEAU.appui = false; PINCEAU.faites.clear(); afficherPinceau(); }
+document.addEventListener("keydown", ev => { if (ev.key === "Escape" && PINCEAU.valeur != null) poserPinceau(); });
+document.addEventListener("mouseup", () => { PINCEAU.appui = false; PINCEAU.faites.clear(); });
+
 // Carte d'une réponse : vignette, lecture, boutons de verdict (ou cases d'un QCM).
 // surDecision(reponse_du_serveur) est appelé après chaque enregistrement.
 function carte(it, surDecision, opts = {}) {
@@ -162,6 +179,12 @@ function carte(it, surDecision, opts = {}) {
         el("code", {textContent: lu === null || lu === undefined ? "?" : (lu === "" ? "(vide)" : lu)}),
         verifiee ? el("span", {className: "verifie", textContent: " ✓ lecture vérifiée"}) : null,
         it.second != null ? el("span", {className: "gris", textContent: "  second lecteur : « " + it.second + " »"}) : null);
+      if (lu != null && lu !== "") {
+        const pb = el("button", {className: "lecture pinceau-btn", textContent: "🖌", tabIndex: -1,
+                                 title: "prendre « " + lu + " » au pinceau (P), puis cliquer ou glisser sur les autres vignettes"});
+        pb.onclick = ev => { ev.stopPropagation(); prendrePinceau(lu); };
+        ligneLu.append(" ", pb);
+      }
       if (!verifiee && it.proposition != null) {
         const bien = el("button", {className: "lecture", textContent: "✓ bien lu", tabIndex: -1,
                                    title: "la machine a lu exactement ce qui est écrit (L) : sert à l'apprentissage"});
@@ -221,6 +244,9 @@ function carte(it, surDecision, opts = {}) {
       c.valider = (clavier = false) => it.verdict ? envoyer({verdict: it.verdict}, clavier) : saisir();
       c.attendu = it.attendu != null ? () => envoyer({texte: it.attendu, verdict: "juste"}) : null;
       c.bienLu = it.proposition != null ? () => envoyer({texte: it.proposition}) : null;
+      c.vide = () => envoyer({verdict: "vide"});
+      c.lu = lu;
+      c.peindreAvec = v => envoyer({texte: v});
     }
     peindre();
   };
@@ -254,6 +280,7 @@ function carte(it, surDecision, opts = {}) {
     }
     else if (!it.qcm && TOUCHE[ev.key]) { ev.preventDefault(); envoyer({verdict: TOUCHE[ev.key]}, true); }
     else if (!it.qcm && (ev.key === "t" || ev.key === "T")) { ev.preventDefault(); saisir(); }
+    else if (!it.qcm && (ev.key === "p" || ev.key === "P") && c.lu != null && c.lu !== "") { ev.preventDefault(); prendrePinceau(c.lu); }
     else if (!it.qcm && (ev.key === "l" || ev.key === "L") && it.proposition != null) { ev.preventDefault(); envoyer({texte: it.proposition}); }
     else if (!it.qcm && ["6", "7", "8"].includes(ev.key) && (c.alternatives || [])[+ev.key - 6] != null) {
       ev.preventDefault(); envoyer({texte: c.alternatives[+ev.key - 6]});
@@ -262,6 +289,20 @@ function carte(it, surDecision, opts = {}) {
     else if (ev.key === "Delete" && it.origine === "enseignant") { ev.preventDefault(); envoyer({annuler: true}); }
     else if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); bouger(c, ev.key === "ArrowDown" ? 1 : -1); }
   });
+  const appliquerPinceau = () => {
+    if (PINCEAU.valeur == null || it.qcm || it.code || !c.peindreAvec || PINCEAU.faites.has(c)) return;
+    PINCEAU.faites.add(c);
+    c.classList.add("peinte");
+    setTimeout(() => c.classList.remove("peinte"), 600);
+    c.peindreAvec(PINCEAU.valeur);
+  };
+  c.addEventListener("mousedown", ev => {
+    if (PINCEAU.valeur == null || ev.button !== 0 || ev.target.closest("button, a, input")) return;
+    ev.preventDefault();
+    PINCEAU.appui = true;
+    appliquerPinceau();
+  });
+  c.addEventListener("mouseenter", () => { if (PINCEAU.appui) appliquerPinceau(); });
   redessiner();
   return c;
 }
