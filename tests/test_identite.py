@@ -32,3 +32,17 @@ def test_repartir_un_eleve_par_copie():
               "c2": {"DUPONT Marie": 0.7, "DURAND Paul": 0.65, "MARTIN Léa": 0.4},
               "c3": {"DUPONT Marie": 0.3, "DURAND Paul": 0.3, "MARTIN Léa": 0.8}}
     assert repartir(scores, eleves) == {"c1": "DUPONT Marie", "c2": "DURAND Paul", "c3": "MARTIN Léa"}
+
+
+def test_liste_unique_exigee(tmp_path, monkeypatch):
+    import pytest
+    from thessalia import identite
+    from thessalia.excel import ecrire_xlsx
+    monkeypatch.setattr(identite, "LISTS_DIR", tmp_path)
+    lignes = [["NOM", "Prénom", "Classe"], ["DUPONT", "Léa", "SUPA"]]
+    ecrire_xlsx(tmp_path / "Liste SUP.xlsx", [("Feuil1", lignes, [10, 10, 10])])
+    (tmp_path / "~$Liste SUP.xlsx").write_bytes(b"verrou Excel")       # liste ouverte dans Excel : ignoré
+    assert sum(len(v) for v in identite.lire_liste().values()) == 1
+    ecrire_xlsx(tmp_path / "Liste classe SUP et SPE.xlsx", [("SUP", lignes, [10, 10, 10])])
+    with pytest.raises(ValueError, match="Plusieurs listes"):
+        identite.lire_liste()

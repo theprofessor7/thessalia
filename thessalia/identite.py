@@ -55,9 +55,14 @@ def _xlsx_rows(path):
 def lire_liste(path=None):
     """{groupe: [« NOM Prénom », …]} depuis la liste de l'enseignant (.xlsx ou .csv ; colonnes NOM, Prénom, Classe)."""
     if path is None:
-        cands = sorted(LISTS_DIR.glob("*.xlsx"))
+        # « ~$… » : fichier verrou d'Excel quand la liste est ouverte, pas une liste
+        cands = sorted(p for p in Path(LISTS_DIR).glob("*.xlsx") if not p.name.startswith("~$"))
         if not cands:
             return {}
+        if len(cands) > 1:   # jamais de choix silencieux : l'ordre des noms dépend du système
+            raise ValueError(f"Plusieurs listes d'élèves dans {LISTS_DIR} : "
+                             + ", ".join(c.name for c in cands)
+                             + ". N'en laisser qu'une (déplacer les autres hors de ce dossier).")
         path = cands[0]
     path = Path(path)
     if path.suffix.lower() == ".xlsx":

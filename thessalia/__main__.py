@@ -9,6 +9,7 @@
     separateur    Niveau 2 : mesurer / apprendre le détecteur de séparateur décimal (point ou virgule)
     serve      outil de correction local (navigateur) : vue par question, vue par copie, notes en direct
     identite   proposer l'élève de chaque copie (vignettes Nom/Prénom + liste), à confirmer dans l'outil
+    verif-noms page de contrôle des attributions : nom écrit / élève attribué, copies à risque en tête
     transcrire lire le code manuscrit par un service en ligne (option : clé de l'utilisateur, plafond de dépense)
     bilan      ce que les décisions de l'enseignant disent de la machine, par groupe (après correction)
     excel      notes finales (QCM + réponses courtes + code, sur 20) dans un classeur Excel, absents compris
@@ -126,6 +127,10 @@ def main(argv=None):
     xl.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     xl.add_argument("-o", "--sortie", default="sorties/notes/notes.xlsx")
 
+    vn = sub.add_parser("verif-noms", help="contrôle des attributions : nom écrit à côté de l'élève attribué")
+    vn.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
+    vn.add_argument("-o", "--sortie", default="sorties/notes/verif_identites.html")
+
     sp = sub.add_parser("separateur", help="Niveau 2 : mesurer / apprendre le détecteur point ou virgule")
     sp.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     sp.add_argument("--kind", action="append", choices=("image", "lecteur", "image+lecteur"),
@@ -215,7 +220,19 @@ def main(argv=None):
     elif a.cmd == "excel":
         from .excel import run as xrun
 
-        xrun(a.dossiers, a.sortie)
+        try:
+            xrun(a.dossiers, a.sortie)
+        except ValueError as e:   # ex. plusieurs listes d'élèves : on s'arrête sans rien écrire
+            print(f"ERREUR : {e}")
+            return 1
+    elif a.cmd == "verif-noms":
+        from .verif_noms import run as vrun
+
+        try:
+            vrun(a.dossiers, a.sortie)
+        except ValueError as e:
+            print(f"ERREUR : {e}")
+            return 1
     elif a.cmd == "separateur":
         from .separateur import KINDS, Separateur, class_dirs, run as seprun, write_indices
 
