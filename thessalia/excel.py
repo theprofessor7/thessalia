@@ -4,16 +4,41 @@
 
 Feuilles :
   Notes     une ligne par copie identifiée : groupe (celui de la liste), élève, classe où il a composé,
-            QCM, réponses courtes, code, total sur 20, réponses encore en attente
+            QCM, réponses courtes, code, total sur 20, réponses encore en attente,
+            note arrondie au demi-point supérieur (15,083 → 15,5 ; 15 reste 15)
   Absents   élèves de la liste sans copie
   À vérifier  copies sans élève attribué, ou avec des réponses en attente (jamais une note silencieusement fausse)
+Si le fichier de sortie existe déjà, il est d'abord copié en `<nom>.avant-AAAAMMJJ-HHMM.xlsx` (jamais écrasé sans trace).
 Le fichier contient des noms d'élèves : il va dans `sorties/` (hors dépôt), jamais dans un partage public.
 """
 from __future__ import annotations
 
 import zipfile
+import math
+import shutil
+from datetime import datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
+
+
+def arrondi_demi(note):
+    """Arrondi au demi-point supérieur. Le passage par 3 décimales évite qu'un 15,0000001 devienne 15,5."""
+    if note is None:
+        return None
+    return math.ceil(round(note, 3) * 2) / 2
+
+
+def sauvegarder(path, maintenant=None):
+    """Copie datée d'un fichier existant avant qu'on le remplace ; renvoie le chemin de la copie (None si rien)."""
+    path = Path(path)
+    if not path.exists():
+        return None
+    t = (maintenant or datetime.now()).strftime("%Y%m%d-%H%M")
+    copie, i = path.with_name(f"{path.stem}.avant-{t}{path.suffix}"), 2
+    while copie.exists():
+        copie, i = path.with_name(f"{path.stem}.avant-{t}-{i}{path.suffix}"), i + 1
+    shutil.copy2(path, copie)
+    return copie
 
 
 def _col(i):
@@ -110,7 +135,7 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None):
             eleve = r["etudiant"] if r["copie"] in attrib else None
             g = groupe_de.get(eleve) or group_of(c.name)
             ligne = [g, eleve or "", c.name, int(r["copie"].split("_")[-1]), r["qcm"], r["courtes"], r["code"],
-                     r["total"], r["max"], r["en_attente"]]
+                     r["total"], r["max"], r["en_attente"], arrondi_demi(r["total"])]
             notes.append(ligne)
             if not eleve or r["en_attente"]:
                 verifier.append([g, eleve or "(non identifiée)", c.name, ligne[3], r["en_attente"],
@@ -119,14 +144,17 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None):
     notes.sort(key=lambda l: (rang(l[0]), l[1]))
     pris = {l[1] for l in notes if l[1]}
     absents = sorted(([g, e] for g, es in liste.items() for e in es if e not in pris), key=lambda l: (rang(l[0]), l[1]))
+    copie = sauvegarder(sortie)
+    if copie:
+        print(f"Ancien fichier conservé : {copie}")
     p = ecrire_xlsx(sortie, [
         ("Notes", [["Groupe", "Élève", "Classe (composé)", "Copie", "QCM", "Réponses courtes", "Code", "Total",
-                    "Sur", "En attente"]] + notes, [8, 32, 16, 7, 7, 10, 7, 8, 6, 10]),
+                    "Sur", "En attente", "Note arrondie"]] + notes, [8, 32, 16, 7, 7, 10, 7, 8, 6, 10, 12]),
         ("Absents", [["Groupe", "Élève"]] + absents, [8, 32]),
         ("À vérifier", [["Groupe", "Élève", "Classe", "Copie", "En attente", "Raison"]] + verifier,
          [8, 32, 16, 7, 10, 40]),
     ])
-    print(f"{len(notes)} copies, {len(absents)} absents, {len(verifier)} à vérifier → {p}")
+    print(f"{len(notes)} copies, {len(absents)} absents, {len(verifier)} à vérifier -> {p}")
     if verifier:
         print("ATTENTION : des notes sont provisoires ou sans élève (feuille « À vérifier »).")
     return p
