@@ -31,6 +31,7 @@ RE_QUESTION = re.compile(r"^\s*Question\s+(\d+)\s*$", re.I)
 RE_POINTS = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*pts?\s*$", re.I)
 RE_EXERCISE = re.compile(r"^\s*(Exercice|Exercise)\s+(\d+)\s*[—–-]\s*(.*)$", re.I)
 RE_MULTI = re.compile(r"plusieurs|several|multiple|all that apply|ceux qui|those that", re.I)
+TETE_MM, PIED_MM = 20.0, 280.0   # en-tête courant (y ≈ 12,5 mm) et « Page n / 17 » (y ≈ 285,7 mm) exclus des énoncés
 TF_LABELS = {"V", "F", "T", "VRAI", "FAUX", "TRUE", "FALSE"}
 IDENTITY_KEYS = [
     (re.compile(r"^pr[ée]nom|^first", re.I), "prenom"),
@@ -298,12 +299,25 @@ def build_template(pdf_path, exam_id=None) -> dict:
     # 4) identifiants stables et mode single/multi
     for qnum, q in sorted(questions.items()):
         prompt_words = []
+
+        def _first_y(pno):
+            ys = [(f.get("bbox_mm") or f["options"][0]["bbox_mm"])[1] for f in q["fields"] if f["page"] == pno]
+            return min(ys) if ys else None
+
         for p in pages:
             if p["page"] == q["page"]:
                 hy = next(h["y"] for h in headers if h["num"] == qnum)
-                first_y = min((f.get("bbox_mm") or f["options"][0]["bbox_mm"])[1]
-                              for f in q["fields"] if f["page"] == q["page"]) if q["fields"] else hy + 30
-                prompt_words = [s["text"] for s in p["spans"] if hy + 4 < s["bbox"][1] < first_y - 0.5]
+                fy = _first_y(q["page"])
+                if fy is None and not q["fields"]:
+                    fy = hy + 30
+                # énoncé en bas de page, cadres sur la page suivante : l'énoncé va jusqu'au pied de page
+                prompt_words = [s["text"] for s in p["spans"] if hy + 4 < s["bbox"][1] < (fy or PIED_MM) - 0.5]
+                if fy is None:
+                    nxt = min((f["page"] for f in q["fields"]), default=None)
+                    for p2 in pages:
+                        if p2["page"] == nxt:
+                            prompt_words += [s["text"] for s in p2["spans"]
+                                             if TETE_MM < s["bbox"][1] < _first_y(nxt) - 0.5]
         q["prompt"] = " ".join(prompt_words)[:400]
         shorts = [f for f in q["fields"] if f["type"] == "short_text"]
         for i, f in enumerate(shorts, start=1):
