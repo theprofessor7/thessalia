@@ -97,6 +97,26 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
 
   Pour gagner du temps, Qwen ne lirait ni les zones vides ni les lectures sûres. Pour un gros lot, l'enseignant
   passerait une classe à la fois (~1 000 vignettes ≈ 9 h sans ces filtres).
+- **Résultat du banc Qwen 4B (26 octobre, 247 réponses du BIS, vignette brute, ~32 s/vignette)**.
+  - Lectures justes : Qwen 55 %, v2 62 %, v3 55 %. Au moins l'un des deux (v2 ou Qwen) : 81 %.
+  - 58 réponses où Qwen lit juste alors que la proposition de l'outil était fausse.
+  - **Accord v2 = Qwen : 92 réponses acceptables (37 %), 0 fausse** une fois la vérité corrigée (v3 + v2 : 80, dont 3
+    fausses).
+  - Pas de biais « corrige l'étudiant » : 2 confusions point/virgule, une dans chaque sens.
+  - Défauts : mots très courts de q2 (`int`, `str` → charabia), recopie de la ligne imprimée (q7.3), espaces
+    ajoutés et minuscules (`1 + 2 + 3`, `erreur`).
+
+  → bon second lecteur (accord = acceptation, lecture en bouton), mauvais premier lecteur.
+
+  Les 3 « accords faux » étaient des **erreurs de saisie de l'enseignant** (copie 3 q8.3 `3.14` validé « float »,
+  copie 7 q10.4 `8` validé « 7 », copie 7 q7.1 `A_B_C` validé « A B C » : clic de bloc ou pinceau). Corrigées ;
+  `notes_BIS.xlsx` regénéré : élève 1 11,29 → 11,13 et élève 2 7,46 → 7,29, notes arrondies inchangées.
+  **À construire : contrôle de fin de correction** = lister les réponses où deux lecteurs indépendants
+  s'accordent sur une lecture différente de la décision enregistrée (ici 3 cas sur 247, tous des erreurs).
+- **Banc « code pré-rempli »** : `data/models/lancer_banc_code.ps1 [modèle_vision] [modèle_texte] [-sansEnonce]`
+  sur les 52 cadres décidés du BIS. Étape 1 : transcription (consigne de `lecteur_code`). Étape 2 : critères
+  cochés d'après le barème et ses arbitrages. Le script compare les critères et les points avec l'enseignant, et la
+  transcription avec celle de la session. Prévu : 8B avec et sans énoncé, puis 8B pour lire + 14B texte pour noter.
 - **Partage du modèle affiné entre profs de la même institution (26 octobre)**. Promotion unique, plusieurs profs :
   mêmes élèves, mêmes sujets, même usage. Partager le modèle est donc acceptable, avec un mot au DPO par prudence.
   - Par le dépôt : code, gabarits, corrigés, vocabulaires, barèmes et le marqueur `lecture_validee`.
