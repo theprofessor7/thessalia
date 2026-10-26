@@ -59,8 +59,19 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
   (claude / openai-compatible), qui remplit le fichier générique de lectures secondaires ;
 - banc d'essai des lecteurs : les 247 réponses vérifiées du BIS (+ un groupe du Booster), lecture juste et
   surtout réponses fausses qu'il aurait acceptées, sur un sujet jamais vu par le lecteur.
-- Essai en cours (26 octobre) : regroupement par empreintes de l'encodeur trocr_v2, lancé hors de Claude Code
-  (`data/models/lancer_essai_empreintes.ps1`, résultats dans `data/models/essai_empreintes/resultat.txt`).
+- **Regroupement par empreintes de l'encodeur trocr_v2 (essai du 26 octobre, positif mais modeste)** : moyenne des
+  patchs de l'encodeur, cosinus, liaison moyenne, par (groupe, champ) ; 1,6 s/vignette sur CPU, lancé hors de Claude
+  Code (`data/models/lancer_essai_empreintes.ps1`, script et empreintes dans `data/models/essai_empreintes/`).
+  « Bloc pur » = toutes les réponses du bloc identiques ; « en bloc » = part des réponses dans un bloc pur de 2+.
+  BIS (sujet nouveau, 245 rép., 73 blocs idéaux) : texte lu 101 blocs, pureté 95,5 %, en bloc 67 % ; **texte lu +
+  fusion des blocs par empreintes (seuil 0,05) : 82 blocs, 95,1 %, 73 %**. Booster A+B (sujet connu, 2 226 rép.,
+  337 idéaux) : texte lu 457 blocs, 95,2 %, 57 % ; même fusion 345 blocs, 93,0 %, 48 % (moins bien).
+  → utile quand la lecture est mauvaise (sujet nouveau) : **option** à construire (décision de l'enseignant) —
+  commande par lot qui calcule les empreintes une fois, sélecteur « regrouper par : lecture | ressemblance » dans la
+  vue par question, absent sans le fichier. Seuil choisi après coup sur 245 réponses : à confirmer sur un autre lot.
+- Ollama 0.40.11 installé (compte de l'enseignant, 26 octobre) pour essayer un VLM local (`qwen3-vl:4b-instruct`,
+  CPU seul : Core Ultra 7 155H, 16 Go, pas de carte graphique dédiée) via l'adaptateur « compatible OpenAI »
+  (`http://localhost:11434/v1`).
 
 ## 0. Point du 23 octobre 2026
 
