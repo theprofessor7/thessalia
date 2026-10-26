@@ -1,9 +1,57 @@
-# Passation — état du projet au 23 octobre 2026
+# Passation — état du projet au 26 octobre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
 
-## 0. Point du 23 octobre 2026 (à lire en premier)
+## 0. Point du 23-26 octobre 2026 (à lire en premier)
+
+**Booster : 3 erreurs d'attribution corrigées** (notes inchangées, élèves inversés) : supD_2 c04 était MESNIL
+(attribuée à MERLIN, qui était absent), supB_1 c12 / supB_3 c08 inversées (DUBOIS / DUBOST). Toutes
+confirmées à la main par l'enseignant ; trouvées par un second passage des 314 vignettes Nom/Prénom. Erratum
+envoyé par l'enseignant. Classeurs regénérés (copies datées gardées).
+- **`verif-noms`** (`thessalia/verif_noms.py`) : page locale nom écrit / élève attribué, copies à risque en tête
+  (nom proche d'un autre élève du groupe, proche d'un absent par le rang ou le début du nom, autre groupe).
+  Rejoué sur les attributions d'avant correction : les 3 erreurs sont en tête (56 copies à risque sur 314).
+  À lancer avant chaque export.
+- `lire_liste` refuse de choisir entre plusieurs `.xlsx` dans `data/listes/` (l'ordre des noms dépend du système :
+  une liste déposée à côté avait été lue à la place de `Liste SUP.xlsx`) ; ignore le verrou Excel `~$…`.
+- `excel` : colonne « Note arrondie » (demi-point supérieur, comme le faisait l'enseignant) ; copie datée
+  `<nom>.avant-AAAAMMJJ-HHMM.xlsx` avant tout écrasement.
+- Noms manquants signalés par l'enseignant (3 élèves) : absents de la liste de l'école
+  (l'un d'eux est en SPE). Rien à faire côté Thessalia.
+
+**Lot BIS (rattrapage, sujet B FR) : 7 copies notées**, `sorties/bis/BIS`, classeur `sorties/notes/notes_BIS.xlsx`
+(moyenne 11,03 ; 5 convoqués absents). Scan : feuille d'émargement + verso blanc + 7 × (17 pages + 1 blanche).
+- Sujet B : `templates/socle_python_FR_B.json` (mêmes champs que le A, q19 en p. 17) ; `keys/socle_python_FR_B.*`
+  tirés du corrigé (`keys/…_CORRIGE.pdf`, hors dépôt) ; barème du code arbitré par l'enseignant (note du fichier).
+  `template` gère maintenant un énoncé en bas de page dont les cadres sont sur la page suivante.
+- **Session à part** : `data/listes/<classe>.convoques.txt` (hors dépôt, « NOM Prénom » de la liste de l'école) :
+  noms proposés, absents de l'Excel (seuls les convoqués), `verif-noms`. Convoqués BIS = exactement les 12 absents
+  du Booster corrigé.
+- **Biais des modèles sur un nouveau sujet (mesure)** : trocr_v2/v3 affinés sur le sujet A proposent des réponses
+  du A (« ERREUR » ou « Petit » pour « Impair », « 2.5 » pour « 30 »). Lecture brute juste : v2 62 %, v3 56 %
+  (contre 70 / 78,5 % sur une classe A jamais vue). Acceptations d'office qu'il y aurait eu : v2 seul 12 fausses
+  sur 91, v3 seul 12/91, v3 + accord v2 (réglage du Booster) 3/80. → **Règle `lecture_validee`** : sans
+  `"lecture_validee": true` dans le corrigé, `ocr` n'accepte rien d'office (posé sur les sujets A FR/EN, pas sur B).
+  Prochain affinage : mélanger les sujets, mesurer sur un sujet jamais vu ; sur un sujet nouveau v2 > v3.
+- Code : 52 cadres lus en session par 2 sous-agents (questions entières par agent), critères pré-cochés,
+  validés tels quels par l'enseignant (52/52) ; 11 « vide ? » confirmés.
+
+**Outil de correction** : **pinceau** (idée de l'enseignant : 🖌 ou P prend une lecture, clic ou glisser bouton
+enfoncé l'applique aux autres vignettes, d'un bloc à l'autre, Échap) ; « vide pour le bloc » sur un bloc sans
+lecture (90 des 540 « vide » du Booster étaient saisis carte par carte).
+
+**Regroupement par image : deux résultats négatifs** (lecture seule, sur 4 444 réponses vérifiées du Booster) :
+blocs par texte lu aujourd'hui 1 301 (pureté 92,7 %, 44 % des réponses dans un bloc pur ≥ 2) pour 1 013 idéaux.
+Pixels (encre recadrée, floutée, cosinus, liaison moyenne) : ≥ 2 994 blocs, pire. Fusion des blocs dont les
+lectures (proposition + autres) se recoupent : 816 blocs mais pureté 83 %, 16 % en bloc pur. Le pinceau couvre le
+besoin. Piste non essayée : vecteurs de l'encodeur TrOCR (plus lourd en mémoire et en temps).
+
+**Suite** : premier vrai lot vers le 1er novembre (sujet A) ; avant l'export, `verif-noms`. Idées en attente :
+bouton « ⇄ » séparateur collé à la lecture (la touche 6 le fait déjà : 60/60 corrections de séparateur l'avaient en
+1re autre lecture), encodeur TrOCR pour le regroupement, affinage multi-sujets.
+
+## 0. Point du 23 octobre 2026
 
 **Examen blanc Booster terminé : 314 copies notées sur 20** (QCM + réponses courtes + code), classeur
 `sorties/notes/notes.xlsx` (hors dépôt, contient les noms). Moyenne 12,02 (code 5,15 / 11), 86 copies sous 10.
