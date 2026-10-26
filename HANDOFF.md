@@ -51,6 +51,17 @@ besoin. Piste non essayée : vecteurs de l'encodeur TrOCR (plus lourd en mémoir
 bouton « ⇄ » séparateur collé à la lecture (la touche 6 le fait déjà : 60/60 corrections de séparateur l'avaient en
 1re autre lecture), encodeur TrOCR pour le regroupement, affinage multi-sujets.
 
+**Architecture des lecteurs (décision de l'enseignant, 26 octobre)** : le socle (TrOCR local + revue humaine)
+doit donner un résultat acceptable sur tout PC ; un lecteur branché (Claude, ChatGPT, Mistral, Qwen-VL /
+DeepSeek-VL / MiniCPM-V via Ollama ou vLLM sur GPU loué…) ne fait que réduire la revue, et ne gagne
+l'acceptation automatique qu'après mesure sur les vérités. À faire :
+- commande « second lecteur » pour les réponses courtes, branchée sur les adaptateurs de `lecteur_code.py`
+  (claude / openai-compatible), qui remplit le fichier générique de lectures secondaires ;
+- banc d'essai des lecteurs : les 247 réponses vérifiées du BIS (+ un groupe du Booster), lecture juste et
+  surtout réponses fausses qu'il aurait acceptées, sur un sujet jamais vu par le lecteur.
+- Essai en cours (26 octobre) : regroupement par empreintes de l'encodeur trocr_v2, lancé hors de Claude Code
+  (`data/models/lancer_essai_empreintes.ps1`, résultats dans `data/models/essai_empreintes/resultat.txt`).
+
 ## 0. Point du 23 octobre 2026
 
 **Examen blanc Booster terminé : 314 copies notées sur 20** (QCM + réponses courtes + code), classeur
