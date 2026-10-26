@@ -117,6 +117,21 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
   sur les 52 cadres décidés du BIS. Étape 1 : transcription (consigne de `lecteur_code`). Étape 2 : critères
   cochés d'après le barème et ses arbitrages. Le script compare les critères et les points avec l'enseignant, et la
   transcription avec celle de la session. Prévu : 8B avec et sans énoncé, puis 8B pour lire + 14B texte pour noter.
+  - **Avec énoncé : le 8B répond « (vide) » sur des cadres pleins.** L'énoncé de q11 contient le programme imprimé ;
+    sans énoncé, il lit le même cadre. Consigne courte sans exigence de fidélité : il corrige l'étudiant (`x` → `*`,
+    parenthèses fermées). La consigne « ne corrige rien » est donc indispensable, et l'énoncé est nuisible à la lecture.
+  - La consigne de `lecteur_code` dit « transcris le code » : une phrase d'explication (q11.a) est lue « (vide) ».
+    À corriger : « le texte ou le code écrit ».
+  - **Résultat, 8B sans énoncé (27 octobre, 52 cadres)** : transcription à 75 % de ressemblance avec la session ;
+    7 lues « (vide) » à tort ou par hasard. Notes identiques à l'enseignant : 27/52 (session Claude : 52/52 gardées).
+    - q11-q13 : ~5/7 justes ; q15 : 1/7 (+3,25 pt cumulés) ; q16 : 1/6.
+    - Le malus est proposé 14 fois (enseignant : 1 fois).
+    - 15 cadres trop notés, 10 pas assez : +5 pt sur 7 copies au total.
+    - 65 s par transcription, 11 s par cadre pour les critères.
+
+    → 8B **inutilisable pour cocher le barème**. Sa transcription est peut-être exploitable.
+  - Suite : garder ses transcriptions, critères par `qwen3:14b` (texte). Malus seulement si l'erreur est flagrante ;
+    critère coché seulement en citant la ligne qui le prouve.
 - **Partage du modèle affiné entre profs de la même institution (26 octobre)**. Promotion unique, plusieurs profs :
   mêmes élèves, mêmes sujets, même usage. Partager le modèle est donc acceptable, avec un mot au DPO par prudence.
   - Par le dépôt : code, gabarits, corrigés, vocabulaires, barèmes et le marqueur `lecture_validee`.
