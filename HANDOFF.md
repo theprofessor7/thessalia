@@ -71,7 +71,23 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
   vue par question, absent sans le fichier. Seuil choisi après coup sur 245 réponses : à confirmer sur un autre lot.
 - Ollama 0.40.11 installé (compte de l'enseignant, 26 octobre) pour essayer un VLM local (`qwen3-vl:4b-instruct`,
   CPU seul : Core Ultra 7 155H, 16 Go, pas de carte graphique dédiée) via l'adaptateur « compatible OpenAI »
-  (`http://localhost:11434/v1`).
+  (`http://localhost:11434/v1`). Essai rapide (5 vignettes) : vignette brute meilleure que nettoyée, 3/5 justes,
+  ~32 s/vignette. Banc complet sur les 247 réponses du BIS : `data/models/lancer_banc_qwen.ps1` (fenêtre séparée,
+  ~2 h, reprend après arrêt ; lectures dans `data/models/banc_qwen/lectures.json`, bilan dans `resultat.txt` :
+  justes Qwen / v2 / v3, rattrapages, accords v2 = Qwen et combien sont faux).
+- **Piste : un VLM local comme amorce d'un sujet nouveau (idée de l'enseignant, 26 octobre)**. Qwen n'a jamais vu
+  nos copies, donc il n'a pas le biais « sujet A » de v2/v3 (les 3 erreurs muettes du BIS). Mais il est trop lent
+  pour un lot entier (Booster ≈ 11 000 vignettes ≈ 100 h sur CPU) et ne s'affine pas sans GPU. Schéma proposé,
+  calqué sur le Booster, où j'ai fait l'amorce :
+  1. Qwen lit ~30 copies du nouveau sujet (une nuit) ;
+  2. l'enseignant valide dans l'outil ;
+  3. on affine TrOCR sur cette vérité ;
+  4. TrOCR lit le reste et Qwen ne relit que les cas douteux.
+
+  À trancher avec le banc :
+  - Qwen lit-il mieux que TrOCR sur un sujet inconnu ?
+  - « corrige »-t-il l'étudiant (`2,5` → `2.5`, orthographe) ?
+  - l'accord TrOCR = Qwen est-il assez sûr pour accepter automatiquement ?
 
 ## 0. Point du 23 octobre 2026
 
