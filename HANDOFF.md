@@ -89,6 +89,29 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
   - « corrige »-t-il l'étudiant (`2,5` → `2.5`, orthographe) ?
   - l'accord TrOCR = Qwen est-il assez sûr pour accepter automatiquement ?
 
+  Règle envisagée :
+  - sujet « lecture validée » et TrOCR sûr : accepté ;
+  - sinon, TrOCR = Qwen : accepté, si le banc le justifie ;
+  - désaccord : revue, avec les deux lectures en boutons ;
+  - nombre décimal : toujours en revue.
+
+  Pour gagner du temps, Qwen ne lirait ni les zones vides ni les lectures sûres. Pour un gros lot, l'enseignant
+  passerait une classe à la fois (~1 000 vignettes ≈ 9 h sans ces filtres).
+- **Partage du modèle affiné entre profs de la même institution (26 octobre)**. Promotion unique, plusieurs profs :
+  mêmes élèves, mêmes sujets, même usage. Partager le modèle est donc acceptable, avec un mot au DPO par prudence.
+  - Par le dépôt : code, gabarits, corrigés, vocabulaires, barèmes et le marqueur `lecture_validee`.
+  - Par un partage interne, hors dépôt : le dossier du modèle (`data/models/trocr_vN`).
+  - Jamais : scans, vignettes, `data/truth/`, `appris.json` hors de l'institution.
+
+  Boucle visée :
+  1. chaque prof corrige ses classes ;
+  2. il envoie ses vérités validées par un partage interne ;
+  3. un responsable réaffine le modèle (v4, v5…) ;
+  4. le modèle est redistribué à tous.
+
+  Chaque version est numérotée et notée ici, avec les lots sur lesquels elle a été mesurée (jamais ceux qui ont
+  servi à l'affiner). Qwen n'a rien appris des copies : chacun l'installe via Ollama, sans rien à transmettre.
+
 ## 0. Point du 23 octobre 2026
 
 **Examen blanc Booster terminé : 314 copies notées sur 20** (QCM + réponses courtes + code), classeur
