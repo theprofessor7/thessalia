@@ -90,3 +90,15 @@ def test_tests_tires_du_corrige():
     r = precocher_cadre(eleve, "q16", tests)["criteres"]
     assert r == {"1": True, "2": True, "3": False}            # 2000 : « pas » au lieu de « bissextile » ; 4 sans test
     assert all(precocher_cadre(bar["champs"]["q16"]["corrige"], "q16", tests)["criteres"].values())
+
+
+def test_nombre_cherche_dans_la_bonne_ligne():
+    from thessalia.code_tests import _mode
+    ref = {"etat": "ok", "saisies": 3, "sortie": "Plus grande valeur : -2\nValeurs paires : 2\n"}
+    echo = {"etat": "ok", "saisies": 3, "sortie": "Valeur 1 : -5\nValeur 2 : -2\nPlus grande : 0\nPaires : 2\n"}
+    juste = {"etat": "ok", "saisies": 3, "sortie": "max = -2\npaires 2\n"}
+    assert not _mode("nombre:1", echo, ref, (set(), set()))        # « -2 » n'est qu'un écho de la saisie
+    assert _mode("nombre:2", echo, ref, (set(), set()))
+    assert _mode("nombre:1", juste, ref, (set(), set()))           # sans mot commun : n'importe quelle ligne
+    moy = {"etat": "ok", "saisies": 1, "sortie": "Moyenne : 7.50\n"}
+    assert not _mode("nombre:1", {"etat": "ok", "saisies": 1, "sortie": "Moyenne : 7.5\n"}, moy, (set(), set()))

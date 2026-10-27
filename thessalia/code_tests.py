@@ -249,7 +249,12 @@ def reparer_modele(code, modele, cache):
 #   chaque critère peut porter :
 #     "essais":   [["2024"], ["1900"]]   saisies qui prouvent le critère : pour CHACUNE, la sortie de l'élève doit
 #                                         dire la même chose que celle du corrigé (voir `conforme`) ;
-#     "verifie":  "sortie" (défaut) | "termine" (le programme va au bout) | "saisies" (lit autant de saisies) ;
+#     "verifie":  ce qui est comparé au corrigé, un mode ou une liste de modes (tous exigés) :
+#                 "sortie" (défaut, cf. `conforme`) · "termine" (va au bout) · "saisies" (lit autant de saisies) ·
+#                 "lignes" (autant de lignes affichées) · "texte" (mêmes lignes, sans tenir compte des espaces, de
+#                 la ponctuation, des accents, de x / * ni de 10 / 10.0 ; « texte:-1 » : la dernière ligne
+#                 seulement) · "nombre:k" (le k-ième nombre affiché par
+#                 le corrigé, -1 = le dernier, est affiché ; écrit pareil s'il a des décimales : « 4.00 ») ;
 #     "contient": ["int(input", "non|pas"]   le code contient chaque élément (« | » : l'un ou l'autre ; espaces,
 #                                         casse et accents ignorés). Critère de forme, logique ou pas.
 #   Un critère sans « essais » ni « contient » n'a pas de test (jugement de l'enseignant).
@@ -287,12 +292,89 @@ def conforme(r, ref, discriminants):
     return (mots_d & mref) <= m and not ((mots_d - mref) & m)
 
 
+NOMBRE = re.compile(r"-?\d+(?:[.,]\d+)?")
+
+
+def _texte(s):
+    """Une ligne réduite à ce qui compte : lettres, chiffres, « = » ; x ou * pour multiplier ; 10.0 = 10."""
+    s = sans_accent(s).replace("*", "x")
+    s = NOMBRE.sub(lambda m: f"{float(m.group().replace(',', '.')):g}", s)
+    return re.sub(r"[^a-z0-9=.\-]", "", s)
+
+
+def _lignes(s):
+    return [l for l in s.splitlines() if l.strip()]
+
+
+def _mode(m, r, ref, disc):
+    if r["etat"] != "ok":
+        return False
+    if m == "termine":
+        return True
+    if m == "saisies":
+        return r["saisies"] == ref["saisies"]
+    if m == "lignes":
+        return len(_lignes(r["sortie"])) == len(_lignes(ref["sortie"]))
+    if m == "texte" or m.startswith("texte:"):         # « texte:-1 » : la dernière ligne seulement
+        eleve = {_texte(l) for l in _lignes(r["sortie"])}
+        lr = _lignes(ref["sortie"])
+        if ":" in m:
+            k = int(m.split(":")[1])
+            lr = [lr[k - 1 if k > 0 else k]]
+        return all(_texte(l) in eleve for l in lr)
+    if m.startswith("nombre:"):
+        toks = NOMBRE.findall(ref["sortie"])
+        k = int(m.split(":")[1])
+        if not toks or not (-len(toks) <= (k - 1 if k > 0 else k) < len(toks)):
+            raise ValueError(f"« {m} » : le corrigé n'affiche pas assez de nombres")
+        i = k - 1 if k > 0 else len(toks) + k
+        t = toks[i].replace(",", ".")
+        # la ligne du corrigé qui porte ce nombre, et chez l'élève la (les) ligne(s) qui lui ressemblent le plus
+        # (mots communs) : « Plus grande : 0 » répond à « Plus grande valeur : -2 », pas l'écho « Valeur 2 : -2 »
+        vus, ligne = 0, ""
+        for l in _lignes(ref["sortie"]):
+            n = len(NOMBRE.findall(l))
+            if vus + n > i:
+                ligne = l
+                break
+            vus += n
+        mots_l = _mots(ligne)
+        lignes_e = _lignes(r["sortie"])
+        score = {l: len(_mots(l) & mots_l) for l in lignes_e}
+        best = max(score.values(), default=0)
+        cible = [l for l in lignes_e if score[l] == best] if best else lignes_e
+        eleve = [x.replace(",", ".") for l in cible for x in NOMBRE.findall(l)]
+        if "." in t:                                  # décimales imposées par le corrigé (moyenne à 2 décimales)
+            return t in eleve
+        return any(abs(float(x) - float(t)) < 0.011 for x in eleve)
+    if m == "sortie":
+        return conforme(r, ref, disc)
+    raise ValueError(f"mode de vérification inconnu : « {m} »")
+
+
+_CACHE_BAREME = {}
+
+
 def tests_du_bareme(bareme):
+    """{champ: test(code, run)} pour les champs du barème qui ont un « corrige » (mis en cache : les exécutions du
+    corrigé ne se refont pas à chaque transcription corrigée)."""
+    cle = json.dumps(bareme, sort_keys=True)
+    if cle not in _CACHE_BAREME:
+        _CACHE_BAREME[cle] = _tests_du_bareme(bareme)
+    return _CACHE_BAREME[cle]
+
+
+def _tests_du_bareme(bareme):
     """{champ: test(code, run)} pour les champs du barème qui ont un « corrige »."""
     out = {}
     for fid, ch in (bareme.get("champs") or {}).items():
         if ch.get("corrige") and any("essais" in c or "contient" in c for c in ch["criteres"]):
-            out[fid] = _test_corrige(ch)
+            t = _test_corrige(ch)
+            # vérification du barème : le corrigé doit obtenir TOUS ses critères testés
+            rate = [c for c, ok in tester(ch["corrige"], fid, {fid: t})[0].items() if not ok]
+            if rate:
+                raise ValueError(f"barème {fid} : le corrigé ne passe pas les essais du critère {', '.join(rate)}")
+            out[fid] = t
     return out
 
 
@@ -314,14 +396,13 @@ def _test_corrige(ch):
             if "essais" not in c and "contient" not in c:
                 continue
             ok = all(any(_sans_espace(alt) in plat for alt in str(x).split("|")) for x in c.get("contient", []))
-            mode = c.get("verifie", "sortie")
+            modes = c.get("verifie", "sortie")
+            modes = [modes] if isinstance(modes, str) else modes
             for e in c.get("essais", []):
                 if not ok:
                     break
                 r, ref = run(e), refs[json.dumps(e)]
-                ok = (r["etat"] == "ok" if mode == "termine" else
-                      r["etat"] == "ok" and r["saisies"] == ref["saisies"] if mode == "saisies" else
-                      conforme(r, ref, (mots_d, nombres_d)))
+                ok = all(_mode(m, r, ref, (mots_d, nombres_d)) for m in modes)
             res[c["id"]] = bool(ok)
         return res
     return test

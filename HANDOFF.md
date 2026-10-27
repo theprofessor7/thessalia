@@ -20,7 +20,7 @@ Plan du 11 octobre :
   amélioration par règles et tests.
 
 Reste, par ordre d'utilité :
-1. ~~une routine du code sans Claude~~ : faite (`preparer`, tests à partir du corrigé) ; reste à écrire le corrigé et les essais des autres exercices du sujet A ;
+1. ~~une routine du code sans Claude~~ : faite (`preparer`, tests à partir du corrigé) ; corrigés et essais du sujet A écrits (q11.b à q19) ; reste les arbitrages listés plus bas ;
 2. le mode d'emploi ;
 3. les tests du sujet A hors q16.
 
@@ -46,6 +46,50 @@ Reste, par ordre d'utilité :
   Les modèles ne sont PAS fournis avec Thessalia (3 à 9 Go chacun) : `ollama pull` une fois, ou copie du dossier
   des modèles d'Ollama depuis un partage interne pour un PC sans internet. Licence des poids Qwen3 / Qwen3-VL :
   Apache 2.0, à confirmer avant toute redistribution.
+
+**Essais de tous les exercices de code du sujet A écrits dans le barème (27 octobre).** Un corrigé et des essais
+pour q11.b, q12, q13, q15 à q19 ; q11.a est une réponse en phrase, sans test. Le corrigé doit passer tous ses
+essais, sinon le barème est refusé au chargement. Nouveaux modes de vérification :
+- `lignes` : autant de lignes affichées que le corrigé ;
+- `texte`, `texte:k` : mêmes lignes, sans tenir compte des espaces, de la ponctuation, des accents, de x / * ni de
+  10 / 10.0 ;
+- `nombre:k` : le k-ième nombre du corrigé, cherché dans la ligne de l'élève qui partage le plus de mots avec la
+  sienne. Ainsi, un écho de la saisie ne vaut pas le maximum.
+
+Mesure, règles seules, sans le 14B, sur les classes FR du Booster hors supD_2. La référence est faible : les
+anciennes décisions, surtout celles de Claude.
+
+| Champ | Cadres (ne tournent pas) | Justes | À tort | Oubliés |
+|---|---|---|---|---|
+| q11.b | 205 (49) | 296/352 | 0 | 56 |
+| q12 | 193 (72) | 337/610 | 0 | 273 |
+| q13 | 205 (149) | 133/567 | 0 | 434 |
+| q15 | 201 (112) | 408/692 | 5 | 284 |
+| q16 | 195 (106) | 432/532 | 27 | 100 |
+| q17 | 197 (113) | 247/362 | 1 | 115 |
+| q18 | 164 (123) | 36/101 | 1 | 65 |
+| q19 | 134 (119) | 11/132 | 0 | 121 |
+
+- Les oublis viennent surtout de programmes qui ne tournent pas, même réparés par les règles. Ce sont de vraies
+  fautes : un `print` coupé sur deux lignes, des virgules oubliées. Le 14B contrôlé en récupère une partie : à
+  mesurer avec `preparer` puis `code-bilan`.
+- Corrigés après inspection :
+  - q15 critère 3 essaie aussi -1 et 21 (des `if` séparés qui affichent invalide puis une mention) ;
+  - q17 critère 2 exige `for` ou `while` (10 `print` écrits à la main) ;
+  - q16 critère 2 essaie 2022 (`% 2` au lieu de `% 4`) ;
+  - `nombre:k` cherche dans la bonne ligne (q19, maximum mis à 0 et caché par un écho).
+- **Restent des arbitrages pour l'enseignant** : le test suit le comportement, Claude suivait la forme.
+  - q16 critère 4 (22) : les deux messages accordés si le code les contient, logique fausse ou non ;
+  - q16 critère 3 (5) : `% 400` présent alors que la règle du 100 manque, et 1900 dit bissextile ;
+  - q15 critère 5 (3) : libellés présents mais placés sur de mauvaises tranches ;
+  - q15 critère 3 (1) : `if` séparés au comportement juste ;
+  - q15 critère 1 (1) : `int(input())` non affecté ;
+  - q17 (1) : `range(10)` et un compteur, sortie juste ;
+  - q18 (1) : la boucle compte le 0 mais perd la première valeur, ce qui donne un compte juste par hasard.
+- **Décision de l'enseignant (27 octobre) : pas urgent.** Les tests suivent le comportement (« l'idée compte »), et
+  un pré-cochage n'est jamais validé seul : au pire, un clic de plus. Il n'y a qu'un cas fréquent, q16 critère 4
+  (22). Le test suit déjà la pratique de l'enseignant à l'aveugle : messages écrits, logique fausse ou non. Les
+  autres se tranchent dans l'outil ; on ajuste un essai si `code-bilan` montre qu'ils reviennent souvent.
 
 **Second lecteur local (27 octobre)** : `python -m thessalia second-lecteur sorties/<classe>`.
 - Qwen3-VL 4B, par Ollama, relit les réponses courtes EN REVUE et écrit `<classe>/lectures_secondaires.json`
