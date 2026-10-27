@@ -36,6 +36,7 @@ python -m thessalia transcrire sorties/<classe> --local [qwen3-vl:8b-instruct]  
 python -m thessalia precocher sorties/<classe> [--reparateur qwen3:14b]   # code : critères pré-cochés en exécutant le code transcrit (tests keys/<sujet>.tests.py)
 python -m thessalia serve sorties/essai_code --essai   # essai : décisions dans data/correction_essai.sqlite, rien appris
 python -m thessalia serve sorties/essai_supD_2 --banc   # banc : correction à l'aveugle (H), boutons H / Claude / local
+python -m thessalia second-lecteur sorties/<classe>   # réponses courtes : Qwen3-VL 4B local relit les réponses en revue (~32 s/réponse)
 python -m thessalia code-bilan sorties/<classe> [--essai]   # code : chaîne locale contre l'enseignant, quoi améliorer avant la classe suivante
 python -m thessalia bilan NA NB [--dossiers sorties/booster sorties/supA_1_v3]   # après correction : propositions, boutons, v2/v3, mémoire, indices
 python -m thessalia verif-noms sorties/booster sorties/supA_1_v3   # AVANT l'export : nom écrit / élève attribué, copies à risque en tête
@@ -59,7 +60,7 @@ python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m 
 de page · `omr` cases à cocher · `extract` vignettes · `ocr_prep` nettoyage des réponses courtes ·
 `ocr` moteurs · `digits` lecteur de chiffres (nombres) · `vocab` rapprochement · `ocr_run` commande ocr · `truth_page` page de validation de la vérité · `pipeline` orchestration · `report` sorties ·
 `grade` notation QCM · `notes` notes QCM + réponses courtes (règle globale de l'enseignant) · `correction` décisions, mémoire des
-verdicts, étiquettes `appris.json` · `serve` + `web/` outil de correction Flask · `code_tests` pré-cochage du code par exécution (réparation tolérée, contrôle du réparateur) · `code_bilan` bilan de la chaîne locale du code · `bilan` mesures après correction · `excel` classeur des notes finales (copie datée de l'ancien) · `verif_noms` contrôle des attributions · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
+verdicts, étiquettes `appris.json` · `serve` + `web/` outil de correction Flask · `code_tests` pré-cochage du code par exécution (réparation tolérée, contrôle du réparateur) · `second_lecteur` second lecteur local des réponses courtes · `code_bilan` bilan de la chaîne locale du code · `bilan` mesures après correction · `excel` classeur des notes finales (copie datée de l'ancien) · `verif_noms` contrôle des attributions · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
 
 ## Pièges connus
 

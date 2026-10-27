@@ -64,3 +64,14 @@ def test_verite_du_code_sans_les_lots_auto(tmp_path):
     assert lab["transcriptions"] == {"c03_q16": "annee = int(input())"}
     assert lab["criteres"] == {"c02_q16": {"choix": ["1", "2", "3", "4"], "verdict": None},
                                "c04_q16": {"choix": [], "verdict": "vide"}}
+
+
+def test_second_lecteur_sur_seulement_si_lecture_identique():
+    from types import SimpleNamespace
+    from thessalia.second_lecteur import sur
+    c = SimpleNamespace(exam=SimpleNamespace(clean=lambda a, f: a.strip().lower()))
+    it = {"champ": "q3.1"}
+    assert sur(c, it, "ERREUR", "Erreur ")
+    assert not sur(c, it, "1024", "1029")
+    assert not sur(c, it, "2.5", "2.5")              # décimal : toujours en revue
+    assert not sur(c, it, "", "(vide)") and not sur(c, it, None, "3")

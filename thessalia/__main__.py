@@ -12,6 +12,7 @@
     verif-noms page de contrôle des attributions : nom écrit / élève attribué, copies à risque en tête
     precocher  code : pré-cocher les critères en exécutant le code transcrit (tests du sujet, local)
     transcrire lire le code manuscrit : --local (Ollama, gratuit) ou service en ligne (clé, plafond de dépense)
+    second-lecteur  réponses courtes : second lecteur local (Qwen3-VL 4B) ; deux lectures identiques = décidée
     code-bilan code : chaîne locale contre les décisions de l'enseignant, quoi améliorer avant la classe suivante
     bilan      ce que les décisions de l'enseignant disent de la machine, par groupe (après correction)
     excel      notes finales (QCM + réponses courtes + code, sur 20) dans un classeur Excel, absents compris
@@ -131,6 +132,13 @@ def main(argv=None):
     tr.add_argument("--refaire", action="store_true", help="local : relire aussi les cadres déjà transcrits par la machine")
     tr.add_argument("--limite", type=int, help="nombre maximal de cadres envoyés ce lancement")
 
+    sl = sub.add_parser("second-lecteur", help="réponses courtes : second lecteur local (Qwen3-VL 4B, Ollama) des réponses en revue")
+    sl.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
+    sl.add_argument("--modele", default="qwen3-vl:4b-instruct", help="modèle de vision Ollama (défaut qwen3-vl:4b-instruct)")
+    sl.add_argument("--refaire", action="store_true", help="relire aussi les réponses déjà relues")
+    sl.add_argument("--limite", type=int, help="nombre maximal de réponses lues ce lancement")
+    sl.add_argument("--essai", action="store_true", help="réponses en revue d'après la base d'essai")
+
     cb = sub.add_parser("code-bilan", help="code : la chaîne locale comparée aux décisions de l'enseignant (après une classe)")
     cb.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     cb.add_argument("--essai", action="store_true", help="décisions de la base d'essai (banc à l'aveugle)")
@@ -235,6 +243,10 @@ def main(argv=None):
         from .lecteur_code import run as trun
 
         trun(a.dossiers, a.champ, a.limite, a.local, a.refaire)
+    elif a.cmd == "second-lecteur":
+        from .second_lecteur import run as slrun
+
+        slrun(a.dossiers, a.modele, a.refaire, a.limite, a.essai)
     elif a.cmd == "code-bilan":
         from .code_bilan import run as cbrun
 

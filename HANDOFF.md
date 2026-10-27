@@ -1,7 +1,37 @@
-# Passation — état du projet au 26 octobre 2026
+# Passation — état du projet au 27 octobre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
+
+## État d'ensemble au 27 octobre 2026 (à lire en premier)
+
+| Niveau | État |
+|---|---|
+| 1. QCM / Vrai-Faux | **Utilisé en vrai** : Booster (314 copies) et BIS notés, 0 erreur silencieuse. |
+| 2. Réponses courtes | **Utilisé en vrai** : TrOCR affiné jusqu'à v3, mémoire des verdicts, séparateur point/virgule, boutons rapides. **Second lecteur local branché le 27** : `second-lecteur` (Qwen3-VL 4B). |
+| 3. Code manuscrit | **Phase en cours.** Notation au barème dans l'outil, utilisée sur le Booster (avec Claude en session). Chaîne locale sans Claude depuis le 27 : `transcrire --local` (8B), `precocher --reparateur qwen3:14b`, `serve`, `code-bilan` ; banc à l'aveugle `serve --banc`. Tests écrits : sujet B ; sujet A, q16 seulement. |
+| 4. Interface et sorties | **Utilisé en vrai** : outil de correction, identification, `verif-noms`, `excel`. |
+
+Plan du 11 octobre :
+- semaines 1 et 2 faites ;
+- semaine 3 : répétition faite sur toute la promo, **mode d'emploi pas écrit** (le README ne couvre ni l'outil de
+  correction, ni l'export, ni la chaîne du code) ;
+- « apprendre » à chaque cycle : fait pour TrOCR ; pour le code, vérité enregistrée (`code_appris.json`),
+  amélioration par règles et tests.
+
+Reste, par ordre d'utilité :
+1. une routine du code qui ne dépende pas de Claude, y compris l'écriture des tests d'un sujet ;
+2. le mode d'emploi ;
+3. les tests du sujet A hors q16.
+
+**Second lecteur local (27 octobre)** : `python -m thessalia second-lecteur sorties/<classe>`.
+- Qwen3-VL 4B, par Ollama, relit les réponses courtes EN REVUE et écrit `<classe>/lectures_secondaires.json`
+  (format déjà lu par l'outil).
+- « Sûr » si Qwen lit exactement la première lecture brute de TrOCR, après nettoyage. La réponse est alors
+  décidée « deux lecteurs ». Sinon, sa lecture est affichée comme indice.
+- Jamais sûr pour un décimal ni pour une réponse vide.
+- Mesure (BIS, 26 octobre) : 92 accords, 0 faux après correction des erreurs de saisie. Sujet A non mesuré.
+- Coût : environ 32 s par réponse. Sur supD_2, 327 réponses en revue, soit environ 3 h : à lancer la nuit.
 
 ## 0. Point du 23-26 octobre 2026 (à lire en premier)
 
@@ -869,12 +899,7 @@ Session locale Claude Code des 4 et 5 octobre. L'enseignant s'est déconnecté i
 
 ## 1. En bref
 
-| Niveau | État | Résultat mesuré sur le vrai lot (examen blanc EN, 21 copies, 100 dpi) |
-|---|---|---|
-| 1 — QCM / V-F | **Opérationnel** | 160/168 questions décidées automatiquement, **0 erreur** (validé par l'enseignant), 8 en revue ; 26 lots Booster traités (306 copies avec supA 1), non validés |
-| 2 — réponses courtes | **Chaîne en place, moteur à choisir** | nettoyage + rapprochement OK ; moteurs locaux testés trop faibles (cf. §3), **TrOCR base compris** (mesuré le 3 octobre) |
-| 3 — code manuscrit | Non commencé | vignettes des cadres déjà découpées par `process` |
-| 4 — interface de validation | Amorcé | page locale de validation de la vérité des réponses courtes (`truth-page`) ; pas encore de file de revue ni d'export de notes |
+Voir « État d'ensemble au 27 octobre 2026 » en tête de fichier (le tableau du début d'octobre est retiré).
 
 ## 2. Décisions de l'enseignant (à respecter)
 
