@@ -160,6 +160,17 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
     Test 1+2 écrit : `data/models/lancer_banc_exemples.ps1 [modèle] [nb_exemples]` (201 questions, 3 exemples max
     pris sur les autres copies, malus jamais proposé, transcriptions de session). Le BIS n'a que 7 copies, donc peu
     d'exemples : à refaire sur un lot comme le Booster.
+
+    Résultat (qwen3:14b, 27 octobre) :
+    - points identiques à l'enseignant : 29/52, contre 27/52 avec le barème entier ;
+    - critères identiques : 28/52, contre 21/52 ;
+    - questions oui/non justes : 162/201 (81 %). 39 réponses fausses, dont 17 sans aucun doute signalé (8 %) ;
+    - le biais s'inverse, le modèle devient **trop sévère** : 17 cadres trop bas, 6 trop hauts, −4,65 pt cumulés ;
+    - q11.a (réponse en phrase) : 0,5 sur les 4 copies, contre 0 pour l'enseignant ;
+    - 33 s par question, soit environ 2 min par cadre.
+
+    → Mieux, mais pas assez sûr pour pré-cocher seul. Au mieux, une proposition « à vérifier » pour les critères
+    que les tests ne couvrent pas.
   - **Piste 3, pré-cochage par exécution (idée de l'enseignant, 27 octobre)** : `data/models/banc_code/banc_tests.py`,
     sans modèle.
     - Le code transcrit tourne isolé (`python -I`, 5 s max), avec des `input()` simulés.
@@ -180,6 +191,31 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
     → **sûr mais partiel**, à l'opposé du 14B juge (couverture large, erreurs dans les deux sens). Suite : le 14B
     en **réparateur de syntaxe** seulement (consigne « ne change pas la logique »), puis les tests tranchent
     (`lancer_banc_tests.ps1`). À mesurer surtout : les critères cochés à tort après réparation.
+  - **Réparateur qwen3:14b + contrôle mécanique (27 octobre).** Le 14B ne reçoit que les programmes que les règles
+    ne font pas tourner. Ses réparations sont en cache (`reparations_qwen3_14b.json`), donc la mesure se refait sans
+    modèle.
+    - **Sans contrôle :** session 84/113 critères retrouvés, mais **1 coché à tort** ; 8B 65/113, **3 à tort**. Malgré
+      la consigne, le 14B corrige la logique : `int(longueur * largeur)` devient `int(longueur) * int(largeur)`, et
+      il enlève les guillemets de `"a" = "b"`.
+    - **Contrôle** (`garde()`) : comparaison mot par mot du code de l'élève et du code réparé. Seules les fautes
+      tolérées ont le droit de changer :
+      - ponctuation : `( ) : , .`, `€`, `:` oublié après `if`/`while`/`for` ;
+      - `=` → `==`, `=<` → `<=`, `=!` → `!=` ;
+      - majuscules, et `x` → `*` ;
+      - accents, espaces et casse dans les textes ;
+      - mot Python mal écrit mais proche (`impot`, `imput` → `input`, `flaat` → `float`) ;
+      - nom de variable du programme écrit autrement (`age-n` → `age_n`).
+
+      Toute autre modification est refusée, et le cadre reste à l'enseignant.
+    - **Avec contrôle :** session **67/113, 0 à tort** (12 réparations refusées) ; 8B **41/113, 0 à tort**.
+    - Les refus sont surtout de vrais changements de logique : `on` → `or`/`and`, `+` ou `int(` ajouté, `n` → `i`,
+      texte transformé en calcul. Discutable : deux fautes tolérées sur la même ligne (`= cot3` → `== cote3`).
+    - q16 et q19 restent presque non couvertes. À reprendre avec des critères observables.
+
+    → **Chaîne locale retenue pour le code :** transcription (VLM 8B), règles, réparateur 14B contrôlé, tests. Les
+    critères non couverts restent à l'enseignant, ou au 14B avec exemples en simple proposition « à vérifier ».
+    L'enseignant a une petite préférence pour le 14B s'il est efficace. Il ne lit pas les images : il vient après
+    le 8B, en séquence.
   - **Décisions de l'enseignant (27 octobre)**.
     - **`x` pour `*` désormais accepté** : c'était un arbitrage ponctuel. La réparation le change en `*`. Avec ce
       réglage, réparation par règles : 8B 28 pré-cochés, session 36, toujours 0 à tort.
