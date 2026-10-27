@@ -132,6 +132,16 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
     → 8B **inutilisable pour cocher le barème**. Sa transcription est peut-être exploitable.
   - Suite : garder ses transcriptions, critères par `qwen3:14b` (texte). Malus seulement si l'erreur est flagrante ;
     critère coché seulement en citant la ligne qui le prouve.
+  - **Résultat, critères par `qwen3:14b` sans réflexion sur les transcriptions du 8B** (`banc_criteres.py`,
+    41 s/cadre) :
+    - notes identiques 27/52 (= 8B), critères identiques 25/52 ;
+    - malus 3 fois (réglé) ;
+    - **trop notés 18, pas assez 7, +8 pt cumulés** : encore plus généreux ;
+    - voit l'erreur sans en tenir compte (doute « 'x' n'est pas la multiplication », critère coché quand même).
+
+    → en local sur ce PC, critères pré-cochés pas atteignables pour l'instant. Pistes : transcription locale affichée
+    sous l'image, critères pré-cochés par API (option). Dernier test : 14B sur les transcriptions validées de la
+    session (`--session`), pour séparer l'erreur de lecture de l'erreur de jugement.
 - **Partage du modèle affiné entre profs de la même institution (26 octobre)**. Promotion unique, plusieurs profs :
   mêmes élèves, mêmes sujets, même usage. Partager le modèle est donc acceptable, avec un mot au DPO par prudence.
   - Par le dépôt : code, gabarits, corrigés, vocabulaires, barèmes et le marqueur `lecture_validee`.
