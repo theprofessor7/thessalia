@@ -307,6 +307,22 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
       - un exercice, 19 cadres ;
       - le temps AVEC pré-remplissage n'est pas mesuré : estimation 3 à 4 min au lieu de 8 ;
       - mesure suivante : un autre exercice, pré-coché, chronométré.
+  - **Faire progresser les modèles locaux d'une classe à l'autre, comme TrOCR jusqu'à la v3 (idée de
+    l'enseignant, 27 octobre).** Trois niveaux, du plus simple au plus lourd :
+    1. **Règles et tests** : chaque désaccord tranché devient une tolérance ou un test plus juste (ex. « bisestile »).
+       Pas d'entraînement ; valable pour tout le sujet ; se mesure classe après classe. Déjà en marche.
+    2. **Exemples corrigés dans la consigne**, sans toucher au modèle : banc « exemples » du 14B, 81 % de oui/non
+       justes avec 7 copies seulement. La réserve grossit à chaque classe.
+    3. **Affinage réel** : le 8B ne tient pas sans GPU (option : GPU local ou loué). Un petit modèle de vision (2B à
+       4B) sur ce PC n'est pas sûr : un essai court dira s'il tient en 16 Go.
+
+    Vérité pour apprendre :
+    - seulement les transcriptions corrigées par l'enseignant (touche T, champ `texte` hors `auto:`). Elles ne sont
+      pas encore exportées comme `appris.json` : à ajouter ;
+    - jamais les transcriptions de Claude : non vérifiées, et l'entraînement d'autres modèles sur les sorties de
+      Claude est encadré par ses conditions d'utilisation.
+
+    Ordre conseillé : 1 et 2 d'abord ; 3 seulement s'ils plafonnent.
   - **Cap de l'enseignant pour le code et le texte libre (27 octobre)** : rester dans l'esprit qui a fait le succès
     des QCM et des réponses courtes. Ce n'est pas un juge automatique : c'est une **pré-validation efficace**, puis des
     **outils pour trancher vite les cas douteux**. On compte les clics de l'enseignant, pas le taux d'automatisation.
