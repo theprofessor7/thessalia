@@ -323,6 +323,14 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
       Claude est encadré par ses conditions d'utilisation.
 
     Ordre conseillé : 1 et 2 d'abord ; 3 seulement s'ils plafonnent.
+
+    **Boucle codée le 27 octobre**, comme pour TrOCR :
+    - à chaque décision, `data/truth/<classe>.code_appris.json` est écrit (`Classe.code_labels`) : transcriptions T
+      et critères décidés cadre par cadre, sans les lots « auto: » ;
+    - après une classe, `python -m thessalia code-bilan sorties/<classe> [--essai]` mesure la chaîne locale :
+      critères justes, à tort (test à resserrer), oubliés (tolérance ou réparation à ajouter), sans test, réparations
+      refusées, ressemblance des transcriptions locales avec les corrections T.
+    - Sur l'essai supD_2 : 49 justes, 0 à tort, 7 oubliés, tous sur des programmes qui ne tournent pas.
   - **Cap de l'enseignant pour le code et le texte libre (27 octobre)** : rester dans l'esprit qui a fait le succès
     des QCM et des réponses courtes. Ce n'est pas un juge automatique : c'est une **pré-validation efficace**, puis des
     **outils pour trancher vite les cas douteux**. On compte les clics de l'enseignant, pas le taux d'automatisation.

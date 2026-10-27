@@ -666,15 +666,41 @@ class Classe:
         """Écrit `data/truth/<classe>.appris.json` (format de --truth) : suivi (`ocr --truth`) et affinage
         s'en servent directement, sans export ni copie à la main. Rien n'est écrit pour une classe sans
         aucune lecture vérifiée."""
+        code = self.code_labels()
+        if code["transcriptions"] or code["criteres"]:
+            self._ecrire(self.truth_dir / f"{self.name}.code_appris.json", code)
         lab = self.labels()
         if not lab:
             return None
-        path = self.truth_dir / f"{self.name}.appris.json"
+        return self._ecrire(self.truth_dir / f"{self.name}.appris.json", lab)
+
+    @staticmethod
+    def _ecrire(path, data):
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(lab, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
         tmp.replace(path)
         return path
+
+    def code_labels(self):
+        """Vérité du code pour faire progresser la chaîne locale (`data/truth/<classe>.code_appris.json`) :
+        transcriptions corrigées par l'enseignant (touche T) et critères qu'il a décidés cadre par cadre.
+        Jamais une décision validée en lot pendant la session (marqueur « auto: ») : ce sont des propositions de
+        Claude, pas des jugements de l'enseignant. Jamais une transcription de la machine non corrigée."""
+        champs = self.exam.bareme.get("champs", {})
+        out = {"transcriptions": {}, "criteres": {}}
+        for cle, d in self.decisions.of(self.name).items():
+            if cle.split("_", 1)[-1] not in champs:
+                continue
+            t = _transcription_enseignant(d)
+            if t is not None:
+                out["transcriptions"][cle] = t
+            if (d.get("texte") or "").startswith("auto:"):
+                continue
+            if d.get("verdict") or d.get("options") is not None:
+                out["criteres"][cle] = {"choix": [] if d.get("verdict") else (d.get("options") or []),
+                                        "verdict": d.get("verdict")}
+        return out
 
     # suivi de la machine ---------------------------------------------------------------
     def suivi(self):

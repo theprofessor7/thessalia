@@ -48,3 +48,19 @@ def test_marqueur_auto_n_est_pas_une_transcription():
     assert _transcription_enseignant({"texte": "auto: vide (encre)"}) is None
     assert _transcription_enseignant({"texte": "print(1)"}) == "print(1)"
     assert _transcription_enseignant(None) is None
+
+
+def test_verite_du_code_sans_les_lots_auto(tmp_path):
+    from types import SimpleNamespace
+    from thessalia.correction import Classe, Decisions
+    db = Decisions(tmp_path / "d.sqlite")
+    db.set("X", "c01_q16", options=["1", "4"], texte="auto: lecture session")       # lot validé : exclu
+    db.set("X", "c02_q16", options=["1", "2", "3", "4"])                             # jugé cadre par cadre
+    db.set("X", "c03_q16", texte="annee = int(input())")                             # transcription T seule
+    db.set("X", "c04_q16", verdict="vide")
+    db.set("X", "c01_q3", texte="42")                                                # réponse courte : ignorée
+    fake = SimpleNamespace(name="X", decisions=db, exam=SimpleNamespace(bareme={"champs": {"q16": {}}}))
+    lab = Classe.code_labels(fake)
+    assert lab["transcriptions"] == {"c03_q16": "annee = int(input())"}
+    assert lab["criteres"] == {"c02_q16": {"choix": ["1", "2", "3", "4"], "verdict": None},
+                               "c04_q16": {"choix": [], "verdict": "vide"}}

@@ -334,6 +334,8 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False):
         if not texte.strip():
             return jsonify({"erreur": "transcription vide : écrire (vide) si rien n'est écrit"}), 400
         c.corriger_transcription(d["cle"], texte)
+        if apprendre:
+            c.save_labels()   # data/truth/<classe>.code_appris.json : vérité pour faire progresser la chaîne locale
         item = next((i for i in c.code_items() if i["cle"] == d["cle"]), None)
         if item:
             avec_banc(c, [item])
