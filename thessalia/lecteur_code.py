@@ -4,6 +4,14 @@
 l'identité : principe 3) à un modèle qui lit les images, et range la transcription dans
 `<classe>/code_lectures.json`. L'outil de correction l'affiche sous l'image ; l'enseignant note toujours.
 
+MODE LOCAL (gratuit, rien ne sort de la machine) : `transcrire sorties/<classe> --local [qwen3-vl:8b-instruct]`
+lit les cadres avec un modèle de vision servi par Ollama sur ce PC (sans clé, sans dépense ; ~65 s par cadre sans
+GPU, une centaine de copies tient en une nuit). Tous les champs du barème par défaut ; cadres presque vides
+(encre < CODE_VIDE) sautés ; reprend après arrêt. Mesuré sur le BIS le 27 octobre (Qwen3-VL 8B) : 75 % de
+ressemblance avec la transcription de session. L'ÉNONCÉ n'est pas donné au modèle local : il contient le
+programme imprimé et le 8B répondait alors « (vide) ». Un champ `"nature": "texte"` du barème (explication en
+phrase, q11.a) est lu comme du texte, pas comme du code. Ensuite : `precocher` (critères par les tests).
+
 Indépendant du fournisseur (décision de l'enseignant, 23 octobre) : deux adaptateurs légers.
   claude   API Anthropic (bibliothèque `anthropic`, extra `lecteur-claude`)
   openai   format « compatible OpenAI » (bibliothèque `openai`, extra `lecteur-openai`) : ChatGPT, Azure OpenAI /
@@ -54,6 +62,19 @@ Transcris EXACTEMENT le code écrit, ligne par ligne :
 - un passage illisible : écris [?] à sa place ;
 - si le cadre est vide, réponds seulement : (vide).
 Réponds uniquement avec le code, sans commentaire ni explication."""
+
+
+LOCAL_DEFAUT = "qwen3-vl:8b-instruct"
+OLLAMA = "http://localhost:11434"
+CONSIGNE_LOCALE = CONSIGNE.replace("Énoncé de la question : {enonce}\n", "")
+CONSIGNE_TEXTE = """Tu lis un cadre de réponse d'un examen, écrit à la main par un étudiant sur papier quadrillé.
+L'étudiant y répond par une phrase en français (une explication), parfois avec un peu de code.
+Transcris EXACTEMENT ce qui est écrit :
+- garde ses fautes (orthographe, syntaxe) : ne corrige RIEN, ne complète rien ;
+- ignore ce qui est barré ;
+- un passage illisible : écris [?] à sa place ;
+- si le cadre est vide, réponds seulement : (vide).
+Réponds uniquement avec le texte transcrit, sans commentaire ni explication."""
 
 
 class Plafond(Exception):
@@ -143,6 +164,38 @@ class _OpenAI:
         return rep.choices[0].message.content or "", getattr(u, "prompt_tokens", 0), getattr(u, "completion_tokens", 0)
 
 
+class _Local:
+    """Modèle de vision servi par Ollama sur cette machine (format compatible OpenAI, sans bibliothèque)."""
+
+    def __init__(self, modele):
+        import urllib.request
+        self.urllib, self.modele = urllib.request, modele
+        try:
+            noms = [m["name"] for m in json.load(urllib.request.urlopen(OLLAMA + "/api/tags", timeout=10))["models"]]
+        except Exception:
+            raise SystemExit(f"Ollama ne répond pas sur {OLLAMA} : l'installer (https://ollama.com) et le lancer.")
+        if modele not in noms:
+            raise SystemExit(f"Modèle « {modele} » absent d'Ollama : `ollama pull {modele}` "
+                             f"(installés : {', '.join(noms) or 'aucun'}).")
+
+    def lire(self, png_b64, consigne):
+        corps = {"model": self.modele, "temperature": 0, "max_tokens": 700, "keep_alive": "10m",
+                 "messages": [{"role": "user", "content": [
+                     {"type": "text", "text": consigne},
+                     {"type": "image_url", "image_url": {"url": "data:image/png;base64," + png_b64}}]}]}
+        req = self.urllib.Request(OLLAMA + "/v1/chat/completions", data=json.dumps(corps).encode(),
+                                  headers={"Content-Type": "application/json"})
+        rep = json.load(self.urllib.urlopen(req, timeout=3600))
+        return rep["choices"][0]["message"]["content"] or ""
+
+    def decharger(self):
+        try:
+            self.urllib.urlopen(self.urllib.Request(OLLAMA + "/api/generate", data=json.dumps(
+                {"model": self.modele, "keep_alive": 0}).encode()), timeout=30)
+        except Exception:
+            pass
+
+
 def lecteur(r):
     if r["fournisseur"] == "claude":
         return _Claude(r)
@@ -158,7 +211,68 @@ def _nettoyer(texte):
 
 
 # ---------------------------------------------------------------- commande
-def run(dossiers, champs, limite=None):
+def run(dossiers, champs=None, limite=None, local=None, refaire=False):
+    if local:
+        return run_local(dossiers, champs, limite, local, refaire)
+    if not champs:
+        raise SystemExit("--champ obligatoire avec un service en ligne (dépense) : ex. --champ q12")
+    return run_en_ligne(dossiers, champs, limite)
+
+
+def run_local(dossiers, champs, limite, modele, refaire=False):
+    """Transcription par un modèle local (Ollama). `refaire` : relit aussi les cadres déjà transcrits par la
+    machine (une transcription corrigée par l'enseignant est dans ses décisions et prime toujours)."""
+    from .correction import CODE_VIDE, Classe, Decisions
+    from .serve import _classes
+
+    lec = _Local(modele)
+    exams, faits, t0 = {}, 0, time.time()
+    try:
+        for d in _classes(dossiers):
+            c = Classe(d, exams, Decisions())
+            bar = c.exam.bareme.get("champs", {})
+            sortie = d / LECTURES
+            deja = load_json(sortie) if sortie.exists() else {}
+            enc = c._encre()
+            a_faire = []
+            for cid in c.copy_ids:
+                for fid in (champs or bar):
+                    cle = f"c{int(cid.split('_')[-1]):02d}_{fid}"
+                    info = c.doc(cid).get("fields", {}).get(fid) or {}
+                    e = enc.get(cid, {}).get(fid)
+                    if fid not in bar or not info.get("crop") or (e is not None and e < CODE_VIDE):
+                        continue
+                    if cle in deja and not refaire:
+                        continue
+                    a_faire.append((fid, cle, info))
+            print(f"{d.name} : {len(a_faire)} cadres à lire avec {modele} (local)", flush=True)
+            for n, (fid, cle, info) in enumerate(a_faire, 1):
+                if limite is not None and faits >= limite:
+                    print(f"Limite atteinte ({limite} cadres).")
+                    return
+                png = _image_png(d / info["crop"].replace("\\", "/"), 1000)
+                if png is None:
+                    continue
+                consigne = CONSIGNE_TEXTE if bar[fid].get("nature") == "texte" else CONSIGNE_LOCALE
+                t1 = time.time()
+                try:
+                    texte = lec.lire(png, consigne)
+                except Exception as e:      # une erreur n'arrête pas le lot ; elle est consignée
+                    print(f"  {cle} : ÉCHEC ({type(e).__name__} : {e})", flush=True)
+                    continue
+                deja[cle] = {"code": _nettoyer(texte), "fournisseur": "local", "modele": modele,
+                             "secondes": round(time.time() - t1)}
+                sortie.write_text(json.dumps(deja, indent=1, ensure_ascii=False), encoding="utf-8")
+                faits += 1
+                v = (time.time() - t0) / faits
+                print(f"  {n}/{len(a_faire)} {cle} ({time.time() - t1:.0f} s ; "
+                      f"reste ~{v * (len(a_faire) - n) / 60:.0f} min)", flush=True)
+    finally:
+        lec.decharger()
+    print(f"{faits} cadres transcrits en local. Ensuite : python -m thessalia precocher {' '.join(map(str, dossiers))}")
+
+
+def run_en_ligne(dossiers, champs, limite=None):
     from .correction import Classe, Decisions
     from .serve import _classes
 

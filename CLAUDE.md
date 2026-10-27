@@ -32,6 +32,7 @@ python -m thessalia ocr sorties/<classe> -v keys/<x>.vocab.json --backend trocr 
 python -m thessalia truth-page sorties/<classe> -t templates/<gabarit>.json [--truth data/truth/<x>.json]   # validation.html, local
 python -m thessalia notes sorties/<classe> [sorties/<classe2> …] -t templates/<gabarit>.json -k keys/<x>.key.json -v keys/<x>.vocab.json [-o sorties/notes/<groupe>.csv]   # QCM + réponses courtes, sur 9
 python -m thessalia serve sorties/booster [sorties/<autre> …] --no-browser   # outil de correction local (extra [serveur]), http://127.0.0.1:8765/
+python -m thessalia transcrire sorties/<classe> --local [qwen3-vl:8b-instruct]   # code : transcription locale (Ollama, gratuit), ~1 min par cadre
 python -m thessalia precocher sorties/<classe> [--reparateur qwen3:14b]   # code : critères pré-cochés en exécutant le code transcrit (tests keys/<sujet>.tests.py)
 python -m thessalia serve sorties/essai_code --essai   # essai : décisions dans data/correction_essai.sqlite, rien appris
 python -m thessalia bilan NA NB [--dossiers sorties/booster sorties/supA_1_v3]   # après correction : propositions, boutons, v2/v3, mémoire, indices

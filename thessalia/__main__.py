@@ -11,7 +11,7 @@
     identite   proposer l'élève de chaque copie (vignettes Nom/Prénom + liste), à confirmer dans l'outil
     verif-noms page de contrôle des attributions : nom écrit / élève attribué, copies à risque en tête
     precocher  code : pré-cocher les critères en exécutant le code transcrit (tests du sujet, local)
-    transcrire lire le code manuscrit par un service en ligne (option : clé de l'utilisateur, plafond de dépense)
+    transcrire lire le code manuscrit : --local (Ollama, gratuit) ou service en ligne (clé, plafond de dépense)
     bilan      ce que les décisions de l'enseignant disent de la machine, par groupe (après correction)
     excel      notes finales (QCM + réponses courtes + code, sur 20) dans un classeur Excel, absents compris
     notes      notes partielles : QCM + réponses courtes, par classe (et fichier commun d'un groupe)
@@ -122,7 +122,10 @@ def main(argv=None):
 
     tr = sub.add_parser("transcrire", help="lire le code manuscrit par un service en ligne (option payante, plafonnée)")
     tr.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    tr.add_argument("--champ", action="append", required=True, help="champ(s) de code : q12, q18…")
+    tr.add_argument("--champ", action="append", help="champ(s) de code : q12, q18… (en local : tous par défaut)")
+    tr.add_argument("--local", nargs="?", const="qwen3-vl:8b-instruct", metavar="MODELE",
+                    help="modèle de vision local via Ollama (gratuit, rien ne sort du PC) ; défaut qwen3-vl:8b-instruct")
+    tr.add_argument("--refaire", action="store_true", help="local : relire aussi les cadres déjà transcrits par la machine")
     tr.add_argument("--limite", type=int, help="nombre maximal de cadres envoyés ce lancement")
 
     bl = sub.add_parser("bilan", help="bilan d'un groupe corrigé : propositions, boutons, v2/v3, mémoire, indices")
@@ -224,7 +227,7 @@ def main(argv=None):
     elif a.cmd == "transcrire":
         from .lecteur_code import run as trun
 
-        trun(a.dossiers, a.champ, a.limite)
+        trun(a.dossiers, a.champ, a.limite, a.local, a.refaire)
     elif a.cmd == "bilan":
         from .bilan import run as brun
 

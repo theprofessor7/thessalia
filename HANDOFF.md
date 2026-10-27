@@ -255,12 +255,20 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
     - Mesure : 8B local 41 critères, session 69, **0 à tort**.
     - Avis de l'enseignant : l'outil marche. La limite est la couverture des critères cochés par les tests. La
       transcription manuscrite locale est relativement bonne, c'est prometteur.
+    - **Transcription locale (27 octobre)** : `python -m thessalia transcrire sorties/<classe> --local [modèle]`.
+      - Qwen3-VL 8B par Ollama par défaut : gratuit, sans clé, rien ne sort du PC.
+      - Tous les champs du barème ; cadres presque vides sautés ; reprend après arrêt ; environ 1 min par cadre.
+      - `--refaire` relit les cadres déjà transcrits par la machine. La transcription corrigée par l'enseignant
+        prime toujours.
+      - L'énoncé n'est pas donné au modèle local. Les champs `"nature": "texte"` du barème (q11.a, sujets A et B)
+        reçoivent une consigne de phrase : sur 2 cadres essayés, ils sont lus correctement au lieu de « (vide) ».
+
+      Chaîne complète sans Claude : `transcrire --local`, puis `precocher --reparateur qwen3:14b`, puis `serve`.
+      Le mode en ligne (`transcrire --champ …`, clé, plafond) est inchangé.
     - Reste à faire :
-      - transcription locale de nouvelles copies dans une commande (8B via Ollama ; l'adaptateur `openai` de
-        `transcrire` le permet) ;
-      - consigne du lecteur pour les réponses en phrase (q11.a lu « (vide) ») ;
       - tests du sujet A ;
-      - critères observables.
+      - critères observables ;
+      - mesurer la consigne « texte » sur tous les q11.a.
   - **Cap de l'enseignant pour le code et le texte libre (27 octobre)** : rester dans l'esprit qui a fait le succès
     des QCM et des réponses courtes. Ce n'est pas un juge automatique : c'est une **pré-validation efficace**, puis des
     **outils pour trancher vite les cas douteux**. On compte les clics de l'enseignant, pas le taux d'automatisation.
