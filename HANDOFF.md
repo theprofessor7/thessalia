@@ -160,6 +160,26 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
     Test 1+2 écrit : `data/models/lancer_banc_exemples.ps1 [modèle] [nb_exemples]` (201 questions, 3 exemples max
     pris sur les autres copies, malus jamais proposé, transcriptions de session). Le BIS n'a que 7 copies, donc peu
     d'exemples : à refaire sur un lot comme le Booster.
+  - **Piste 3, pré-cochage par exécution (idée de l'enseignant, 27 octobre)** : `data/models/banc_code/banc_tests.py`,
+    sans modèle.
+    - Le code transcrit tourne isolé (`python -I`, 5 s max), avec des `input()` simulés.
+    - Les tests sont écrits par critère, de q11.b à q19. Une tranche de q15 doit donner son prix à ses deux bornes et
+      pas aux âges voisins.
+    - Un critère est pré-coché seulement si ses tests passent ; un échec ne décide rien.
+    - Réparation par règles des fautes tolérées par le barème : `=<`, `≠`, `=` pour `==`, `:` ou `)` oubliés,
+      `Print`, `²`, virgules oubliées dans `print`, `12€`, nom de variable écrit de deux façons. `x` n'est
+      jamais réparé.
+
+    Résultat sur 45 cadres testables :
+    - transcriptions du 8B : 27 critères pré-cochés, **0 à tort** ;
+    - transcriptions de session : 35 pré-cochés, **0 à tort** ;
+    - sur 113 critères cochés par l'enseignant, la couverture reste faible : 27 à 35 retrouvés ;
+    - 27 à 29 programmes ne tournent toujours pas (fautes plus lourdes), et q16, q18, q19 ne sont jamais
+      pré-cochés.
+
+    → **sûr mais partiel**, à l'opposé du 14B juge (couverture large, erreurs dans les deux sens). Suite : le 14B
+    en **réparateur de syntaxe** seulement (consigne « ne change pas la logique », garde-fou `x`), puis les tests
+    tranchent (`lancer_banc_tests.ps1`). À mesurer surtout : les critères cochés à tort après réparation.
 - **Partage du modèle affiné entre profs de la même institution (26 octobre)**. Promotion unique, plusieurs profs :
   mêmes élèves, mêmes sujets, même usage. Partager le modèle est donc acceptable, avec un mot au DPO par prudence.
   - Par le dépôt : code, gabarits, corrigés, vocabulaires, barèmes et le marqueur `lecture_validee`.
