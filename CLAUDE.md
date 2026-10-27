@@ -35,6 +35,7 @@ python -m thessalia serve sorties/booster [sorties/<autre> …] --no-browser   #
 python -m thessalia transcrire sorties/<classe> --local [qwen3-vl:8b-instruct]   # code : transcription locale (Ollama, gratuit), ~1 min par cadre
 python -m thessalia precocher sorties/<classe> [--reparateur qwen3:14b]   # code : critères pré-cochés en exécutant le code transcrit (tests keys/<sujet>.tests.py)
 python -m thessalia serve sorties/essai_code --essai   # essai : décisions dans data/correction_essai.sqlite, rien appris
+python -m thessalia serve sorties/essai_supD_2 --banc   # banc : correction à l'aveugle (H), boutons H / Claude / local
 python -m thessalia bilan NA NB [--dossiers sorties/booster sorties/supA_1_v3]   # après correction : propositions, boutons, v2/v3, mémoire, indices
 python -m thessalia verif-noms sorties/booster sorties/supA_1_v3   # AVANT l'export : nom écrit / élève attribué, copies à risque en tête
 python -m thessalia excel sorties/booster sorties/supA_1_v3 [-o sorties/notes/notes.xlsx]   # notes finales sur 20, absents, copies à vérifier

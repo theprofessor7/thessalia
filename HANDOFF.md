@@ -269,6 +269,44 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
       - tests du sujet A ;
       - critères observables ;
       - mesurer la consigne « texte » sur tous les q11.a.
+  - **Essai « stratégie locale vs Claude », q16 (année bissextile) de supD_2, 27 octobre.** Idée de l'enseignant.
+    Copie `sorties/essai_supD_2/supD_2`. Script `data/models/lancer_essai_supD_2.ps1` : transcription 8B locale,
+    puis `precocher --reparateur qwen3:14b`. Comparaison : `data/models/banc_code/comparer_supD_2.py`, résultat
+    dans `resultat_supD_2.txt`.
+    - **Les anciennes décisions du code du Booster ne sont pas une référence humaine.** Elles portent le marqueur
+      `texte = "auto: lecture session"` : ce sont les propositions de Claude, validées en lot (288 décisions q16
+      sur 320 ; supD_2 entier en une seconde, le 23/10 à 01:33). Ce que j'avais pris pour la « pratique de
+      l'enseignant » sur q16 était celle de Claude.
+    - **Bug corrigé.** Ce marqueur était pris pour une transcription corrigée par l'enseignant (commit ebf8f4c) :
+      l'outil normal aurait affiché « auto: lecture session ». Fonction `_transcription_enseignant`, avec un test.
+    - **Mode `serve … --banc`** (implique `--essai`) : correction **à l'aveugle**, sans rien de pré-coché ni de la
+      machine affiché. Les décisions vont dans la base d'essai, avec l'heure, et forment H. En haut de la page,
+      des boutons H / C / L (vous, Claude, local ; lettre + couleur) mettent une pastille sur les critères cochés
+      par chaque correcteur, affichent sa note et filtrent sur les « désaccords seulement ». Allumer L montre les
+      marques de test. Claude est lu dans `<classe>/code_lectures_claude.json`.
+    - **Tests q16 du sujet A** (`keys/socle_python_FR.tests.py`), en deux lectures du barème :
+      - `TESTS`, « pratique » : `int(input` et les deux messages lus dans le code, logique par exécution ;
+      - `TESTS_STRICT` : tout par exécution.
+
+      Réglés sur les autres classes FR, jamais sur supD_2, sauf une correction faite APRÈS avoir vu supD_2 :
+      « bissextile » mal écrit (bisestile, bissectile) est accepté, comme l'enseignant à l'aveugle.
+    - **Résultat** (19 cadres). L'enseignant à l'aveugle, sans aide : 8,3 min, médiane 23 s par cadre.
+
+      | Comparé à H (aveugle) | Notes identiques | Trop généreux | Oubliés | Écart | Clics |
+      |---|---|---|---|---|---|
+      | Sans pré-remplissage | — | — | — | — | 35 |
+      | Claude (session) | 15/19 | 2 | 4 | −0,25 pt | 24 |
+      | Local pratique | 15/19 (13 avant la correction du mot) | 0 | 7 | −3 pt | 21 |
+      | Local strict | 10/19 | 0 | 19 | −6,25 pt | 30 |
+
+      - Les 7 oublis du local sont tous sur 4 programmes qui ne tournent pas : réparation du 14B refusée par le
+        contrôle. Un refus est trop sévère : c12, orthographe d'un texte d'`input` corrigée. Piste : tolérer le
+        texte des invites d'`input`.
+      - L'enseignant à l'aveugle diffère de son ancienne note, celle de Claude, dans 4 cas sur 19.
+    - Limites :
+      - un exercice, 19 cadres ;
+      - le temps AVEC pré-remplissage n'est pas mesuré : estimation 3 à 4 min au lieu de 8 ;
+      - mesure suivante : un autre exercice, pré-coché, chronométré.
   - **Cap de l'enseignant pour le code et le texte libre (27 octobre)** : rester dans l'esprit qui a fait le succès
     des QCM et des réponses courtes. Ce n'est pas un juge automatique : c'est une **pré-validation efficace**, puis des
     **outils pour trancher vite les cas douteux**. On compte les clics de l'enseignant, pas le taux d'automatisation.

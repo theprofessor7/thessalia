@@ -244,14 +244,15 @@ def reparer_modele(code, modele, cache):
 
 
 # ------------------------------------------------------------------ tests d'un sujet
-def charger_tests(exam_id, keys_dir="keys"):
-    """Tests du sujet : module `keys/*.tests.py` dont EXAM_ID vaut exam_id (ou None). TESTS = {champ: fonction}."""
+def charger_tests(exam_id, keys_dir="keys", variante=None):
+    """Tests du sujet : module `keys/*.tests.py` dont EXAM_ID vaut exam_id (ou None). TESTS = {champ: fonction} ;
+    `variante` (ex. « strict ») : TESTS_STRICT du même module, pour comparer deux lectures du barème."""
     for p in sorted(Path(keys_dir).glob("*.tests.py")):
         spec = importlib.util.spec_from_file_location(f"tests_{p.stem.replace('.', '_')}", p)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         if getattr(mod, "EXAM_ID", None) == exam_id:
-            return mod.TESTS
+            return getattr(mod, f"TESTS_{variante.upper()}") if variante else mod.TESTS
     return None
 
 

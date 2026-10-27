@@ -40,3 +40,11 @@ else :
     assert not r["criteres"]["5"] and not r["criteres"]["6"] and r["criteres"]["4"]
     assert precocher_cadre("(vide)", "q15", tests) is None
     assert precocher_cadre("print(1)", "q11.a", tests) is None                  # pas de test : jugement
+
+
+def test_marqueur_auto_n_est_pas_une_transcription():
+    from thessalia.correction import _transcription_enseignant
+    assert _transcription_enseignant({"texte": "auto: lecture session"}) is None
+    assert _transcription_enseignant({"texte": "auto: vide (encre)"}) is None
+    assert _transcription_enseignant({"texte": "print(1)"}) == "print(1)"
+    assert _transcription_enseignant(None) is None

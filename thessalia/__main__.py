@@ -109,6 +109,8 @@ def main(argv=None):
     sv.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
     sv.add_argument("--essai", action="store_true",
                     help="décisions dans une base à part (data/correction_essai.sqlite), rien appris : pour essayer")
+    sv.add_argument("--banc", action="store_true",
+                    help="banc d'essai (implique --essai) : boutons humain / Claude / local sur les cadres de code")
 
     pc = sub.add_parser("precocher", help="code : pré-cocher les critères en exécutant le code transcrit (tests du sujet)")
     pc.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
@@ -211,7 +213,7 @@ def main(argv=None):
     elif a.cmd == "serve":
         from .serve import run as srun
 
-        srun(a.dossiers, port=a.port, open_browser=not a.no_browser, essai=a.essai)
+        srun(a.dossiers, port=a.port, open_browser=not a.no_browser, essai=a.essai, banc=a.banc)
     elif a.cmd == "precocher":
         from .code_tests import run as prun
 

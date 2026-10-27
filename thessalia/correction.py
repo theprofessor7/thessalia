@@ -231,6 +231,13 @@ CODE_VIDE = 2.0       # ‰ d'écriture sous lequel un cadre est proposé vide (
 
 # ---------------------------------------------------------------- classe
 
+def _transcription_enseignant(d):
+    """Transcription d'un cadre de code corrigée par l'enseignant (touche T), ou None. Les décisions validées en
+    lot pendant la correction du Booster portent un marqueur « auto: … » dans ce champ : ce n'est pas du code."""
+    t = (d or {}).get("texte")
+    return None if t is None or t.startswith("auto:") else t
+
+
 def _num(cid):
     return int(cid.split("_")[-1])
 
@@ -502,12 +509,13 @@ class Classe:
                 e = enc.get(cid, {}).get(fid)
                 d = dec.get(key)
                 # transcription corrigée par l'enseignant (texte) : prime sur celle de la machine
-                lu = d["texte"] if d and d.get("texte") is not None else (lus.get(key) or {}).get("code")
+                verifiee = _transcription_enseignant(d)
+                lu = verifiee if verifiee is not None else (lus.get(key) or {}).get("code")
                 it = {"classe": self.name, "copie": cid, "num": n, "cle": key, "champ": fid, "code": True,
                       "img": (info.get("crop") or "").replace("\\", "/"), "box": info.get("box_px"), "max": bar["points"], "encre": e,
                       "criteres": bar["criteres"], "malus": malus, "choix": [], "verdict": None,
                       "attendu": None, "proposition": None, "raison": None,
-                      "transcription": lu, "transcription_verifiee": bool(d and d.get("texte") is not None)}
+                      "transcription": lu, "transcription_verifiee": verifiee is not None}
                 pg = f"{cid}/pages/p{page_de.get(fid, 0):02d}_overlay.jpg"
                 if (self.dir / pg).exists():
                     it["page"] = pg
@@ -724,7 +732,7 @@ class Classe:
         """Annule la note. Pour un cadre de code, la transcription corrigée par l'enseignant est gardée."""
         d = self.decisions.of(self.name).get(cle)
         self.decisions.clear(self.name, cle)
-        if d and d.get("texte") is not None and cle.split("_", 1)[-1] in self.exam.bareme.get("champs", {}):
+        if _transcription_enseignant(d) is not None and cle.split("_", 1)[-1] in self.exam.bareme.get("champs", {}):
             self.decisions.set(self.name, cle, texte=d["texte"])
 
     def corriger_transcription(self, cle, texte):

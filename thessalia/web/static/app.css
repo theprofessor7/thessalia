@@ -174,3 +174,25 @@ body.pinceau-actif .carte:hover { outline: 3px solid var(--accent); }
 .essai code { white-space:pre-wrap; }
 .transcription.execute { opacity:.85; }
 .saisie-code { width:100%; font-family:monospace; font-size:13px; box-sizing:border-box; }
+/* mode banc d'essai (serve --banc) : choix de trois correcteurs, montrés à la demande */
+:root { --humain:#2b5fab; --claude:#b4532a; --local:#2f7d4f; }
+@media (prefers-color-scheme: dark) { :root { --humain:#7aa6ec; --claude:#e08a5f; --local:#6cc28f; } }
+.banc-barre { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0 10px; }
+.banc-btn { border:2px solid var(--trait); background:var(--carte); color:var(--encre); border-radius:16px;
+            padding:3px 12px; cursor:pointer; font-weight:600; }
+.banc-btn.src-humain.actif { border-color:var(--humain); background:var(--humain); color:#fff; }
+.banc-btn.src-claude.actif { border-color:var(--claude); background:var(--claude); color:#fff; }
+.banc-btn.src-local.actif  { border-color:var(--local);  background:var(--local);  color:#fff; }
+.marque { display:none; min-width:16px; padding:0 4px; margin-left:3px; border-radius:8px; font-size:11px;
+          font-weight:700; color:#fff; text-align:center; }
+.marque.src-humain { background:var(--humain); } .marque.src-claude { background:var(--claude); } .marque.src-local { background:var(--local); }
+.banc-points { display:flex; gap:10px; font-size:12px; margin-top:4px; }
+.marque-ligne { display:none; font-weight:700; }
+.marque-ligne.src-humain { color:var(--humain); } .marque-ligne.src-claude { color:var(--claude); } .marque-ligne.src-local { color:var(--local); }
+.banc-detail { display:none; font-size:12px; }
+body.voir-humain .src-humain.marque, body.voir-claude .src-claude.marque, body.voir-local .src-local.marque { display:inline-block; }
+body.voir-humain .marque-ligne.src-humain, body.voir-claude .marque-ligne.src-claude, body.voir-local .marque-ligne.src-local { display:inline; }
+body.voir-claude .banc-detail.src-claude { display:block; }
+.carte.desaccord { outline:3px dashed var(--forme); outline-offset:-3px; }
+.banc-cache { display:none !important; }
+body.voir-local .banc-cache { display:revert !important; }
