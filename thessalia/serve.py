@@ -39,7 +39,8 @@ def _qkey(fid):
     return [int(x) if x.isdigit() else 0 for x in fid.replace("q", "").split(".")]
 
 
-def create_app(paths, db_path=DB_PATH):
+def create_app(paths, db_path=DB_PATH, apprendre=True):
+    """apprendre=False (mode essai) : aucune étiquette d'apprentissage écrite (data/truth/<classe>.appris.json)."""
     from flask import Flask, abort, jsonify, render_template, request, send_from_directory, Response
 
     web = Path(__file__).parent / "web"
@@ -50,7 +51,7 @@ def create_app(paths, db_path=DB_PATH):
     if not classes:
         raise SystemExit("Aucune classe trouvée (dossiers contenant results.json).")
     for c in classes.values():  # vérité d'apprentissage à jour dès le démarrage (classes déjà travaillées)
-        if decisions.of(c.name):
+        if apprendre and decisions.of(c.name):
             c.save_labels()
     groups = {}
     for c in classes.values():
@@ -283,11 +284,24 @@ def create_app(paths, db_path=DB_PATH):
         else:
             texte = d.get("texte")
             c.decide(d["cle"], d.get("verdict"), texte, d.get("options"))  # ce qui manque est conservé
-        c.save_labels()  # data/truth/<classe>.appris.json à jour : rien à exporter à la main
+        if apprendre:
+            c.save_labels()  # data/truth/<classe>.appris.json à jour : rien à exporter à la main
         cid = next((x for x in c.copy_ids if f"c{int(x.split('_')[-1]):02d}_" == d["cle"][:4]), None)
         item = next((i for i in c.all_items() if i["cle"] == d["cle"]), None)
         note = next((r for r in c.notes() if r["copie"] == cid), None)
         return jsonify({"item": item, "note": note})
+
+    @app.post("/api/code-transcription")
+    def api_code_transcription():
+        """Transcription d'un cadre de code corrigée : enregistrée, tests relancés, critères pré-cochés à jour."""
+        d = request.get_json(force=True)
+        c = classes.get(d.get("classe")) or abort(404)
+        texte = (d.get("texte") or "").rstrip()
+        if not texte.strip():
+            return jsonify({"erreur": "transcription vide : écrire (vide) si rien n'est écrit"}), 400
+        c.corriger_transcription(d["cle"], texte)
+        item = next((i for i in c.code_items() if i["cle"] == d["cle"]), None)
+        return jsonify({"item": item})
 
     @app.route("/g/<g>/notes.csv")
     def export(g):
@@ -313,10 +327,18 @@ def create_app(paths, db_path=DB_PATH):
     return app
 
 
-def run(paths, port=8765, open_browser=True, db_path=DB_PATH):
-    app = create_app(paths, db_path)
+ESSAI_DB = Path("data/correction_essai.sqlite")
+
+
+def run(paths, port=8765, open_browser=True, db_path=DB_PATH, essai=False):
+    """essai=True : base de décisions à part (data/correction_essai.sqlite), aucune étiquette d'apprentissage :
+    pour essayer l'outil sur une classe déjà corrigée sans toucher à ses décisions."""
+    if essai:
+        db_path = ESSAI_DB
+    app = create_app(paths, db_path, apprendre=not essai)
     url = f"http://127.0.0.1:{port}/"
-    print(f"Outil de correction : {url}  (Ctrl+C pour arrêter ; décisions dans {db_path})")
+    print(f"Outil de correction{' (ESSAI : décisions à part, rien appris)' if essai else ''} : {url}  "
+          f"(Ctrl+C pour arrêter ; décisions dans {db_path})")
     if open_browser:
         webbrowser.open(url)
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)

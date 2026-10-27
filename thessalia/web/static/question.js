@@ -40,7 +40,9 @@ function progres() {
 }
 
 function cleBloc(it) {
-  if (it.code) return it.verdict === "vide" && !it.decide ? "code:vide" : "code:" + it.cle;   // seuls les vides se groupent
+  // se groupent : les vides, et les cadres dont TOUS les critères sont vérifiés par les tests (un bloc à confirmer)
+  if (it.code) return it.verdict === "vide" && !it.decide ? "code:vide"
+    : !it.decide && it.tests && it.tests.complet ? "code:complet" : "code:" + it.cle;
   return it.qcm ? "qcm:" + it.choix.join(",") : (it.verdict || "?") + "|" + (it.proposition == null ? "?" : it.proposition);
 }
 
@@ -60,11 +62,13 @@ function dessiner() {
     const grille = el("div", {className: "grille" + (D.champ.startsWith("q7") || ex.qcm ? " large" : ex.code ? " code" : "")});
     const cartes = its.map(it => carte(it, (rep, c, clavier) => { progres(); if (clavier) suivanteADecider(c); }));
     grille.append(...cartes);
-    const titre = ex.code ? (ex.verdict === "vide" ? "presque rien d'écrit → vide ?" : "à noter")
+    const titre = ex.code ? (ex.verdict === "vide" ? "presque rien d'écrit → vide ?"
+                             : cleBloc(ex) === "code:complet" ? "tous les critères vérifiés par les tests → note pleine ?"
+                             : ex.origine === "tests" ? "pré-coché par les tests, à compléter" : "à noter")
       : ex.qcm ? "cases lues : " + (ex.choix.join(", ") || "aucune")
       : "lu « " + (ex.proposition == null ? "?" : ex.proposition === "" ? "(vide)" : ex.proposition) + " » → " + (LIBELLE[ex.verdict] || "?");
     const tete = el("div", {className: "bloc"}, el("span", {textContent: titre + " · " + its.length}));
-    if (its.length > 1 && !ex.qcm && ex.verdict) {
+    if (its.length > 1 && !ex.qcm && (ex.verdict || cleBloc(ex) === "code:complet")) {
       const b = el("button", {className: "bouton", textContent: "Confirmer le bloc (" + its.length + ")"});
       b.onclick = async () => {
         b.disabled = true;

@@ -224,6 +224,7 @@ def _verifier_bareme(b, template):
 
 
 CODE_ENCRE = "code_encre.json"
+CODE_TESTS = "code_tests.json"   # cf. code_tests.py
 CODE_VIDE = 2.0       # ‰ d'écriture sous lequel un cadre est proposé vide (mesuré le 22 octobre : vides < 1,2 ;
                       # réponse au crayon pâle de q18 : 40 ; q16 : saut de 1,1 à 3,5)
 
@@ -489,6 +490,7 @@ class Classe:
         malus = self.exam.bareme.get("malus")
         dec, enc = self.decisions.of(self.name), self._encre()
         lus = self._json(self.dir / "code_lectures.json")   # transcriptions (option `transcrire`)
+        tests = self._json(self.dir / CODE_TESTS)          # pré-cochage par exécution (commande `precocher`)
         # page de chaque cadre : l'élève écrit souvent sous le cadre imprimé, la page entière le montre
         page_de = {f["id"]: pg["page"] for pg in self.exam.template["pages"] for f in pg["fields"]}
         items = []
@@ -498,15 +500,24 @@ class Classe:
                 key = f"c{n:02d}_{fid}"
                 info = doc.get("fields", {}).get(fid) or {}
                 e = enc.get(cid, {}).get(fid)
+                d = dec.get(key)
+                # transcription corrigée par l'enseignant (texte) : prime sur celle de la machine
+                lu = d["texte"] if d and d.get("texte") is not None else (lus.get(key) or {}).get("code")
                 it = {"classe": self.name, "copie": cid, "num": n, "cle": key, "champ": fid, "code": True,
                       "img": (info.get("crop") or "").replace("\\", "/"), "box": info.get("box_px"), "max": bar["points"], "encre": e,
                       "criteres": bar["criteres"], "malus": malus, "choix": [], "verdict": None,
                       "attendu": None, "proposition": None, "raison": None,
-                      "transcription": (lus.get(key) or {}).get("code")}
+                      "transcription": lu, "transcription_verifiee": bool(d and d.get("texte") is not None)}
                 pg = f"{cid}/pages/p{page_de.get(fid, 0):02d}_overlay.jpg"
                 if (self.dir / pg).exists():
                     it["page"] = pg
-                d = dec.get(key)
+                t = tests.get(key)
+                if t and t.get("lecture") == lu:           # tests faits sur CETTE transcription seulement
+                    it["tests"] = {"criteres": t["criteres"], "essais": t["essais"], "tourne": t["tourne"],
+                                   "execute": t["execute"], "reparation": t["reparation"],
+                                   "refus_modele": t.get("refus_modele")}
+                    ids = {c["id"] for c in bar["criteres"]}
+                    it["tests"]["complet"] = set(t["criteres"]) == ids and all(t["criteres"].values())
                 if d and (d.get("verdict") or d.get("options") is not None):
                     it.update(origine="enseignant", decide=True, choix=d.get("options") or [],
                               verdict=d.get("verdict"))
@@ -515,6 +526,16 @@ class Classe:
                 elif e is not None and e < CODE_VIDE:
                     it.update(origine="vide ?", decide=False, verdict=VIDE,
                               raison=f"presque rien d'écrit ({str(e).replace('.', ',')} ‰)")
+                elif lu is not None and lu.strip() == "(vide)":
+                    it.update(origine="vide ?", decide=False, verdict=VIDE, raison="transcription : (vide)")
+                elif "tests" in it:
+                    # critères dont les tests passent : PRÉ-COCHÉS, jamais validés seuls (l'enseignant confirme)
+                    tt = it["tests"]
+                    it.update(origine="tests", decide=False, choix=sorted(c for c, ok in tt["criteres"].items() if ok))
+                    if not tt["tourne"]:
+                        it["raison"] = "ne s'exécute pas, même après réparation des fautes tolérées : infraction lourde ?"
+                    elif tt["complet"]:
+                        it["raison"] = None
                 elif (lus.get(key) or {}).get("criteres_proposes") is not None:
                     # lecture (session ou service en ligne) : critères PRÉ-COCHÉS, jamais validés seuls
                     l = lus[key]
@@ -700,4 +721,28 @@ class Classe:
         self.decisions.set(self.name, cle, verdict, texte, options, clear_verdict=clear)
 
     def undo(self, cle):
+        """Annule la note. Pour un cadre de code, la transcription corrigée par l'enseignant est gardée."""
+        d = self.decisions.of(self.name).get(cle)
         self.decisions.clear(self.name, cle)
+        if d and d.get("texte") is not None and cle.split("_", 1)[-1] in self.exam.bareme.get("champs", {}):
+            self.decisions.set(self.name, cle, texte=d["texte"])
+
+    def corriger_transcription(self, cle, texte):
+        """Transcription d'un cadre de code corrigée par l'enseignant : enregistrée (texte de la décision, la note
+        n'est pas touchée), puis tests relancés aussitôt sur elle (règles seules : quelques secondes)."""
+        from .code_tests import FICHIER, charger_tests, precocher_cadre
+        fid = cle.split("_", 1)[-1]
+        if fid not in self.exam.bareme.get("champs", {}):
+            raise ValueError(f"{cle} n'est pas un cadre de code")
+        self.decisions.set(self.name, cle, texte=texte)
+        tests = charger_tests(self.exam_id)
+        if not tests:
+            return
+        p = self.dir / FICHIER
+        data = self._json(p)
+        r = precocher_cadre(texte, fid, tests)
+        if r is None:
+            data.pop(cle, None)
+        else:
+            data[cle] = r
+        p.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")

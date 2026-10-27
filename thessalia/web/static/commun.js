@@ -68,7 +68,34 @@ function carte(it, surDecision, opts = {}) {
     if (it.code) {
       // code noté au barème : chaque clic enregistre (critères cochés = options) ; la note est leur somme
       if (it.raison) c.append(el("div", {className: "raison", textContent: "doute : " + it.raison}));
+      const T = it.tests;
+      if (T && T.complet && !it.decide)
+        c.append(el("div", {className: "tests-complet", textContent: "✔ tous les critères vérifiés en exécutant le code"}));
       if (it.transcription) c.append(el("pre", {className: "transcription", textContent: it.transcription}));
+      // transcription corrigée (T) : les tests se relancent aussitôt sur ce qui est vraiment écrit
+      const ligneT = el("div", {className: "lu"});
+      if (it.transcription_verifiee) ligneT.append(el("span", {className: "verifie", textContent: "✓ transcription vérifiée "}));
+      const corrT = el("button", {className: "lecture", tabIndex: -1,
+                                  textContent: it.transcription ? "✎ corriger la transcription" : "✎ transcrire",
+                                  title: "taper le code tel qu'il est écrit (T) : les tests se relancent"});
+      corrT.onclick = ev => { ev.stopPropagation(); saisirCode(); };
+      ligneT.append(corrT);
+      c.append(ligneT);
+      // preuve : ce que le code a affiché pour chaque saisie de test (code réparé des fautes tolérées)
+      if (T) {
+        const det = el("details", {className: "essais"},
+          el("summary", {textContent: "exécution : " + (T.tourne ? "le code tourne" : "ne tourne pas")
+            + (T.reparation !== "aucune" ? " · réparé (" + T.reparation + ")" : "")
+            + (T.refus_modele ? " · réparation du modèle refusée (" + T.refus_modele + ")" : "")}));
+        if (T.reparation !== "aucune") det.append(el("pre", {className: "transcription execute", textContent: T.execute}));
+        for (const e of T.essais) {
+          det.append(el("div", {className: "essai"},
+            el("span", {className: "gris", textContent: "saisies " + (e.saisies.join(" · ") || "—") + " → "}),
+            el("code", {textContent: (e.sortie || "").trim().slice(-200) || "(rien affiché)"}),
+            e.etat !== "ok" ? el("span", {className: "raison", textContent: " " + e.etat}) : null));
+        }
+        c.append(det);
+      }
       // l'élève a pu écrire sous le cadre : la page entière, affichée à la demande
       if (it.page) {
         const vue = el("img", {className: "page-entiere", alt: "page entière", hidden: true});
@@ -94,7 +121,13 @@ function carte(it, surDecision, opts = {}) {
         const b = el("button", {className: "critere" + (coches.has(cr.id) && it.verdict !== "vide" ? " on" : ""), tabIndex: -1,
                                 title: "touche " + (i + 1)},
                      el("kbd", {textContent: String(i + 1)}), " " + cr.libelle + " ",
-                     el("span", {className: "gris", textContent: "(" + fmt(cr.points) + ")"}));
+                     el("span", {className: "gris", textContent: "(" + fmt(cr.points) + ")"}),
+                     T && cr.id in T.criteres
+                       ? el("span", {className: T.criteres[cr.id] ? "test-ok" : "test-ko",
+                                     textContent: T.criteres[cr.id] ? " ✔ test" : " ✗ test",
+                                     title: T.criteres[cr.id] ? "les tests de ce critère passent"
+                                       : "les tests ne passent pas : à juger (un échec ne décide rien)"})
+                       : (T ? el("span", {className: "gris", textContent: " · sans test", title: "à juger : pas de test pour ce critère"}) : null));
         b.onclick = () => basculer(cr.id);
         liste.append(b);
       });
@@ -250,6 +283,27 @@ function carte(it, surDecision, opts = {}) {
     }
     peindre();
   };
+  const saisirCode = () => {
+    if (c.querySelector(".saisie")) return;
+    const champ = el("textarea", {value: it.transcription || "", rows: Math.max(4, (it.transcription || "").split("\n").length + 1),
+                                  spellcheck: false, className: "saisie-code"});
+    const zone = el("div", {className: "saisie"}, champ,
+      el("div", {className: "gris", textContent: "Ctrl+Entrée : enregistrer et relancer les tests · Échap : annuler"}));
+    c.append(zone); champ.focus();
+    champ.onkeydown = async ev => {
+      ev.stopPropagation();
+      if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) {
+        ev.preventDefault();
+        champ.disabled = true;
+        const r = await fetch("/api/code-transcription", {method: "POST", headers: {"Content-Type": "application/json"},
+                              body: JSON.stringify({classe: it.classe, cle: it.cle, texte: champ.value})});
+        const rep = await r.json();
+        if (!r.ok) { alert(rep.erreur || "Transcription non enregistrée (" + r.status + ")."); champ.disabled = false; return; }
+        if (rep.item) Object.assign(it, rep.item);
+        redessiner(); c.focus();
+      } else if (ev.key === "Escape") { zone.remove(); c.focus(); }
+    };
+  };
   const saisir = () => {
     const champ = el("input", {type: "text", value: it.texte != null ? it.texte : (it.proposition || ""),
                                placeholder: "ce que l'étudiant a écrit", spellcheck: false});
@@ -270,6 +324,7 @@ function carte(it, surDecision, opts = {}) {
       else if (k === "m" && it.malus) { ev.preventDefault(); c.basculer(it.malus.id); }
       else if (k === "j") { ev.preventDefault(); c.toutJuste(); }
       else if (k === "v") { ev.preventDefault(); c.vide(); }
+      else if (k === "t") { ev.preventDefault(); saisirCode(); }
       else if (ev.key === "0") { ev.preventDefault(); c.zero(); }
       else if (ev.key === "Delete" && it.origine === "enseignant") { ev.preventDefault(); envoyer({annuler: true}); }
       else if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); bouger(c, ev.key === "ArrowDown" ? 1 : -1); }

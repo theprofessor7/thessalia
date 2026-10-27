@@ -164,3 +164,13 @@ body.pinceau-actif .carte:hover { outline: 3px solid var(--accent); }
 .carte.peinte { outline: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--carte)); }
 #bandeau-pinceau { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 50;
   background: var(--accent); color: #fff; padding: 7px 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+/* pré-cochage du code par exécution (precocher) */
+.tests-complet { font-size:12px; color:var(--juste); font-weight:600; }
+.test-ok { font-size:11px; color:var(--juste); }
+.test-ko { font-size:11px; color:var(--forme); }
+.essais { font-size:12px; margin:4px 0; }
+.essais summary { cursor:pointer; color:var(--gris, #666); }
+.essai { margin:2px 0; overflow-wrap:anywhere; }
+.essai code { white-space:pre-wrap; }
+.transcription.execute { opacity:.85; }
+.saisie-code { width:100%; font-family:monospace; font-size:13px; box-sizing:border-box; }

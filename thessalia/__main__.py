@@ -10,6 +10,7 @@
     serve      outil de correction local (navigateur) : vue par question, vue par copie, notes en direct
     identite   proposer l'élève de chaque copie (vignettes Nom/Prénom + liste), à confirmer dans l'outil
     verif-noms page de contrôle des attributions : nom écrit / élève attribué, copies à risque en tête
+    precocher  code : pré-cocher les critères en exécutant le code transcrit (tests du sujet, local)
     transcrire lire le code manuscrit par un service en ligne (option : clé de l'utilisateur, plafond de dépense)
     bilan      ce que les décisions de l'enseignant disent de la machine, par groupe (après correction)
     excel      notes finales (QCM + réponses courtes + code, sur 20) dans un classeur Excel, absents compris
@@ -106,6 +107,13 @@ def main(argv=None):
     sv.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     sv.add_argument("--port", type=int, default=8765)
     sv.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
+    sv.add_argument("--essai", action="store_true",
+                    help="décisions dans une base à part (data/correction_essai.sqlite), rien appris : pour essayer")
+
+    pc = sub.add_parser("precocher", help="code : pré-cocher les critères en exécutant le code transcrit (tests du sujet)")
+    pc.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
+    pc.add_argument("--reparateur", help="modèle local (Ollama) qui répare la syntaxe, sous contrôle : ex. qwen3:14b")
+    pc.add_argument("--force", action="store_true", help="tout refaire (sinon : seulement les transcriptions nouvelles)")
 
     idt = sub.add_parser("identite", help="lire les noms des copies et les rapprocher de la liste des élèves")
     idt.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
@@ -200,7 +208,11 @@ def main(argv=None):
     elif a.cmd == "serve":
         from .serve import run as srun
 
-        srun(a.dossiers, port=a.port, open_browser=not a.no_browser)
+        srun(a.dossiers, port=a.port, open_browser=not a.no_browser, essai=a.essai)
+    elif a.cmd == "precocher":
+        from .code_tests import run as prun
+
+        prun(a.dossiers, a.reparateur, a.force)
     elif a.cmd == "simulate":
         from .simulate import main as smain
 

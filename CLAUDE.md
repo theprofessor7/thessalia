@@ -32,6 +32,8 @@ python -m thessalia ocr sorties/<classe> -v keys/<x>.vocab.json --backend trocr 
 python -m thessalia truth-page sorties/<classe> -t templates/<gabarit>.json [--truth data/truth/<x>.json]   # validation.html, local
 python -m thessalia notes sorties/<classe> [sorties/<classe2> …] -t templates/<gabarit>.json -k keys/<x>.key.json -v keys/<x>.vocab.json [-o sorties/notes/<groupe>.csv]   # QCM + réponses courtes, sur 9
 python -m thessalia serve sorties/booster [sorties/<autre> …] --no-browser   # outil de correction local (extra [serveur]), http://127.0.0.1:8765/
+python -m thessalia precocher sorties/<classe> [--reparateur qwen3:14b]   # code : critères pré-cochés en exécutant le code transcrit (tests keys/<sujet>.tests.py)
+python -m thessalia serve sorties/essai_code --essai   # essai : décisions dans data/correction_essai.sqlite, rien appris
 python -m thessalia bilan NA NB [--dossiers sorties/booster sorties/supA_1_v3]   # après correction : propositions, boutons, v2/v3, mémoire, indices
 python -m thessalia verif-noms sorties/booster sorties/supA_1_v3   # AVANT l'export : nom écrit / élève attribué, copies à risque en tête
 python -m thessalia excel sorties/booster sorties/supA_1_v3 [-o sorties/notes/notes.xlsx]   # notes finales sur 20, absents, copies à vérifier
@@ -54,7 +56,7 @@ python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m 
 de page · `omr` cases à cocher · `extract` vignettes · `ocr_prep` nettoyage des réponses courtes ·
 `ocr` moteurs · `digits` lecteur de chiffres (nombres) · `vocab` rapprochement · `ocr_run` commande ocr · `truth_page` page de validation de la vérité · `pipeline` orchestration · `report` sorties ·
 `grade` notation QCM · `notes` notes QCM + réponses courtes (règle globale de l'enseignant) · `correction` décisions, mémoire des
-verdicts, étiquettes `appris.json` · `serve` + `web/` outil de correction Flask · `bilan` mesures après correction · `excel` classeur des notes finales (copie datée de l'ancien) · `verif_noms` contrôle des attributions · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
+verdicts, étiquettes `appris.json` · `serve` + `web/` outil de correction Flask · `code_tests` pré-cochage du code par exécution (réparation tolérée, contrôle du réparateur) · `bilan` mesures après correction · `excel` classeur des notes finales (copie datée de l'ancien) · `verif_noms` contrôle des attributions · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
 
 ## Pièges connus
 

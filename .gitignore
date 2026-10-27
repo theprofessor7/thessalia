@@ -13,6 +13,7 @@ data/models/
 data/listes/
 # décisions de correction (réponses d'étudiants)
 data/correction.sqlite
+data/correction_essai.sqlite
 !data/truth/README.md
 
 # Python

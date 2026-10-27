@@ -233,6 +233,34 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
         q15 ; 4 fois).
     - Piste : statut `ok` sans clic, comme pour les QCM, quand **tous** les critères du cadre sont testables et
       passent. Il faut d'abord le mesurer sur le Booster.
+  - **Branché dans l'outil de correction (27 octobre)** :
+    - `thessalia/code_tests.py`, avec la commande `python -m thessalia precocher <classe> [--reparateur qwen3:14b]` ;
+    - les tests du sujet B dans `keys/socle_python_FR_B.tests.py` (un fichier par sujet, `EXAM_ID`, `TESTS`) ;
+    - le résultat dans `<classe>/code_tests.json`.
+
+    Dans l'outil, un cadre de code montre :
+    - les critères pré-cochés (origine « tests »), jamais validés seuls ;
+    - à côté de chaque critère : ✔ test, ✗ test ou « sans test » ;
+    - le détail « exécution » : sorties pour chaque saisie de test, code réparé ;
+    - « infraction lourde ? » si le programme ne tourne pas ;
+    - un bloc « tous les critères vérifiés », confirmé en un clic ;
+    - **T** : transcription corrigée par l'enseignant. Elle est enregistrée dans `texte`, les tests se relancent par
+      règles seules et la note n'est pas touchée. Une annulation (↺) garde la transcription.
+
+    Mode `serve … --essai` : base à part (`data/correction_essai.sqlite`), aucune étiquette d'apprentissage écrite.
+    Essai : `sorties/essai_code/BIS`, une copie du BIS avec les transcriptions du 8B. Le BIS reste figé.
+    - **Faute corrigée pendant l'essai.** Le Python de l'élève écrivait en cp1252, et les accents étaient perdus (« Isocèle »
+      illisible). Il tourne maintenant en `-X utf8`. La nouvelle mesure a révélé un test trop lâche en q16 : un
+      équilatéral annoncé aussi « isocèle » a été refusé par l'enseignant, et le test l'exige maintenant.
+    - Mesure : 8B local 41 critères, session 69, **0 à tort**.
+    - Avis de l'enseignant : l'outil marche. La limite est la couverture des critères cochés par les tests. La
+      transcription manuscrite locale est relativement bonne, c'est prometteur.
+    - Reste à faire :
+      - transcription locale de nouvelles copies dans une commande (8B via Ollama ; l'adaptateur `openai` de
+        `transcrire` le permet) ;
+      - consigne du lecteur pour les réponses en phrase (q11.a lu « (vide) ») ;
+      - tests du sujet A ;
+      - critères observables.
   - **Cap de l'enseignant pour le code et le texte libre (27 octobre)** : rester dans l'esprit qui a fait le succès
     des QCM et des réponses courtes. Ce n'est pas un juge automatique : c'est une **pré-validation efficace**, puis des
     **outils pour trancher vite les cas douteux**. On compte les clics de l'enseignant, pas le taux d'automatisation.
