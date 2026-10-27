@@ -216,6 +216,37 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
     critères non couverts restent à l'enseignant, ou au 14B avec exemples en simple proposition « à vérifier ».
     L'enseignant a une petite préférence pour le 14B s'il est efficace. Il ne lit pas les images : il vient après
     le 8B, en séquence.
+  - **Mesure des clics, chaîne contrôlée (27 octobre, `data/models/banc_code/mesure_clics.py`, sans modèle).**
+    Sur les 63 cadres de code du BIS :
+
+    | Cadre | Transcription de session | Transcription du 8B |
+    |---|---|---|
+    | Vide, rien à faire | 12 | 17 |
+    | Pré-cochage identique à l'enseignant : **1 clic** | 23 | 16 |
+    | À compléter | 21 | 29 |
+    | Pas de test (q11.a, réponse en phrase) | 7 | 0 |
+
+    - Le chiffre « vide » du 8B est flatteur : il lit les phrases de q11.a comme « (vide) », notées 0.
+    - **Un code juste n'est pas encore validé seul.** Sur 17 cadres à la note pleine, 7 sont entièrement pré-cochés
+      avec la transcription de session, 4 avec celle du 8B.
+      - Causes : un critère de q11.b sans test (5 fois), et un programme qui ne tourne pas même réparé (q12, q13,
+        q15 ; 4 fois).
+    - Piste : statut `ok` sans clic, comme pour les QCM, quand **tous** les critères du cadre sont testables et
+      passent. Il faut d'abord le mesurer sur le Booster.
+  - **Cap de l'enseignant pour le code et le texte libre (27 octobre)** : rester dans l'esprit qui a fait le succès
+    des QCM et des réponses courtes. Ce n'est pas un juge automatique : c'est une **pré-validation efficace**, puis des
+    **outils pour trancher vite les cas douteux**. On compte les clics de l'enseignant, pas le taux d'automatisation.
+    Le temps de calcul n'est pas un frein, puisque chaque prof a une centaine d'élèves au plus (environ 750 cadres),
+    soit une nuit. Outils prévus, dans l'outil de correction :
+    1. un cadre validé en 1 clic ou 1 touche : scan, transcription et critères pré-cochés côte à côte ;
+    2. la preuve à côté de chaque critère (« pour 13 ans, affiche 8 € ✔ », « plante : NameError ligne 3 ») ;
+    3. la transcription corrigeable par l'enseignant : les tests se relancent aussitôt et recochent les critères ;
+       c'est ce qui sépare 41/113 (lecture 8B) de 67/113 (lecture de session) ;
+    4. les vides écartés d'office ; le signal « infraction lourde ? » quand rien ne tourne même réparé ;
+    5. le 14B avec les exemples de l'enseignant, en proposition « à vérifier », pour les critères sans test.
+
+    Situation de départ : côté code, rien n'est encore local. La promo Booster a été corrigée en quelques jours grâce
+    à l'outil, mais la fin du code a reposé sur l'abonnement Claude.
   - **Décisions de l'enseignant (27 octobre)**.
     - **`x` pour `*` désormais accepté** : c'était un arbitrage ponctuel. La réparation le change en `*`. Avec ce
       réglage, réparation par règles : 8B 28 pré-cochés, session 36, toujours 0 à tort.
