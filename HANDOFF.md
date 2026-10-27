@@ -142,6 +142,24 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
     → en local sur ce PC, critères pré-cochés pas atteignables pour l'instant. Pistes : transcription locale affichée
     sous l'image, critères pré-cochés par API (option). Dernier test : 14B sur les transcriptions validées de la
     session (`--session`), pour séparer l'erreur de lecture de l'erreur de jugement.
+  - **14B sur les transcriptions validées (27 octobre)** :
+    - notes identiques 27/52 (comme sur celles du 8B), critères 21/52 ;
+    - trop notés 17, pas assez 8, +4,3 pt, malus 4 ;
+    - écarts dans les deux sens (c07 q16 : 1,5 contre 0 ; c01 q15 : 0,5 contre 1,25), q11.a ratée 3 fois sur 7.
+
+    → le goulot est le **jugement**, pas la lecture. L'enseignant relativise : on compare un modèle local à un humain
+    et à un grand modèle en ligne.
+  - Pistes d'amélioration du pré-coché local :
+    1. exemples déjà corrigés par l'enseignant (même question, autres copies), qui grossissent avec chaque lot ;
+    2. une question fermée par critère (oui / non + ligne citée) ;
+    3. exécuter le code transcrit sur des valeurs de test (critères objectifs ; limité par les fautes de syntaxe
+       tolérées) ;
+    4. mode réflexion ;
+    5. plus gros modèle sur GPU loué (option).
+
+    Test 1+2 écrit : `data/models/lancer_banc_exemples.ps1 [modèle] [nb_exemples]` (201 questions, 3 exemples max
+    pris sur les autres copies, malus jamais proposé, transcriptions de session). Le BIS n'a que 7 copies, donc peu
+    d'exemples : à refaire sur un lot comme le Booster.
 - **Partage du modèle affiné entre profs de la même institution (26 octobre)**. Promotion unique, plusieurs profs :
   mêmes élèves, mêmes sujets, même usage. Partager le modèle est donc acceptable, avec un mot au DPO par prudence.
   - Par le dépôt : code, gabarits, corrigés, vocabulaires, barèmes et le marqueur `lecture_validee`.
