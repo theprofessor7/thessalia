@@ -75,3 +75,18 @@ def test_second_lecteur_sur_seulement_si_lecture_identique():
     assert not sur(c, it, "1024", "1029")
     assert not sur(c, it, "2.5", "2.5")              # décimal : toujours en revue
     assert not sur(c, it, "", "(vide)") and not sur(c, it, None, "3")
+
+
+def test_tests_tires_du_corrige():
+    from thessalia.code_tests import tests_du_bareme, precocher_cadre
+    bar = {"champs": {"q16": {"corrige": 'a = int(input())\nif (a % 4 == 0 and a % 100 != 0) or a % 400 == 0:\n'
+                                          '    print("Année bissextile")\nelse:\n    print("Année non bissextile")',
+                              "criteres": [{"id": "1", "contient": ["int(input"]},
+                                           {"id": "2", "essais": [["2024"], ["2023"], ["1900"]]},
+                                           {"id": "3", "essais": [["2000"], ["2024"]], "contient": ["400"]},
+                                           {"id": "4"}]}}}
+    tests = tests_du_bareme(bar)
+    eleve = 'n = int (input("année"))\nif n % 4 == 0 and n % 100 != 0 :\n    print(n, "est bisestile")\nelse :\n    print("pas bisestile")'
+    r = precocher_cadre(eleve, "q16", tests)["criteres"]
+    assert r == {"1": True, "2": True, "3": False}            # 2000 : « pas » au lieu de « bissextile » ; 4 sans test
+    assert all(precocher_cadre(bar["champs"]["q16"]["corrige"], "q16", tests)["criteres"].values())

@@ -164,6 +164,15 @@ class _OpenAI:
         return rep.choices[0].message.content or "", getattr(u, "prompt_tokens", 0), getattr(u, "completion_tokens", 0)
 
 
+def modeles_ollama():
+    """Modèles installés dans Ollama sur ce PC, ou None si Ollama ne répond pas (pas installé, pas lancé)."""
+    import urllib.request
+    try:
+        return [m["name"] for m in json.load(urllib.request.urlopen(OLLAMA + "/api/tags", timeout=10))["models"]]
+    except Exception:
+        return None
+
+
 class _Local:
     """Modèle de vision servi par Ollama sur cette machine (format compatible OpenAI, sans bibliothèque)."""
 

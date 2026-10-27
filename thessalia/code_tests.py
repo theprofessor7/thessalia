@@ -243,17 +243,110 @@ def reparer_modele(code, modele, cache):
     return t
 
 
+# ------------------------------------------------------------------ tests écrits à partir du corrigé (sans programmer)
+# Dans le barème (`keys/<sujet>.bareme.json`), pour un champ de code :
+#   "corrige": "<programme corrigé>",
+#   chaque critère peut porter :
+#     "essais":   [["2024"], ["1900"]]   saisies qui prouvent le critère : pour CHACUNE, la sortie de l'élève doit
+#                                         dire la même chose que celle du corrigé (voir `conforme`) ;
+#     "verifie":  "sortie" (défaut) | "termine" (le programme va au bout) | "saisies" (lit autant de saisies) ;
+#     "contient": ["int(input", "non|pas"]   le code contient chaque élément (« | » : l'un ou l'autre ; espaces,
+#                                         casse et accents ignorés). Critère de forme, logique ou pas.
+#   Un critère sans « essais » ni « contient » n'a pas de test (jugement de l'enseignant).
+NEGATIONS = {"pas", "nest", "not", "ne"}            # « n'est pas », « not » : la même idée que « non »
+
+
+def _mots(s):
+    out = set()
+    for m in re.findall(r"[a-z]+", sans_accent(s).replace("'", "")):
+        if len(m) > 1:
+            out.add("non" if m in NEGATIONS else m)
+    return out
+
+
+def _sans_espace(s):
+    return re.sub(r"\s+", "", sans_accent(s))
+
+
+def conforme(r, ref, discriminants):
+    """La sortie `r` de l'élève dit-elle la même chose que celle du corrigé `ref` ? Compare seulement ce qui
+    DISTINGUE les sorties du corrigé d'une saisie à l'autre : ses nombres (présents ; ceux des autres saisies,
+    absents) et ses mots discriminants (« non », « gratuit »… : présents ou absents comme dans le corrigé). Le reste
+    de la phrase est libre (« l'année est bissextile », « Année bisestile »)."""
+    if r["etat"] != "ok":
+        return False
+    mots_d, nombres_d = discriminants
+    ns = nombres(r["sortie"])
+    a = lambda v: any(abs(n - v) < 0.011 for n in ns)
+    nref = nombres(ref["sortie"])
+    if not all(a(v) for v in nref):
+        return False
+    if any(a(v) for v in nombres_d - set(nref)):
+        return False
+    m, mref = _mots(r["sortie"]), _mots(ref["sortie"])
+    return (mots_d & mref) <= m and not ((mots_d - mref) & m)
+
+
+def tests_du_bareme(bareme):
+    """{champ: test(code, run)} pour les champs du barème qui ont un « corrige »."""
+    out = {}
+    for fid, ch in (bareme.get("champs") or {}).items():
+        if ch.get("corrige") and any("essais" in c or "contient" in c for c in ch["criteres"]):
+            out[fid] = _test_corrige(ch)
+    return out
+
+
+def _test_corrige(ch):
+    corrige = ch["corrige"]
+    essais = sorted({json.dumps(e) for c in ch["criteres"] for e in c.get("essais", [])})
+    refs = {e: executer(corrige, json.loads(e)) for e in essais}
+    for e, r in refs.items():
+        if r["etat"] != "ok":
+            raise ValueError(f"le corrigé ne va pas au bout avec les saisies {e} ({r['etat']}) : barème à revoir")
+    tous_mots = [_mots(r["sortie"]) for r in refs.values()]
+    mots_d = set.union(*tous_mots) - set.intersection(*tous_mots) if tous_mots else set()
+    nombres_d = {v for r in refs.values() for v in nombres(r["sortie"])}
+
+    def test(code, run):
+        res = {}
+        plat = _sans_espace(code)
+        for c in ch["criteres"]:
+            if "essais" not in c and "contient" not in c:
+                continue
+            ok = all(any(_sans_espace(alt) in plat for alt in str(x).split("|")) for x in c.get("contient", []))
+            mode = c.get("verifie", "sortie")
+            for e in c.get("essais", []):
+                if not ok:
+                    break
+                r, ref = run(e), refs[json.dumps(e)]
+                ok = (r["etat"] == "ok" if mode == "termine" else
+                      r["etat"] == "ok" and r["saisies"] == ref["saisies"] if mode == "saisies" else
+                      conforme(r, ref, (mots_d, nombres_d)))
+            res[c["id"]] = bool(ok)
+        return res
+    return test
+
+
 # ------------------------------------------------------------------ tests d'un sujet
 def charger_tests(exam_id, keys_dir="keys", variante=None):
     """Tests du sujet : module `keys/*.tests.py` dont EXAM_ID vaut exam_id (ou None). TESTS = {champ: fonction} ;
     `variante` (ex. « strict ») : TESTS_STRICT du même module, pour comparer deux lectures du barème."""
+    if variante == "corrige":           # seulement les tests tirés du corrigé (barème)
+        from .correction import _bareme
+        return tests_du_bareme(_bareme(exam_id, keys_dir) or {}) or None
+    python = {}
     for p in sorted(Path(keys_dir).glob("*.tests.py")):
         spec = importlib.util.spec_from_file_location(f"tests_{p.stem.replace('.', '_')}", p)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         if getattr(mod, "EXAM_ID", None) == exam_id:
-            return getattr(mod, f"TESTS_{variante.upper()}") if variante else mod.TESTS
-    return None
+            python = getattr(mod, f"TESTS_{variante.upper()}") if variante else mod.TESTS
+            break
+    if variante:
+        return python or None
+    # le barème (corrigé de l'enseignant) prime ; le Python complète les champs qu'il ne couvre pas
+    from .correction import _bareme
+    return {**python, **tests_du_bareme(_bareme(exam_id, keys_dir) or {})} or None
 
 
 def lisible(code):

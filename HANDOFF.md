@@ -20,9 +20,32 @@ Plan du 11 octobre :
   amélioration par règles et tests.
 
 Reste, par ordre d'utilité :
-1. une routine du code qui ne dépende pas de Claude, y compris l'écriture des tests d'un sujet ;
+1. ~~une routine du code sans Claude~~ : faite (`preparer`, tests à partir du corrigé) ; reste à écrire le corrigé et les essais des autres exercices du sujet A ;
 2. le mode d'emploi ;
 3. les tests du sujet A hors q16.
+
+**Code sans Claude, y compris les tests (27 octobre, choix de l'enseignant : « à partir du corrigé »).**
+- Dans le barème, un champ de code porte `"corrige"` (le programme corrigé). Chaque critère peut porter :
+  - `"essais"` : les saisies qui le prouvent ;
+  - `"contient"` : un critère de forme, « | » pour l'un ou l'autre, espaces, casse et accents ignorés ;
+  - `"verifie"` : `sortie` (défaut), `termine` ou `saisies`.
+- Aucun résultat attendu n'est écrit à la main. La machine exécute le corrigé, puis repère ce qui distingue ses
+  sorties d'une saisie à l'autre : les nombres et les mots qui changent (« non »), la négation étant unifiée
+  (pas, n'est, not). La sortie de l'élève doit dire la même chose, et le reste de la phrase est libre.
+- `code_tests.tests_du_bareme`. Le barème prime ; `keys/*.tests.py` complète les champs qu'il ne couvre pas.
+- q16 du sujet A écrite ainsi. Sur supD_2 à l'aveugle : 50 critères justes, 0 à tort, 6 oubliés (Python : 49 et
+  7). L'orthographe de « bissextile » passe sans règle spéciale.
+- **`python -m thessalia preparer sorties/<classe>`** lance la nuit, un modèle à la fois : transcription 8B, puis
+  pré-cochage avec le 14B, puis second lecteur 4B. Il reprend après une coupure.
+- **Modèles absents** (PC d'un collègue) : vérifiés avant de commencer, et l'outil marche sans eux, en moins aidé :
+  - pas de 8B : pas de transcription ;
+  - pas de 14B : règles seules ;
+  - pas de 4B : pas de second lecteur ;
+  - pas d'Ollama : règles seules, sur les transcriptions déjà présentes.
+
+  Les modèles ne sont PAS fournis avec Thessalia (3 à 9 Go chacun) : `ollama pull` une fois, ou copie du dossier
+  des modèles d'Ollama depuis un partage interne pour un PC sans internet. Licence des poids Qwen3 / Qwen3-VL :
+  Apache 2.0, à confirmer avant toute redistribution.
 
 **Second lecteur local (27 octobre)** : `python -m thessalia second-lecteur sorties/<classe>`.
 - Qwen3-VL 4B, par Ollama, relit les réponses courtes EN REVUE et écrit `<classe>/lectures_secondaires.json`
