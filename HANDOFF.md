@@ -178,8 +178,28 @@ l'acceptation automatique qu'après mesure sur les vérités. À faire :
       pré-cochés.
 
     → **sûr mais partiel**, à l'opposé du 14B juge (couverture large, erreurs dans les deux sens). Suite : le 14B
-    en **réparateur de syntaxe** seulement (consigne « ne change pas la logique », garde-fou `x`), puis les tests
-    tranchent (`lancer_banc_tests.ps1`). À mesurer surtout : les critères cochés à tort après réparation.
+    en **réparateur de syntaxe** seulement (consigne « ne change pas la logique »), puis les tests tranchent
+    (`lancer_banc_tests.ps1`). À mesurer surtout : les critères cochés à tort après réparation.
+  - **Décisions de l'enseignant (27 octobre)**.
+    - **`x` pour `*` désormais accepté** : c'était un arbitrage ponctuel. La réparation le change en `*`. Avec ce
+      réglage, réparation par règles : 8B 28 pré-cochés, session 36, toujours 0 à tort.
+    - **Le BIS reste figé** : c'est une photo du logiciel au moment de son usage réel. Pas de nouveau calcul des
+      notes ; son barème garde l'arbitrage `x` refusé.
+    - **« Ne s'exécute pas, même après réparation des fautes tolérées » = signal d'infraction lourde au langage.**
+      L'outil le signale (« infraction lourde ? ») et l'enseignant décide le malus. Sur le BIS, le malus n'a été
+      mis qu'une fois pour 26 à 28 programmes qui ne tournent pas : la frontière est à mesurer après le réparateur 14B.
+    - **« Le modèle s'adapte à nous, nous nous adaptons au modèle »** : pour les prochains sujets, écrire le
+      barème du code en **critères observables** (« pour 13 ans, affiche 8 € ») et les tests avec le corrigé, une
+      fois par sujet. q15 (tranches) marche bien ; q16, q18 et q19 (forme du code : « boucle while », « initialisations »)
+      ne donnent rien.
+  - **Le Booster comme échantillon d'entraînement et de mesure du code** : 314 copies, cadres de code transcrits
+    en session, critères validés par l'enseignant = vérité. Usages :
+    - écrire les tests du sujet A et mesurer le pré-cochage par exécution à grande échelle ;
+    - réserve d'exemples corrigés (piste 1) ;
+    - mesurer les transcriptions locales (8B) contre celles de la session ;
+    - entraîner un lecteur.
+
+    Toujours séparer les copies qui servent à affiner de celles qui servent à mesurer (validation croisée par copie).
 - **Partage du modèle affiné entre profs de la même institution (26 octobre)**. Promotion unique, plusieurs profs :
   mêmes élèves, mêmes sujets, même usage. Partager le modèle est donc acceptable, avec un mot au DPO par prudence.
   - Par le dépôt : code, gabarits, corrigés, vocabulaires, barèmes et le marqueur `lecture_validee`.
