@@ -20,7 +20,8 @@ import time
 
 
 def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second="qwen3-vl:4b-instruct",
-        sans_code=False, sans_courtes=False):
+        sans_code=False, sans_courtes=False, essai=False):
+    """essai=True : réponses courtes « en revue » d'après la base d'essai (copie d'une classe déjà corrigée)."""
     from .code_tests import run as precocher
     from .lecteur_code import modeles_ollama, run_local
     from .second_lecteur import run as relire
@@ -47,7 +48,7 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
         etapes.append(("pré-cochage par les tests", lambda: precocher(dossiers, rep)))
     if not sans_courtes:
         if second in dispo:
-            etapes.append(("second lecteur des réponses courtes", lambda: relire(dossiers, second)))
+            etapes.append(("second lecteur des réponses courtes", lambda: relire(dossiers, second, essai=essai)))
         else:
             print("  → second lecteur sauté")
     for i, (nom, f) in enumerate(etapes, 1):

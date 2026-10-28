@@ -212,8 +212,28 @@ def garde(avant, apres):
             r = difflib.SequenceMatcher(None, sa[0], sb[0]).ratio()
             if (sb[0] in MOTS and r >= 0.6) or (len(sa[0]) > 2 and sb[0] in a and r >= 0.75):
                 continue                                        # mot Python mal écrit (impot, flaat) ou nom existant
+        if len(sa) == 1 == len(sb) and sa[0][0] == '"' == sb[0][0] and re.fullmatch(
+                re.escape(sb[0].strip('"')) + r'\)+"?', sa[0].strip('"')) and va.count(")") <= vb.count(")"):
+            continue                                            # guillemet fermant oublié : « "texte=) » → « "texte=") »
+        if _invite(a, i1, va, vb):
+            continue                                            # texte de l'invite d'un input() : sans effet testé
         return f"{' '.join(va) or '∅'} → {' '.join(vb) or '∅'}"
     return None
+
+
+def _invite(a, i1, va, vb):
+    """Vrai si la modification reste dans le texte de l'invite d'un `input(` : guillemets remis, parenthèse
+    sortie du texte, faute d'orthographe. Les saisies sont simulées : ce texte ne change rien aux tests.
+    Refusé si la modification touche du code (parenthèse ouverte, mot Python) ou si le résultat n'est pas du texte."""
+    k = i1 - 1
+    while k >= 0 and a[k] not in ("(", ")"):
+        k -= 1
+    if k < 1 or a[k] != "(" or a[k - 1] != "input":
+        return False
+    if any(t in ("(", ")") or t in MOTS for t in va):
+        return False
+    vb = [t for t in vb if t not in TOLERES]
+    return len(vb) <= 1 and all(t.startswith('"') for t in vb) and (vb or all(t not in a[:k] for t in va))
 
 
 REPARE = """Voici un programme Python écrit à la main par un étudiant, puis transcrit. Il ne s'exécute pas à cause de

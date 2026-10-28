@@ -91,6 +91,43 @@ anciennes décisions, surtout celles de Claude.
   (22). Le test suit déjà la pratique de l'enseignant à l'aveugle : messages écrits, logique fausse ou non. Les
   autres se tranchent dans l'outil ; on ajuste un essai si `code-bilan` montre qu'ils reviennent souvent.
 
+**Première vraie classe passée par `preparer` (supD_2, sujet A, 28 octobre)**, code seul (`--sans-courtes`).
+- 141 transcriptions en quelques heures. À 0,6 Go de RAM libre, le PC swappait et un cadre prenait 900 s
+  au lieu d'environ 60 s. **Il faut fermer navigateur et applications pendant `preparer`.**
+- Non traités, ce qui est normal : q11.a (texte, sans test) et 3 cadres transcrits avec des `[?]` (illisibles,
+  laissés à l'enseignant).
+- 136 cadres testés et 84 tournent : 72 tels quels, 48 réparés par les règles, 16 par le 14B contrôlé.
+  43 réparations du 14B ont été refusées par le contrôle.
+- Contrôle assoupli le 28 octobre (5 programmes débloqués) :
+  - changements dans le texte de l'invite d'un `input(` : guillemets remis, faute d'orthographe, parenthèse
+    sortie du texte. Les saisies sont simulées, donc ce texte ne compte pas ;
+  - guillemet fermant oublié avant `)`, partout.
+  Le texte d'un `print` reste protégé.
+- Bilan face à l'enseignant, q16 à l'aveugle : inchangé, **50 justes, 0 à tort, 6 oubliés**. Les 6 oubliés sont
+  sur des programmes qui ne tournent pas.
+- Bilan sur toute la classe, avec la référence faible (`code-bilan --avec-auto`) : 224 justes, 6 à tort,
+  116 oubliés.
+
+| Champ | Justes | À tort | Oubliés | Ne tournent pas |
+|---|---|---|---|---|
+| q11.b | 32 | 0 | 6 | 3 |
+| q12 | 53 | 0 | 16 | 2 |
+| q13 | 27 | 1 | 28 | 7 |
+| q15 | 35 | 0 | 26 | 6 |
+| q16 | 47 | 3 | 7 | 5 |
+| q17 | 24 | 1 | 16 | 11 |
+| q18 | 2 | 0 | 9 | 10 |
+| q19 | 4 | 1 | 8 | 8 |
+
+- Nouveau cas à trancher : q13 critère 2 (c11). len(prénom) est affiché, mais seulement dans la phrase finale,
+  présenté comme la longueur du nom complet. Le test l'accorde, Claude ne l'accordait pas.
+- Refus encore fréquents et pistes possibles, à décider :
+  - guillemets oubliés autour du texte d'un `print` (« note invalide », « annee bissextile ») ;
+  - `print` coupé, concaténation réparée avec `str(` (refusé à juste titre) ;
+  - lignes ajoutées par le modèle (refusé à juste titre).
+- Reste à faire : les réponses courtes de supD_2, avec `preparer … --sans-code --essai` (environ 3 h). Ce sera la
+  première mesure du second lecteur sur le sujet A.
+
 **Second lecteur local (27 octobre)** : `python -m thessalia second-lecteur sorties/<classe>`.
 - Qwen3-VL 4B, par Ollama, relit les réponses courtes EN REVUE et écrit `<classe>/lectures_secondaires.json`
   (format déjà lu par l'outil).

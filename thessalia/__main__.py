@@ -140,6 +140,7 @@ def main(argv=None):
     pr.add_argument("--second", default="qwen3-vl:4b-instruct", help="second lecteur des réponses courtes (Ollama)")
     pr.add_argument("--sans-code", action="store_true", help="ne pas traiter le code")
     pr.add_argument("--sans-courtes", action="store_true", help="ne pas relire les réponses courtes")
+    pr.add_argument("--essai", action="store_true", help="copie d'une classe corrigée : réponses en revue d'après la base d'essai")
 
     sl = sub.add_parser("second-lecteur", help="réponses courtes : second lecteur local (Qwen3-VL 4B, Ollama) des réponses en revue")
     sl.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
@@ -151,6 +152,7 @@ def main(argv=None):
     cb = sub.add_parser("code-bilan", help="code : la chaîne locale comparée aux décisions de l'enseignant (après une classe)")
     cb.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     cb.add_argument("--essai", action="store_true", help="décisions de la base d'essai (banc à l'aveugle)")
+    cb.add_argument("--avec-auto", action="store_true", help="compter aussi les lots « auto: » (référence faible)")
 
     bl = sub.add_parser("bilan", help="bilan d'un groupe corrigé : propositions, boutons, v2/v3, mémoire, indices")
     bl.add_argument("groupes", nargs="+", help="groupes (A, B, …, NA, NB)")
@@ -255,7 +257,7 @@ def main(argv=None):
     elif a.cmd == "preparer":
         from .preparer import run as prrun
 
-        prrun(a.dossiers, a.vision, a.reparateur, a.second, a.sans_code, a.sans_courtes)
+        prrun(a.dossiers, a.vision, a.reparateur, a.second, a.sans_code, a.sans_courtes, a.essai)
     elif a.cmd == "second-lecteur":
         from .second_lecteur import run as slrun
 
@@ -263,7 +265,7 @@ def main(argv=None):
     elif a.cmd == "code-bilan":
         from .code_bilan import run as cbrun
 
-        cbrun(a.dossiers, a.essai)
+        cbrun(a.dossiers, a.essai, a.avec_auto)
     elif a.cmd == "bilan":
         from .bilan import run as brun
 

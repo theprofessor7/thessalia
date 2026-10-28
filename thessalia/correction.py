@@ -682,7 +682,7 @@ class Classe:
         tmp.replace(path)
         return path
 
-    def code_labels(self):
+    def code_labels(self, avec_auto=False):
         """Vérité du code pour faire progresser la chaîne locale (`data/truth/<classe>.code_appris.json`) :
         transcriptions corrigées par l'enseignant (touche T) et critères qu'il a décidés cadre par cadre.
         Jamais une décision validée en lot pendant la session (marqueur « auto: ») : ce sont des propositions de
@@ -695,7 +695,7 @@ class Classe:
             t = _transcription_enseignant(d)
             if t is not None:
                 out["transcriptions"][cle] = t
-            if (d.get("texte") or "").startswith("auto:"):
+            if (d.get("texte") or "").startswith("auto:") and not avec_auto:   # `code-bilan --avec-auto` seulement
                 continue
             if d.get("verdict") or d.get("options") is not None:
                 out["criteres"][cle] = {"choix": [] if d.get("verdict") else (d.get("options") or []),

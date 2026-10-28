@@ -17,6 +17,16 @@ def test_garde_refuse_les_changements_de_logique():
     assert garde('print("degres Celsius :" , c)', 'print("degrés Celsius :", c)') is None
 
 
+def test_garde_tolere_le_texte_des_invites():
+    assert garde('m = int(input("entrez un entier m=))', 'm = int(input("entrez un entier m="))') is None
+    assert garde('n = int(input("entrey une valeur"))', 'n = int(input("entrez une valeur"))') is None
+    assert garde('n = int(input(quel est votre note ? =))', 'n = int(input("quel est votre note ?"))') is None
+    assert garde('print("Ceci n\'est pas un entier =)', 'print("Ceci n\'est pas un entier =")') is None
+    assert garde('print("entrey une valeur")', 'print("entrez une valeur")')        # texte affiché : refusé
+    assert garde('n = int(input("note")) + m', 'n = int(input("note")) + n')        # hors de l'invite
+    assert garde('n = int(input(note))', 'n = int(input(int(note)))')               # du code ajouté
+
+
 def test_precocher_cadre_sujet_b():
     tests = charger_tests("socle-python-2026-FR-B")
     assert tests and "q15" in tests

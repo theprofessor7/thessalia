@@ -10,6 +10,7 @@ transcriptions corrigées avec T ; jamais les lots « auto: »).
   - programmes qui ne tournent pas, réparations du modèle refusées par le contrôle ;
   - transcription locale contre la transcription corrigée par l'enseignant (ressemblance, cadres exacts).
 
+`--avec-auto` compte aussi les lots « auto: » (référence faible, annoncée comme telle).
 `--essai` lit la base d'essai (`data/correction_essai.sqlite`, banc à l'aveugle) au lieu de la base principale.
 """
 from __future__ import annotations
@@ -20,10 +21,10 @@ from difflib import SequenceMatcher
 from .code_tests import FICHIER
 
 
-def bilan_classe(c):
+def bilan_classe(c, avec_auto=False):
     tests = c._json(c.dir / FICHIER)
     lus = c._json(c.dir / "code_lectures.json")
-    vrai = c.code_labels()
+    vrai = c.code_labels(avec_auto=avec_auto)
     par = {}
     exemples = {"a_tort": [], "oublis": [], "refus": []}
     for cle, v in vrai["criteres"].items():
@@ -59,15 +60,17 @@ def bilan_classe(c):
     return par, exemples, sims, exacts
 
 
-def run(dossiers, essai=False):
+def run(dossiers, essai=False, avec_auto=False):
     from .correction import Classe, Decisions, Memory
     from .serve import ESSAI_DB, _classes
     exams = {}
     db = Decisions(ESSAI_DB) if essai else Decisions()
     for d in _classes(dossiers):
         c = Classe(d, exams, db, memory=Memory())
-        par, ex, sims, exacts = bilan_classe(c)
-        print(f"== {c.name} : {sum(q['cadres'] for q in par.values())} cadres jugés par l'enseignant cadre par cadre")
+        par, ex, sims, exacts = bilan_classe(c, avec_auto)
+        quoi = ("décisions de la base, lots « auto: » COMPRIS (référence faible : surtout des propositions de Claude)"
+                if avec_auto else "cadres jugés par l'enseignant cadre par cadre")
+        print(f"== {c.name} : {sum(q['cadres'] for q in par.values())} {quoi}")
         if not par:
             print("  rien à mesurer (aucune décision hors lots « auto: », ou pas de `precocher`)")
         for f in sorted(par):
