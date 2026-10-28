@@ -22,6 +22,11 @@ def test_garde_tolere_le_texte_des_invites():
     assert garde('n = int(input("entrey une valeur"))', 'n = int(input("entrez une valeur"))') is None
     assert garde('n = int(input(quel est votre note ? =))', 'n = int(input("quel est votre note ?"))') is None
     assert garde('print("Ceci n\'est pas un entier =)', 'print("Ceci n\'est pas un entier =")') is None
+    assert garde('if note < 0:\n    print(note invalide)', 'if note < 0:\n    print("note invalide")') is None
+    assert garde('print(Insuffisant)', 'print("Insuffisant")') is None
+    assert garde('x = 3\nprint(x)', 'x = 3\nprint("x")')                             # une variable : refusé
+    assert garde('print(note invalide)', 'print("note non valide")')                 # mot changé : refusé
+    assert garde('print(a + b)', 'print("a+b")')                                     # calcul : refusé
     assert garde('print("entrey une valeur")', 'print("entrez une valeur")')        # texte affiché : refusé
     assert garde('n = int(input("note")) + m', 'n = int(input("note")) + n')        # hors de l'invite
     assert garde('n = int(input(note))', 'n = int(input(int(note)))')               # du code ajouté

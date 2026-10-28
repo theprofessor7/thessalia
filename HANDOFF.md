@@ -96,25 +96,29 @@ anciennes décisions, surtout celles de Claude.
   au lieu d'environ 60 s. **Il faut fermer navigateur et applications pendant `preparer`.**
 - Non traités, ce qui est normal : q11.a (texte, sans test) et 3 cadres transcrits avec des `[?]` (illisibles,
   laissés à l'enseignant).
-- 136 cadres testés et 84 tournent : 72 tels quels, 48 réparés par les règles, 16 par le 14B contrôlé.
-  43 réparations du 14B ont été refusées par le contrôle.
-- Contrôle assoupli le 28 octobre (5 programmes débloqués) :
+- 136 cadres testés et 86 tournent : 71 tels quels, 47 réparés par les règles, 18 par le 14B contrôlé.
+  41 réparations du 14B ont été refusées par le contrôle.
+- Contrôle assoupli le 28 octobre (7 programmes débloqués) :
   - changements dans le texte de l'invite d'un `input(` : guillemets remis, faute d'orthographe, parenthèse
     sortie du texte. Les saisies sont simulées, donc ce texte ne compte pas ;
-  - guillemet fermant oublié avant `)`, partout.
-  Le texte d'un `print` reste protégé.
-- Bilan face à l'enseignant, q16 à l'aveugle : inchangé, **50 justes, 0 à tort, 6 oubliés**. Les 6 oubliés sont
-  sur des programmes qui ne tournent pas.
-- Bilan sur toute la classe, avec la référence faible (`code-bilan --avec-auto`) : 224 justes, 6 à tort,
-  116 oubliés.
+  - guillemet fermant oublié avant `)`, partout ;
+  - guillemets oubliés autour du texte d'un `print` (accord de l'enseignant). Le contenu doit rester le même, mot
+    pour mot. Un mot seul n'est accepté que s'il n'est pas une variable du programme (il ne reçoit jamais de
+    valeur). Une faute d'orthographe dans le texte d'un `print` reste refusée.
+  Résultat : 86 programmes tournent, 41 réparations refusées. Sur q16 à l'aveugle : **52 justes, 0 à tort,
+  4 oubliés**.
+- Bilan face à l'enseignant, q16 à l'aveugle : 52 justes, 0 à tort, 4 oubliés, contre 50 / 0 / 6 avant
+  l'assouplissement. Les 4 oubliés sont sur des programmes qui ne tournent pas.
+- Bilan sur toute la classe, avec la référence faible (`code-bilan --avec-auto`) : 227 justes, 6 à tort,
+  113 oubliés.
 
 | Champ | Justes | À tort | Oubliés | Ne tournent pas |
 |---|---|---|---|---|
 | q11.b | 32 | 0 | 6 | 3 |
 | q12 | 53 | 0 | 16 | 2 |
 | q13 | 27 | 1 | 28 | 7 |
-| q15 | 35 | 0 | 26 | 6 |
-| q16 | 47 | 3 | 7 | 5 |
+| q15 | 36 | 0 | 25 | 5 |
+| q16 | 49 | 3 | 5 | 4 |
 | q17 | 24 | 1 | 16 | 11 |
 | q18 | 2 | 0 | 9 | 10 |
 | q19 | 4 | 1 | 8 | 8 |
@@ -122,7 +126,6 @@ anciennes décisions, surtout celles de Claude.
 - Nouveau cas à trancher : q13 critère 2 (c11). len(prénom) est affiché, mais seulement dans la phrase finale,
   présenté comme la longueur du nom complet. Le test l'accorde, Claude ne l'accordait pas.
 - Refus encore fréquents et pistes possibles, à décider :
-  - guillemets oubliés autour du texte d'un `print` (« note invalide », « annee bissextile ») ;
   - `print` coupé, concaténation réparée avec `str(` (refusé à juste titre) ;
   - lignes ajoutées par le modèle (refusé à juste titre).
 - Reste à faire : les réponses courtes de supD_2, avec `preparer … --sans-code --essai` (environ 3 h). Ce sera la

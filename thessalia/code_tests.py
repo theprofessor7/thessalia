@@ -217,8 +217,30 @@ def garde(avant, apres):
             continue                                            # guillemet fermant oublié : « "texte=) » → « "texte=") »
         if _invite(a, i1, va, vb):
             continue                                            # texte de l'invite d'un input() : sans effet testé
+        if _guillemets_print(a, i1, va, vb):
+            continue                                            # print(note invalide) → print("note invalide")
         return f"{' '.join(va) or '∅'} → {' '.join(vb) or '∅'}"
     return None
+
+
+def _guillemets_print(a, i1, va, vb):
+    """Vrai si le modèle n'a fait que mettre entre guillemets un texte écrit sans guillemets dans un `print(`, et
+    que ce texte est bien du texte : plusieurs mots (sinon c'est une erreur de syntaxe), ou un seul mot qui n'est pas
+    une variable du programme. Le contenu doit rester le même, mot pour mot."""
+    k = i1 - 1
+    while k >= 0 and a[k] not in ("(", ")"):
+        k -= 1
+    if k < 1 or a[k] != "(" or a[k - 1] != "print":
+        return False
+    if not va or any(re.fullmatch(r"[()+*/%=<>\-\[\]{}]+", t) or t in MOTS or t.startswith('"') for t in va):
+        return False
+    vb = [t for t in vb if t not in TOLERES]
+    if len(vb) != 1 or not vb[0].startswith('"') or vb[0].strip('"').lower() != "".join(va).lower():
+        return False
+    mots = [t for t in va if re.fullmatch(r"[^\W\d]\w*", t)]
+    variables = {a[i] for i in range(len(a) - 1) if a[i + 1] == "="} | {a[i + 1] for i in range(len(a) - 1)
+                                                                         if a[i] == "for"}
+    return len(mots) > 1 or (len(mots) == 1 and mots[0] not in variables)
 
 
 def _invite(a, i1, va, vb):
