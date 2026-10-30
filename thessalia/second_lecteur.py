@@ -7,10 +7,11 @@ correction :
   - si la lecture est SÛRE, la réponse est décidée « deux lecteurs » (cf. `correction.short_items`).
 
 Sûre = Qwen lit EXACTEMENT ce que TrOCR a lu (première lecture brute, après le nettoyage de la notation). Jamais
-pour un nombre décimal (règle : un décimal part toujours en revue, l'enseignant le juge), ni pour une réponse vide.
+pour un nombre décimal (règle : un décimal part toujours en revue, l'enseignant le juge), ni pour une réponse vide,
+ni quand un espace compte (sortie d'un programme, q7 : l'enseignant juge les espaces sur la vignette).
 Mesuré sur le BIS le 26 octobre (247 réponses vérifiées, vignette brute, ~32 s par vignette) : TrOCR v2 et Qwen
 d'accord sur 92 réponses, 3 fausses, qui étaient toutes des erreurs de saisie de l'enseignant (0 après
-correction). Sujet A non mesuré : faire `bilan` après la première classe.
+correction). Sujet A (supD_2, 28 octobre) : 135 décidées, 11 fausses, toutes sur q7 (espaces) ; 0 sans q7.
 Reprend après arrêt ; `--refaire` relit tout ; `--essai` : réponses en revue d'après la base d'essai.
 """
 from __future__ import annotations
@@ -20,7 +21,7 @@ import json
 import re
 import time
 
-from .correction import SECOND
+from .correction import SECOND, mise_en_forme
 
 MODELE = "qwen3-vl:4b-instruct"
 CONSIGNE = ("Cette image montre la réponse manuscrite d'un étudiant à un examen de Python, écrite sur une ligne. "
@@ -35,6 +36,8 @@ def sur(c, it, brut, lecture):
     if brut is None or not lecture or lecture.strip().lower() in ("(vide)", "vide"):
         return False
     if DECIMAL.search(str(brut)) or DECIMAL.search(lecture):
+        return False
+    if mise_en_forme(it.get("attendu"), brut, lecture):          # espaces : jugés sur la vignette
         return False
     a, b = c.exam.clean(str(brut), it["champ"]), c.exam.clean(lecture, it["champ"])
     return bool(a) and a == b

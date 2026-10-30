@@ -90,6 +90,10 @@ def test_second_lecteur_sur_seulement_si_lecture_identique():
     assert not sur(c, it, "1024", "1029")
     assert not sur(c, it, "2.5", "2.5")              # décimal : toujours en revue
     assert not sur(c, it, "", "(vide)") and not sur(c, it, None, "3")
+    q7 = {"champ": "q7.3", "attendu": "XY"}
+    assert not sur(c, q7, "X Y", "X Y")                # espace : jugé sur la vignette
+    assert not sur(c, {"champ": "q7.1", "attendu": "Bonjour Alice"}, "BonjourAlice", "BonjourAlice")
+    assert sur(c, q7, "XY", "XY")
 
 
 def test_tests_tires_du_corrige():

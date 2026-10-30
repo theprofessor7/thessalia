@@ -8,7 +8,7 @@
 | Niveau | État |
 |---|---|
 | 1. QCM / Vrai-Faux | **Utilisé en vrai** : Booster (314 copies) et BIS notés, 0 erreur silencieuse. |
-| 2. Réponses courtes | **Utilisé en vrai** : TrOCR affiné jusqu'à v3, mémoire des verdicts, séparateur point/virgule, boutons rapides. **Second lecteur local branché le 27** : `second-lecteur` (Qwen3-VL 4B). |
+| 2. Réponses courtes | **Utilisé en vrai** : TrOCR affiné jusqu'à v3, mémoire des verdicts, séparateur point/virgule, boutons rapides. **Second lecteur local branché le 27** : `second-lecteur` (Qwen3-VL 4B). Mesuré sur le sujet A le 28 : 110 réponses en revue sur 327 décidées sans clic, 0 fausse. |
 | 3. Code manuscrit | **Phase en cours.** Notation au barème dans l'outil, utilisée sur le Booster (avec Claude en session). Chaîne locale sans Claude depuis le 27 : `transcrire --local` (8B), `precocher --reparateur qwen3:14b`, `serve`, `code-bilan` ; banc à l'aveugle `serve --banc`. Tests écrits : sujet B ; sujet A, q16 seulement. |
 | 4. Interface et sorties | **Utilisé en vrai** : outil de correction, identification, `verif-noms`, `excel`. |
 
@@ -128,8 +128,7 @@ anciennes décisions, surtout celles de Claude.
 - Refus encore fréquents et pistes possibles, à décider :
   - `print` coupé, concaténation réparée avec `str(` (refusé à juste titre) ;
   - lignes ajoutées par le modèle (refusé à juste titre).
-- Reste à faire : les réponses courtes de supD_2, avec `preparer … --sans-code --essai` (environ 3 h). Ce sera la
-  première mesure du second lecteur sur le sujet A.
+- Réponses courtes de supD_2 : mesurées le 28 octobre, voir « Second lecteur local » plus bas.
 
 **Second lecteur local (27 octobre)** : `python -m thessalia second-lecteur sorties/<classe>`.
 - Qwen3-VL 4B, par Ollama, relit les réponses courtes EN REVUE et écrit `<classe>/lectures_secondaires.json`
@@ -137,7 +136,17 @@ anciennes décisions, surtout celles de Claude.
 - « Sûr » si Qwen lit exactement la première lecture brute de TrOCR, après nettoyage. La réponse est alors
   décidée « deux lecteurs ». Sinon, sa lecture est affichée comme indice.
 - Jamais sûr pour un décimal ni pour une réponse vide.
-- Mesure (BIS, 26 octobre) : 92 accords, 0 faux après correction des erreurs de saisie. Sujet A non mesuré.
+- Mesure (BIS, 26 octobre) : 92 accords, 0 faux après correction des erreurs de saisie.
+- **Mesure sujet A (supD_2, 28 octobre, `preparer --sans-code --essai`)**, contre les décisions de l'enseignant de
+  la base principale :
+  - 327 réponses en revue relues ;
+  - première version : 135 décidées « deux lecteurs », dont 11 fausses, toutes sur q7 (sortie d'un programme).
+    Les deux lecteurs lisaient pareil (« X Y », « Bonjour Alice »), mais sur q7 l'enseignant juge les espaces sur la
+    vignette, et une lecture ne les rend pas fiablement ;
+  - règle ajoutée (`correction.mise_en_forme`) : jamais sûr quand un espace ou un « _ » compte, dans la réponse
+    attendue ou dans une des lectures. La lecture de Qwen reste affichée comme indice ;
+  - après la règle : **110 décidées, 0 fausse**, soit environ un tiers des réponses en revue sans clic (q3 42,
+    q8 36, q10 24, q7 5, q5 2, q14 1). Les 25 perdues sont toutes des q7 avec un espace.
 - Coût : environ 32 s par réponse. Sur supD_2, 327 réponses en revue, soit environ 3 h : à lancer la nuit.
 
 ## 0. Point du 23-26 octobre 2026 (à lire en premier)

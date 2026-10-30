@@ -44,6 +44,14 @@ TRUTH_DIR = Path("data/truth")
 LISTS_DIR = Path("data/listes")
 DB_PATH = Path("data/correction.sqlite")
 SECOND = "lectures_secondaires.json"
+
+
+def mise_en_forme(attendu, *lectures):
+    """Vrai si un espace (ou « _ ») compte dans la réponse : sortie d'un programme (q7). Le verdict se juge alors sur
+    la vignette, jamais sur deux lectures d'accord (mesuré sur supD_2 : 11 erreurs sur 135, toutes de ce type)."""
+    return any(x and re.search(r"[\s_]", str(x).strip()) for x in (attendu, *lectures))
+
+
 SEPARATEUR = "separateur.json"
 ESPACE_SERRE = 0.5    # écart (en hauteurs de lettre) sous lequel « X Y » est proposé « XY » (cf. _espace)
 ALTERNATIVES = 3      # autres lectures proposées en un clic (touches 6, 7, 8)
@@ -328,6 +336,7 @@ class Classe:
                     prop = it["proposition"]
                     v = self.exam.verdict(prop or "", fid)
                     agree = (s2 is not None and s2.get("sur") and prop is not None
+                             and not mise_en_forme(it["attendu"], prop, s2.get("lecture"))
                              and self.exam.verdict(s2.get("lecture", ""), fid) == v)
                     hist = (self.memory.history(self.memory_id(fid), self.name, fid, self.exam.clean(prop, fid))
                             if use_memory and self.memory and prop else None)
