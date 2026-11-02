@@ -63,7 +63,8 @@ def _stroke(img, pts, pen, k):
 def draw_mark(img, box_mm, kind, pen, rng, k):
     x, y, w, h = box_mm
     cx, cy = (x + w / 2) * k, (y + h / 2) * k
-    s = w / 2 * k
+    s = min(w, h) / 2 * k            # cases rectangulaires (grille du numéro) : la marque tient dans la case
+    sx, sy = w / 2 * k, h / 2 * k
     j = lambda: rng.uniform(-0.15, 0.15) * s
     if kind == "cross":
         o = rng.uniform(0.6, 1.15)
@@ -77,7 +78,7 @@ def draw_mark(img, box_mm, kind, pen, rng, k):
         _stroke(img, [(cx - 0.7 * s + j(), cy + j()), (cx - 0.1 * s + j(), cy + 0.7 * s + j()),
                       (cx + 0.9 * s + j(), cy - 1.1 * s + j())], pen, k)
     elif kind == "full":
-        pts = np.array([[cx - s, cy - s], [cx + s, cy - s], [cx + s, cy + s], [cx - s, cy + s]], np.int32)
+        pts = np.array([[cx - sx, cy - sy], [cx + sx, cy - sy], [cx + sx, cy + sy], [cx - sx, cy + sy]], np.int32)
         cv2.fillPoly(img, [pts], pen["color"], cv2.LINE_AA)
     elif kind == "scribble":
         n = rng.randint(5, 8)
@@ -128,6 +129,27 @@ def pick_answers(field, rng, hard):
             elif r < (0.12 if hard else 0.06):
                 marks[o] = "stray"
     return sel, marks
+
+
+def remplir_grille(field, rng, hard):
+    """Numéro écrit dans la grille : (valeur attendue, [(chiffres noircis, marque) par colonne]).
+    Valeur None quand l'étudiant s'est trompé (2 cases dans une colonne, chiffre oublié) : la lecture doit
+    alors partir en revue, jamais donner un numéro."""
+    n = field.get("digits") or len(field["columns"])
+    num = [str(rng.randint(0, 9)) for _ in range(n)]
+    kinds = ["full"] * 6 + ["cross"] * 2 + ["check"] + (["big_cross", "scribble"] if hard else [])
+    marks = [({d}, rng.choice(kinds)) for d in num] + [(set(), None)] * (len(field["columns"]) - n)
+    valeur = "".join(num)
+    r = rng.random()
+    if hard and r < 0.06:                       # deux cases dans une colonne
+        i = rng.randrange(n)
+        autre = str((int(num[i]) + rng.randint(1, 9)) % 10)
+        marks[i] = ({num[i], autre}, marks[i][1])
+        valeur = None
+    elif hard and r < 0.10:                     # chiffre oublié
+        marks[rng.randrange(n)] = (set(), None)
+        valeur = None
+    return valeur, marks
 
 
 # --------------------------------------------------------------------------- scan
@@ -219,6 +241,13 @@ def main(a):
                             draw_mark(img, o["bbox_mm"], marks[o["id"]], pen, rng, k)
                     copy_truth["answers"][f["id"]] = {"selected": sel, "marks": marks,
                                                       "mode": f.get("mode", "single")}
+                elif f["type"] == "digit_grid":
+                    valeur, marks = remplir_grille(f, rng, a.hard)
+                    for col, (d, mk) in zip(f["columns"], marks):
+                        for o in col["options"]:
+                            if o["id"] in d:
+                                draw_mark(img, o["bbox_mm"], mk, pen, rng, k)
+                    copy_truth.setdefault("grilles", {})[f["id"]] = valeur
                 elif f["type"] == "identity":
                     x, y, w, h = f["bbox_mm"]
                     txt = {"identity.nom": rng.choice(NAMES), "identity.prenom": rng.choice(FIRST),

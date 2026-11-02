@@ -14,6 +14,9 @@ Pour chaque case :
 Toute case ambiguë, ou toute question à choix unique avec plusieurs cases,
 passe en statut "review" : c'est ce qui permet de viser 95 %+ de décisions
 automatiques justes tout en envoyant les cas douteux à l'humain.
+
+Grille du numéro étudiant (`digit_grid`) : chaque colonne est lue comme un QCM à choix unique (mêmes
+recalage, seuils, ratures, cases noircies), puis les colonnes sont assemblées (`decide_grid`).
 """
 from __future__ import annotations
 
@@ -102,7 +105,8 @@ def read_page(aligned_img, blank_img, fields, dpi, cfg: OMRConfig | None = None,
     k = px_per_mm(dpi)
     norm_scan = norm_scan if norm_scan is not None else normalize_background(aligned_img, k)
     norm_blank = normalize_background(blank_img, k)
-    omr_fields = [f for f in fields if f["type"] in ("mcq", "truefalse")]
+    grilles = [f for f in fields if f["type"] == "digit_grid"]
+    omr_fields = [f for f in fields if f["type"] in ("mcq", "truefalse")] + [c for g in grilles for c in colonnes(g)]
     # 1) raffinement local de toutes les cases de la page
     locs = {}
     for f in omr_fields:
@@ -188,7 +192,42 @@ def read_page(aligned_img, blank_img, fields, dpi, cfg: OMRConfig | None = None,
                 "box_px": list(inner_s),
             }
         out[f["id"]] = decide(f, opts, cfg)
+    for g in grilles:
+        out[g["id"]] = decide_grid(g, {c["colonne"]: out.pop(c["id"]) for c in colonnes(g)})
     return out
+
+
+def colonnes(grille):
+    """Les colonnes d'une grille de chiffres, comme des QCM à choix unique (une case par chiffre)."""
+    return [{"id": f"{grille['id']}.{c['id']}", "colonne": c["id"], "type": "digit_col", "mode": "single",
+             "options": c["options"]} for c in grille["columns"]]
+
+
+def decide_grid(grille, cols):
+    """Assemble les colonnes lues en numéro. « ok » seulement si chaque colonne est nette, les chiffres sont
+    contigus depuis la 1re colonne et leur nombre est celui attendu (`digits`) ; sinon « review » avec la raison.
+    La valeur garde « ? » à la place d'une colonne douteuse, pour la page de revue."""
+    flags, chiffres, douteux = [], [], False
+    for cid, r in cols.items():
+        if r["status"] == "review":
+            douteux = True
+            chiffres.append("?")
+            flags.append(f"colonne {cid} : " + "; ".join(r["flags"]))
+        else:
+            chiffres.append(r["selected"][0] if r["selected"] else "")
+    remplies = [d != "" for d in chiffres]
+    n = sum(remplies)
+    attendu = grille.get("digits")
+    if not douteux:
+        if n == 0:
+            return {"type": "digit_grid", "value": None, "status": "blank", "flags": ["grille vide"], "columns": cols}
+        premier_vide = remplies.index(False) if False in remplies else len(remplies)
+        if any(remplies[premier_vide:]):
+            flags.append("colonne vide au milieu du numéro")
+        if attendu and n != attendu:
+            flags.append(f"{n} chiffres au lieu de {attendu}")
+    return {"type": "digit_grid", "value": "".join(d for d in chiffres if d) or None,
+            "status": "review" if flags else "ok", "flags": flags, "columns": cols}
 
 
 def decide(field, opts, cfg: OMRConfig):

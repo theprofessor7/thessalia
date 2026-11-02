@@ -24,6 +24,22 @@ Reste, par ordre d'utilité :
 2. le mode d'emploi ;
 3. les tests du sujet A hors q16.
 
+**Midterm Langage Python (examen semaine du 2 novembre 2026) : préparation du scan (30 octobre).**
+- Sujets dans `sujets/midterm_2026/` (hors git, confidentiels) : PDF et fichier de zones `.json` produits par le
+  générateur de l'enseignant. Seule la partie écrite est lue par Thessalia ; la partie numérique est corrigée sur
+  Moodle (CodeRunner). `scans/` ne contient plus que des copies d'élèves.
+- `verif-zones <pdf> <zones.json>` : contrôle le fichier de zones contre le PDF et écrit un rapport Markdown à
+  coller dans le prompt du générateur. Version du 30/10 13 h 48 : 144 zones conformes, repères identiques sur les
+  13 pages. Écarts trouvés en route : valeurs ×4/3, repères en images, positions comptées depuis la marge.
+- `template` : grille du numéro étudiant (`digit_grid`, 8 colonnes, nombre de chiffres lu dans la consigne),
+  cadres « CODE » reconnus comme code ; repères par page corrigés (toutes les pages recevaient ceux de la 1re).
+- Lecture de la grille (`omr.decide_grid`) : chaque colonne lue comme un QCM à choix unique, puis assemblage ;
+  revue si colonne douteuse, deux cases, trou ou mauvais nombre de chiffres. Simulation et `evaluate` la gèrent.
+  Simulation difficile (12 copies, version précédente du sujet) : 0 QCM faux, toutes les pages alignées.
+- **Reste avant l'examen :** mesurer la grille sur copies simulées (lecture coupée deux fois faute de mémoire : à
+  lancer dans le PowerShell de l'enseignant) ; liste des élèves AVEC numéro étudiant (absente : sans elle, la
+  grille ne peut pas désigner l'élève) ; PDF corrigé (réponses remplies) pour la clé.
+
 **Code sans Claude, y compris les tests (27 octobre, choix de l'enseignant : « à partir du corrigé »).**
 - Dans le barème, un champ de code porte `"corrige"` (le programme corrigé). Chaque critère peut porter :
   - `"essais"` : les saisies qui le prouvent ;

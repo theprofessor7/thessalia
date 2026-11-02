@@ -41,6 +41,7 @@ python -m thessalia second-lecteur sorties/<classe>   # réponses courtes : Qwen
 python -m thessalia code-bilan sorties/<classe> [--essai]   # code : chaîne locale contre l'enseignant, quoi améliorer avant la classe suivante
 python -m thessalia bilan NA NB [--dossiers sorties/booster sorties/supA_1_v3]   # après correction : propositions, boutons, v2/v3, mémoire, indices
 python -m thessalia verif-noms sorties/booster sorties/supA_1_v3   # AVANT l'export : nom écrit / élève attribué, copies à risque en tête
+python -m thessalia verif-zones sujets/<examen>/<sujet>.pdf sujets/<examen>/<zones>.json [-o rapport.md]   # fichier de zones d'un générateur contre le PDF : rapport Markdown à coller dans le prompt du générateur
 python -m thessalia excel sorties/booster sorties/supA_1_v3 [-o sorties/notes/notes.xlsx]   # notes finales sur 20, absents, copies à vérifier
 python -m thessalia digits-train sorties/<classe> -v keys/<x>.vocab.json --truth data/truth/<x>.json   # vérité validée
 python -m thessalia trocr-train sorties/<classe> -v keys/<x>.vocab.json --truth data/truth/<x>.json [--also …] [--limit 160]   # long, ~6 Go ; mesurer ensuite avec ocr --model data/models/trocr sur un lot jamais vu
@@ -61,7 +62,11 @@ python -m thessalia simulate -t … -b … -o sim/lot -n 10 --hard && python -m 
 de page · `omr` cases à cocher · `extract` vignettes · `ocr_prep` nettoyage des réponses courtes ·
 `ocr` moteurs · `digits` lecteur de chiffres (nombres) · `vocab` rapprochement · `ocr_run` commande ocr · `truth_page` page de validation de la vérité · `pipeline` orchestration · `report` sorties ·
 `grade` notation QCM · `notes` notes QCM + réponses courtes (règle globale de l'enseignant) · `correction` décisions, mémoire des
-verdicts, étiquettes `appris.json` · `serve` + `web/` outil de correction Flask · `code_tests` pré-cochage du code par exécution (réparation tolérée, contrôle du réparateur) · `preparer` routine de la veille · `second_lecteur` second lecteur local des réponses courtes · `code_bilan` bilan de la chaîne locale du code · `bilan` mesures après correction · `excel` classeur des notes finales (copie datée de l'ancien) · `verif_noms` contrôle des attributions · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
+verdicts, étiquettes `appris.json` · `serve` + `web/` outil de correction Flask · `code_tests` pré-cochage du code par exécution (réparation tolérée, contrôle du réparateur) · `preparer` routine de la veille · `second_lecteur` second lecteur local des réponses courtes · `code_bilan` bilan de la chaîne locale du code · `bilan` mesures après correction · `excel` classeur des notes finales (copie datée de l'ancien) · `verif_noms` contrôle des attributions · `verif_zones` fichier de zones d'un générateur contre le PDF · `simulate`/`evaluate`/`evaluate_ocr` tests et mesures.
+
+Dossiers : `scans/` = copies scannées des élèves seulement ; `sujets/<examen>/` = sujets vierges, fichiers de zones,
+PDF corrigés et rapports `verif-zones` (hors git : confidentiels jusqu'à l'examen) ; `templates/` = gabarits Thessalia
+(et PDF des anciens sujets, laissés là).
 
 ## Pièges connus
 

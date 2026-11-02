@@ -5,6 +5,8 @@ out/
 *.pdf
 !templates/*.pdf
 crops/
+# sujets d'examen (PDF, zones, corrigés) : confidentiels jusqu'à l'examen
+sujets/
 # vérités terrain transcrites depuis des copies réelles (réponses d'étudiants, anonymisées mais personnelles)
 data/truth/*
 # modèles affinés localement sur des copies réelles ; le modèle partagé est thessalia/data/digits_affine.npz

@@ -9,8 +9,11 @@ Règles de reconnaissance (adaptées au template v3) :
     fiducial     rectangle plein sombre ~5x5 mm près d'un coin
     case         bordure sombre (4 côtés) carrée de 2,5 à 6 mm
     blanc        bordure sombre inférieure seule (border-bottom), largeur >= 10 mm
-    cadre        bordure sombre (4 côtés), >= 40 x 12 mm ; libellé "PROGRAMME"/"PROGRAM"
+    cadre        bordure sombre (4 côtés), >= 40 x 12 mm ; libellé "PROGRAMME"/"PROGRAM"/"CODE"
                  -> code_grid, sinon text_box
+    grille       au moins 20 cellules bordées identiques hors question, en lignes et colonnes, une ligne
+                 (ou une colonne) par chiffre 0-9 -> digit_grid (numéro étudiant, style AMC) ; le nombre
+                 de chiffres attendus est lu dans la consigne (« les 7 chiffres »)
     identité     soulignement gris dans le tableau de la page 1
     question     span "Question N" (+ barème "1,00 pt" sur la même ligne)
 
@@ -58,7 +61,7 @@ def _xywh(b):
 
 def _classify_drawings(page):
     """Retourne les primitives utiles d'une page (coordonnées en mm, x0,y0,x1,y1)."""
-    fid, boxes, blanks, frames, idlines = [], [], [], [], []
+    fid, boxes, blanks, frames, idlines, cells = [], [], [], [], [], []
     pw, ph = page.rect.width * MM_PER_PT, page.rect.height * MM_PER_PT
     seen = set()
     for g in page.get_drawings():
@@ -89,11 +92,69 @@ def _classify_drawings(page):
         if all(sides) and lum < 0.35:
             if 2.5 <= w <= 6.5 and 2.5 <= h <= 6.5 and abs(w - h) < 0.6:
                 boxes.append({"outer": o, "inner": i})
+            elif 3 <= w <= 10 and 3 <= h <= 10:
+                cells.append({"outer": o, "inner": i})
             elif w >= 40 and h >= 12:
                 frames.append({"outer": o, "inner": i})
         elif sides == [False, False, True, False] and w >= 10 and h <= 9:
             (blanks if lum < 0.35 else idlines if lum < 0.75 else []).append(o)
-    return fid, boxes, blanks, frames, idlines
+    return fid, boxes, blanks, frames, idlines, cells
+
+
+def _digit_grids(cells, words, text):
+    """Grilles de chiffres (numéro étudiant) parmi les cellules hors question : {"columns": [{"id", "options"}]}.
+    Une grille = au moins 20 cellules de même taille en R lignes x C colonnes complètes, chiffres 0-9 écrits à
+    gauche des lignes (une colonne par position) ou au-dessus des colonnes (une ligne par position)."""
+    groups = {}
+    for c in cells:
+        o = c["outer"]
+        groups.setdefault((round(o[2] - o[0], 1), round(o[3] - o[1], 1)), []).append(c)
+    m = re.search(r"(\d+)\s+(?:chiffres|digits)", text, re.I)
+    digits = int(m.group(1)) if m else None
+    out = []
+    for cs in groups.values():
+        if len(cs) < 20:
+            continue
+        rows = []
+        for c in sorted(cs, key=lambda c: (_cy(c["outer"]), c["outer"][0])):
+            if rows and abs(_cy(rows[-1][0]["outer"]) - _cy(c["outer"])) < 1.0:
+                rows[-1].append(c)
+            else:
+                rows.append([c])
+        if len({len(r) for r in rows}) != 1:
+            continue
+        for r in rows:
+            r.sort(key=lambda c: c["outer"][0])
+
+        def label_left(c):
+            o = c["outer"]
+            cand = [w for w in words if w["bbox"][2] <= o[0] + 0.5 and o[0] - w["bbox"][2] < 6
+                    and abs(_cy(w["bbox"]) - _cy(o)) < 1.5]
+            return cand[-1]["text"] if cand else ""
+
+        def label_above(c):
+            o = c["outer"]
+            cx = (o[0] + o[2]) / 2
+            cand = [w for w in words if w["bbox"][3] <= o[1] + 0.5 and o[1] - w["bbox"][3] < 6
+                    and abs((w["bbox"][0] + w["bbox"][2]) / 2 - cx) < 3]
+            return cand[-1]["text"] if cand else ""
+
+        def opt(c, d):
+            return {"id": d, "label": d, "bbox_mm": _xywh(c["outer"]), "inner_mm": _xywh(c["inner"])}
+        chiffres = [str(d) for d in range(10)]
+        if len(rows) == 10 and [label_left(r[0]) for r in rows] == chiffres:        # lignes = chiffres
+            cols = [{"id": label_above(rows[0][j]) or f"C{j + 1}",
+                     "options": [opt(rows[d][j], str(d)) for d in range(10)]} for j in range(len(rows[0]))]
+        elif len(rows[0]) == 10 and [label_above(c) for c in rows[0]] == chiffres:  # colonnes = chiffres
+            cols = [{"id": label_left(r[0]) or f"C{i + 1}", "options": [opt(c, str(d)) for d, c in enumerate(r)]}
+                    for i, r in enumerate(rows)]
+        else:
+            continue
+        box = [min(c["outer"][0] for c in cs), min(c["outer"][1] for c in cs),
+               max(c["outer"][2] for c in cs), max(c["outer"][3] for c in cs)]
+        out.append({"columns": cols, "digits": digits if digits and digits <= len(cols) else None,
+                    "bbox_mm": _xywh(box)})
+    return out
 
 
 def _spans(page):
@@ -149,7 +210,7 @@ def build_template(pdf_path, exam_id=None) -> dict:
     headers = []  # (page, y, qnum, points, exercise)
     current_ex = None
     for pno, page in enumerate(doc, start=1):
-        fid, boxes, blanks, frames, idlines = _classify_drawings(page)
+        fid, boxes, blanks, frames, idlines, cells = _classify_drawings(page)
         spans, words = _spans(page), _words(page)
         for s in spans:
             m = RE_EXERCISE.match(s["text"])
@@ -164,8 +225,9 @@ def build_template(pdf_path, exam_id=None) -> dict:
                         pts = float(mp.group(1).replace(",", "."))
                 headers.append({"page": pno, "y": s["bbox"][1], "num": int(m.group(1)),
                                 "points": pts, "exercise": current_ex})
-        pages.append({"page": pno, "fid": fid, "boxes": boxes, "blanks": blanks,
-                      "frames": frames, "idlines": idlines, "spans": spans, "words": words})
+        pages.append({"page": pno, "fid": fid, "boxes": boxes, "blanks": blanks, "cells": cells,
+                      "frames": frames, "idlines": idlines, "spans": spans, "words": words,
+                      "text": page.get_text()})
 
     def question_of(pno, y):
         best = None
@@ -182,7 +244,7 @@ def build_template(pdf_path, exam_id=None) -> dict:
                        key=lambda t: (t[1], t[0]))
             tl, tr = sorted(c[:2]); bl, br = sorted(c[2:])
             size = round(p["fid"][0][2] - p["fid"][0][0], 2)
-            fid_sets.append({"tl": tl, "tr": tr, "br": br, "bl": bl, "size": size})
+            fid_sets.append({"tl": tl, "tr": tr, "br": br, "bl": bl, "size": size, "page": p["page"]})
     if not fid_sets:
         raise ValueError("Aucune page avec 4 fiducials détectés dans le PDF.")
     fid0 = fid_sets[0]
@@ -218,6 +280,12 @@ def build_template(pdf_path, exam_id=None) -> dict:
             box = [ln[0] - 3, ln[1] - 9, ln[2] + 3, ln[3] + 1.5]
             fields_by_page[pno].append({"id": fid_, "type": "identity", "page": pno,
                                         "label": label.rstrip(" :"), "bbox_mm": _xywh(box)})
+
+        # -- grille du numéro étudiant (hors question)
+        libres = [c for c in p["cells"] + p["boxes"] if question_of(pno, c["outer"][1]) is None]
+        for gi, g in enumerate(_digit_grids(libres, words, p["text"])):
+            fields_by_page[pno].append({"id": "identity.grille" + (f"{gi + 1}" if gi else ""), "type": "digit_grid",
+                                        "page": pno, "label": "numéro étudiant (grille)", **g})
 
         # -- cases à cocher, regroupées par question puis par ligne
         by_q = {}
@@ -291,7 +359,7 @@ def build_template(pdf_path, exam_id=None) -> dict:
             inside = [s for s in p["spans"] if o[0] <= s["bbox"][0] and s["bbox"][2] <= o[2]
                       and o[1] <= s["bbox"][1] and s["bbox"][3] <= min(o[3], o[1] + 12)]
             label = " ".join(s["text"] for s in inside if s["text"].isupper() or s["text"][:1].isupper()).strip()
-            is_code = bool(re.search(r"PROGRAM", label, re.I))
+            is_code = bool(re.search(r"PROGRAM|\bCODE\b", label, re.I))
             q["fields"].append({"id": None, "type": "code_grid" if is_code else "text_box",
                                 "page": pno, "label": label, "bbox_mm": _xywh(fr["inner"]),
                                 **({"grid_mm": 5.0} if is_code else {})})
@@ -343,7 +411,9 @@ def build_template(pdf_path, exam_id=None) -> dict:
                     flds.append({**f, "question": q["num"]})
         entry = {"page": p["page"], "fields": flds}
         if per_page_fid:
-            entry["fiducials_mm"] = next((f for f in fid_sets), fid0)
+            # repères de CETTE page (avant : ceux de la 1re page pour toutes, faux si la page 1 diffère)
+            f = next((f for f in fid_sets if f["page"] == p["page"]), fid0)
+            entry["fiducials_mm"] = {k: f[k] for k in ("tl", "tr", "br", "bl")}
         tpl_pages.append(entry)
 
     return {

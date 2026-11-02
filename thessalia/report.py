@@ -33,6 +33,18 @@ def draw_overlay(aligned_img, fields, omr_page, dpi, path: Path, scale=0.6):
                 x0, y0, *_ = mm_rect_to_px(f["options"][0]["bbox_mm"], dpi)
                 cv2.putText(vis, "A REVOIR", (max(0, x0 - 10), max(12, y0 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                             COLORS["ambiguous"], 1, cv2.LINE_AA)
+        elif f["type"] == "digit_grid":
+            res = omr_page.get(f["id"])
+            for col in (res or {}).get("columns", {}).values():
+                for o in col["options"].values():
+                    x0, y0, x1, y1 = o["box_px"]
+                    c = COLORS[o["state"]]
+                    cv2.rectangle(vis, (x0 - 3, y0 - 3), (x1 + 3, y1 + 3), c, 2 if o["state"] != "empty" else 1)
+            if res:
+                x0, y0, *_ = mm_rect_to_px(f["bbox_mm"], dpi)
+                txt = f"n° {res.get('value') or '-'}" + ("  A REVOIR" if res["status"] == "review" else "")
+                cv2.putText(vis, txt, (max(0, x0), max(12, y0 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                            COLORS["ambiguous" if res["status"] == "review" else "checked"], 1, cv2.LINE_AA)
         elif "bbox_mm" in f:
             x0, y0, x1, y1 = mm_rect_to_px(f["bbox_mm"], dpi, pad_mm=1.0)
             cv2.rectangle(vis, (x0, y0), (x1, y1), (200, 120, 0), 1)

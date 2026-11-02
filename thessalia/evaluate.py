@@ -73,4 +73,29 @@ def main(results_dir, truth_path):
                                           if mark_stats[(kd, s)]))
     for e in errors[:20]:
         print("  ERREUR", *e)
+    _grilles(truth, res_dir)
     return q_stats
+
+
+def _grilles(truth, res_dir):
+    """Grille du numéro étudiant : numéro lu seul et juste, ou en revue ; jamais un numéro faux sans revue
+    (il attribuerait la copie à un autre élève). Vérité None = grille mal remplie, la revue est attendue."""
+    st, fautes = Counter(), []
+    for ct in truth["copies"]:
+        rp = res_dir / ct["copy_id"] / "result.json"
+        if not ct.get("grilles") or not rp.exists():
+            continue
+        r = load_json(rp)
+        for fid, attendu in ct["grilles"].items():
+            got = r["answers"].get(fid) or {}
+            if got.get("status") != "ok":
+                st["revue (attendue)" if attendu is None else "revue"] += 1
+            elif got.get("value") == attendu:
+                st["lu juste"] += 1
+            else:
+                st["FAUX"] += 1
+                fautes.append((ct["copy_id"], attendu, got.get("value")))
+    if st:
+        print(f"Grille du numéro : {sum(st.values())} copies : " + ", ".join(f"{k} {v}" for k, v in st.items()))
+        for f in fautes:
+            print("  NUMÉRO FAUX", *f)

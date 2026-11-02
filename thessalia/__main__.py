@@ -10,6 +10,7 @@
     serve      outil de correction local (navigateur) : vue par question, vue par copie, notes en direct
     identite   proposer l'élève de chaque copie (vignettes Nom/Prénom + liste), à confirmer dans l'outil
     verif-noms page de contrôle des attributions : nom écrit / élève attribué, copies à risque en tête
+    verif-zones contrôle d'un fichier de zones (généré avec le sujet) contre le PDF : rapport à coller
     precocher  code : pré-cocher les critères en exécutant le code transcrit (tests du sujet, local)
     transcrire lire le code manuscrit : --local (Ollama, gratuit) ou service en ligne (clé, plafond de dépense)
     preparer   la veille de la correction : code transcrit + pré-coché, réponses courtes relues (local, une nuit)
@@ -168,6 +169,12 @@ def main(argv=None):
     vn.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     vn.add_argument("-o", "--sortie", default="sorties/notes/verif_identites.html")
 
+    vz = sub.add_parser("verif-zones", help="contrôle d'un fichier de zones (.json du générateur) contre le PDF du sujet")
+    vz.add_argument("pdf", help="PDF vierge du sujet")
+    vz.add_argument("zones", help="fichier de zones .json")
+    vz.add_argument("-o", "--sortie", help="écrire le rapport (Markdown) dans ce fichier au lieu de l'afficher")
+    vz.add_argument("--tolerance", type=float, default=0.3, help="écart toléré en mm (défaut 0,3)")
+
     sp = sub.add_parser("separateur", help="Niveau 2 : mesurer / apprendre le détecteur point ou virgule")
     sp.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     sp.add_argument("--kind", action="append", choices=("image", "lecteur", "image+lecteur"),
@@ -286,6 +293,9 @@ def main(argv=None):
         except ValueError as e:
             print(f"ERREUR : {e}")
             return 1
+    elif a.cmd == "verif-zones":
+        from .verif_zones import run as vzrun
+        return vzrun(a.pdf, a.zones, a.sortie, a.tolerance)
     elif a.cmd == "separateur":
         from .separateur import KINDS, Separateur, class_dirs, run as seprun, write_indices
 
