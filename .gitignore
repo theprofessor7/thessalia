@@ -7,6 +7,9 @@ out/
 crops/
 # sujets d'examen (PDF, zones, corrigés) : confidentiels jusqu'à l'examen
 sujets/
+# Midterm de novembre 2026 : gabarits, corrigés et barème contiennent le sujet -> hors dépôt jusqu'à l'examen
+templates/midterm_2026_*
+keys/midterm_2026*
 # vérités terrain transcrites depuis des copies réelles (réponses d'étudiants, anonymisées mais personnelles)
 data/truth/*
 # modèles affinés localement sur des copies réelles ; le modèle partagé est thessalia/data/digits_affine.npz

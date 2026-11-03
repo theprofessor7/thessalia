@@ -38,7 +38,7 @@ from pathlib import Path
 from .common import load_json
 from .grade import grade_copy
 from .vocab import other_separator
-from .notes import ATTENTE, FAUX, FORME, ILLISIBLE, JUSTE, RATE, VIDE, judge
+from .notes import ATTENTE, FAUX, FORME, ILLISIBLE, JUSTE, PARTIEL, RATE, VIDE, judge, points_partiels
 
 TRUTH_DIR = Path("data/truth")
 LISTS_DIR = Path("data/listes")
@@ -55,7 +55,7 @@ def mise_en_forme(attendu, *lectures):
 SEPARATEUR = "separateur.json"
 ESPACE_SERRE = 0.5    # écart (en hauteurs de lettre) sous lequel « X Y » est proposé « XY » (cf. _espace)
 ALTERNATIVES = 3      # autres lectures proposées en un clic (touches 6, 7, 8)
-VERDICTS = (JUSTE, FORME, FAUX, VIDE, ILLISIBLE)
+VERDICTS = (JUSTE, FORME, FAUX, VIDE, ILLISIBLE, PARTIEL)
 MEMORY_MIN = 10       # jugements des autres classes nécessaires pour décider seul
 MEMORY_SHARE = 0.95   # part minimale du verdict majoritaire (choix de l'enseignant, 19 octobre)
 SUGGEST_MIN = 3       # jugements nécessaires pour pré-sélectionner son verdict le plus fréquent
@@ -179,6 +179,7 @@ class Exam:
             if f["id"] in expected:
                 ex.points[f["id"]] = (by_q.get(f["question"], {}).get("points") or 0) / count[f["question"]]
                 ex.prompts[f["id"]] = f.get("prompt") or ""
+        ex.points.update(points_champs(ex.key, ex.template))
         ex.fields = {f["id"]: f for p in ex.template["pages"] for f in p["fields"]}
         # barème du code : celui du sujet, sinon celui du sujet dont il est la traduction exacte
         for eid in (exam_id, ex.key.get("traduction_de")):
@@ -201,7 +202,14 @@ class Exam:
             return None
         k = self.key.get("short_answers", {})
         return judge(answer, k[fid], self.kind(fid), self.key.get("short_accept", {}).get(fid, ()),
-                     self.key.get("short_reject", {}).get(fid, ()))
+                     self.key.get("short_reject", {}).get(fid, ()), self.key.get("short_forme", {}).get(fid, ()),
+                     self.key.get("short_partiel", {}).get(fid))
+
+    def points_verdict(self, verdict, answer, fid, pts):
+        """Points d'un verdict ; « partiel » : ceux que le corrigé prévoit pour cette réponse précise."""
+        if verdict == PARTIEL:
+            return points_partiels(answer, self.kind(fid), self.key.get("short_partiel", {}).get(fid))
+        return pts * RATE.get(verdict, 0.0)
 
 
 def _bareme(exam_id, keys_dir="keys"):
@@ -210,6 +218,25 @@ def _bareme(exam_id, keys_dir="keys"):
         if b.get("exam_id") == exam_id:
             return b
     return None
+
+
+def points_champs(key, template):
+    """Points par blanc fixés par le corrigé (`points_champs`, ex. q5 = 0,50 liste + 0,25 len) au lieu du partage
+    égal ; refusé si la somme ne fait pas les points de la question (sinon notes fausses en silence)."""
+    pc = key.get("points_champs", {})
+    if not pc:
+        return {}
+    by_q = {q["num"]: q.get("points") or 0 for q in template["questions"]}
+    champs = {f["id"]: f for p in template["pages"] for f in p["fields"] if f["type"] == "short_text"}
+    for fid in pc:
+        if fid not in champs:
+            raise SystemExit(f"Corrigé, points_champs : champ inconnu du gabarit « {fid} ».")
+    for q in {champs[f]["question"] for f in pc}:
+        ids = [f for f, c in champs.items() if c["question"] == q]
+        if any(f not in pc for f in ids) or abs(sum(pc[f] for f in ids) - by_q.get(q, 0)) > 1e-9:
+            raise SystemExit(f"Corrigé, points_champs : q{q} doit donner des points à {', '.join(ids)} "
+                             f"pour un total de {by_q.get(q)} pt.")
+    return dict(pc)
 
 
 def _verifier_bareme(b, template):
@@ -353,7 +380,8 @@ class Classe:
                         it.update(verdict=v, origine="proposé", decide=False)
                     it["second"] = None if s2 is None else s2.get("lecture")
                 it["alternatives"] = self._alternatives(it, o, fid) if st and st != "blank" else []
-                it["points"] = None if it["verdict"] is None else pts * RATE.get(it["verdict"], 0.0)
+                lu = it["texte"] if it["texte"] is not None else it["proposition"]
+                it["points"] = None if it["verdict"] is None else self.exam.points_verdict(it["verdict"], lu, fid, pts)
                 items.append(it)
         return items
 

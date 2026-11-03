@@ -462,7 +462,8 @@ def charger_tests(exam_id, keys_dir="keys", variante=None):
         spec = importlib.util.spec_from_file_location(f"tests_{p.stem.replace('.', '_')}", p)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        if getattr(mod, "EXAM_ID", None) == exam_id:
+        eid = getattr(mod, "EXAM_ID", None)    # un id, ou plusieurs (sujet et ses traductions)
+        if exam_id == eid or (isinstance(eid, (tuple, list)) and exam_id in eid):
             python = getattr(mod, f"TESTS_{variante.upper()}") if variante else mod.TESTS
             break
     if variante:

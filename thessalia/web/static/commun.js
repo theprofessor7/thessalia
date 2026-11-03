@@ -1,6 +1,6 @@
 "use strict";
 // Fonctions communes aux vues par question et par copie.
-const LIBELLE = {juste: "✓ juste", forme: "½ forme", faux: "✗ faux", vide: "∅ vide", illisible: "? illisible"};
+const LIBELLE = {juste: "✓ juste", forme: "½ forme", faux: "✗ faux", vide: "∅ vide", illisible: "? illisible", partiel: "◐ partiel (corrigé)"};
 const TOUCHE = {"1": "juste", "2": "forme", "3": "faux", "4": "vide", "5": "illisible"};
 
 function el(tag, props, ...kids) {

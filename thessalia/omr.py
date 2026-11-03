@@ -41,7 +41,9 @@ class OMRConfig:
     rature_min_fill: float = 0.55  # ... à partir de ce taux d'encre (une croix déborde aussi un peu)
     core_min: float = 0.02         # case "cochée" sans encre au centre : bordure redessinée -> revue
     full_policy: str = "auto"      # "auto" | "checked" | "cancelled" | "review"
+    inset_grille_mm: float = 1.0   # même marge pour une case de grille de chiffres (cases collées)
     search_mm: float = 2.0         # rayon de recherche du raffinement local
+    search_grille_mm: float = 1.0  # … pour une case de grille, autour du recalage de sa colonne
     max_dev_mm: float = 0.8        # écart max à la prédiction des cases voisines
     min_match: float = 0.45        # score mini du template matching
     trust_match: float = 0.75      # au-dessus : recalage local toujours retenu
@@ -59,14 +61,15 @@ def _ink_ratio(norm, box, level):
     return float((roi < level).mean())
 
 
-def _locate(norm_scan, norm_blank, outer_px, k, cfg):
+def _locate(norm_scan, norm_blank, outer_px, k, cfg, search_mm=None, offset=(0, 0)):
     """Retourne (dx, dy, score) du meilleur recalage de la case vierge dans le scan."""
     m = int(round(0.8 * k))
-    s = int(round(cfg.search_mm * k))
+    s = int(round((search_mm or cfg.search_mm) * k))
     x0, y0, x1, y1 = outer_px
+    ox, oy = int(round(offset[0])), int(round(offset[1]))   # recherche centrée sur un décalage déjà connu
     H, W = norm_scan.shape
     tx0, ty0, tx1, ty1 = x0 - m, y0 - m, x1 + m, y1 + m
-    sx0, sy0, sx1, sy1 = tx0 - s, ty0 - s, tx1 + s, ty1 + s
+    sx0, sy0, sx1, sy1 = tx0 - s + ox, ty0 - s + oy, tx1 + s + ox, ty1 + s + oy
     if sx0 < 0 or sy0 < 0 or sx1 > W or sy1 > H:
         return 0, 0, 0.0
     tpl = norm_blank[ty0:ty1, tx0:tx1]
@@ -75,7 +78,7 @@ def _locate(norm_scan, norm_blank, outer_px, k, cfg):
         return 0, 0, 0.0
     res = cv2.matchTemplate(roi, tpl, cv2.TM_CCOEFF_NORMED)
     _, mx, _, loc = cv2.minMaxLoc(res)
-    return loc[0] - s, loc[1] - s, float(mx)
+    return loc[0] - s + ox, loc[1] - s + oy, float(mx)
 
 
 def _ring_ratio(norm, outer, dx, dy, k, level, r_in_mm=0.4, r_out_mm=2.5):
@@ -110,9 +113,21 @@ def read_page(aligned_img, blank_img, fields, dpi, cfg: OMRConfig | None = None,
     # 1) raffinement local de toutes les cases de la page
     locs = {}
     for f in omr_fields:
+        colonne = (0, 0)
+        if f["type"] == "digit_col":
+            # grille : motif régulier (une case tous les 4,8 mm), une case seule peut se recaler sur sa voisine
+            # à une demi-case près. On recale d'abord la colonne entière (ses deux bouts sont uniques), puis
+            # chaque case tout près de là (simulation Midterm, 2 novembre 2026)
+            bb = [mm_rect_to_px(o["bbox_mm"], dpi) for o in f["options"]]
+            col = (min(b[0] for b in bb), min(b[1] for b in bb), max(b[2] for b in bb), max(b[3] for b in bb))
+            cdx, cdy, csc = _locate(norm_scan, norm_blank, col, k, cfg)
+            colonne = (cdx, cdy) if csc >= cfg.min_match else (0, 0)
         for o in f["options"]:
             outer = mm_rect_to_px(o["bbox_mm"], dpi)
-            dx, dy, sc = _locate(norm_scan, norm_blank, outer, k, cfg)
+            if f["type"] == "digit_col":
+                dx, dy, sc = _locate(norm_scan, norm_blank, outer, k, cfg, cfg.search_grille_mm, colonne)
+            else:
+                dx, dy, sc = _locate(norm_scan, norm_blank, outer, k, cfg)
             cx, cy = (outer[0] + outer[2]) / 2, (outer[1] + outer[3]) / 2
             locs[(f["id"], o["id"])] = (dx, dy, sc, cx, cy)
     # 2) champ de déformation lisse : moyenne pondérée (gaussienne, 25 mm) des
@@ -144,7 +159,10 @@ def read_page(aligned_img, blank_img, fields, dpi, cfg: OMRConfig | None = None,
                     dx, dy = pred
                     used = "voisins"
             dx, dy = int(round(dx)), int(round(dy))
-            inner = mm_rect_to_px(o["inner_mm"], dpi, pad_mm=-cfg.inset_mm)
+            # grille : cases collées, chaque trait est partagé avec la voisine ; un pixel de décalage met du trait
+            # dans la mesure -> marge plus large (mesuré sur la simulation Midterm, 2 novembre 2026)
+            inset = max(cfg.inset_mm, cfg.inset_grille_mm) if f["type"] == "digit_col" else cfg.inset_mm
+            inner = mm_rect_to_px(o["inner_mm"], dpi, pad_mm=-inset)
             inner_s = (inner[0] + dx, inner[1] + dy, inner[2] + dx, inner[3] + dy)
             fill = _ink_ratio(norm_scan, inner_s, cfg.ink_level) - _ink_ratio(norm_blank, inner, cfg.ink_level)
             fill = max(0.0, fill)
@@ -166,8 +184,11 @@ def read_page(aligned_img, blank_img, fields, dpi, cfg: OMRConfig | None = None,
             border_only = state == "checked" and core < cfg.core_min
             if border_only:
                 state = "ambiguous"
-            if state in ("checked", "full") and fill >= cfg.rature_min_fill and halo >= cfg.halo_rature:
-                state = "ambiguous"  # rature probable : à trancher par un humain
+            # rature probable : à trancher par un humain. Pas dans une grille : les cases s'y touchent, l'anneau
+            # mesure les cases voisines ; une rature y coche deux chiffres d'une colonne -> revue quand même
+            if (state in ("checked", "full") and fill >= cfg.rature_min_fill and halo >= cfg.halo_rature
+                    and f["type"] != "digit_col"):
+                state = "ambiguous"
             if state == "empty" and faint >= cfg.faint_min:
                 state = "ambiguous"  # trace claire : crayon, gomme, encre pâle
             # une case vide ressemble à la case vierge (recalage >= 0,77 mesuré) : « vide » sans

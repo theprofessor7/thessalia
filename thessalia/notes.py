@@ -18,9 +18,12 @@ Règle globale de l'enseignant (18 octobre 2026), comparaison au corrigé (`shor
   faux         tout le reste, dont « 2,5 » pour « 2.5 » (virgule décimale) : 0
   vide         zone vide : 0
   en attente   pas encore validée : pas de points, la note est marquée incomplète
-Exceptions possibles dans le corrigé (`short_accept` / `short_reject` par champ), non utilisées à ce jour.
+Exceptions possibles dans le corrigé, par champ : `short_accept` (juste), `short_reject` (faux), `short_forme`
+(écart de forme, ex. guillemets autour de ce qu'affiche un print), `short_partiel` ({réponse: points}, ex. Midterm
+q9 `{prix}` seul = 0,25 sur 0,75 : statut « partiel », points tirés du corrigé).
 
-Points d'une question répartis également entre ses blancs (q2 = 0,75 pt -> 6 x 0,125), comme pour les QCM.
+Points d'une question répartis également entre ses blancs (q2 = 0,75 pt -> 6 x 0,125), comme pour les QCM,
+sauf répartition fixée par le corrigé (`points_champs`, Midterm q5 et q9).
 Note QCM reprise de `results.json` (questions en revue = en attente).
 Identité : `data/listes/<dossier>.csv` (colonnes copie;etudiant), sinon le numéro de copie.
 """
@@ -46,6 +49,7 @@ EQUIV_GROUPS = [{"erreur", "error"}]
 EQUIV_ONE_WAY = {("zero", "zéro")}
 
 JUSTE, FORME, FAUX, VIDE, ATTENTE = "juste", "forme", "faux", "vide", "en attente"
+PARTIEL = "partiel"  # points partiels prévus par le corrigé pour CETTE réponse (`short_partiel`)
 ILLISIBLE = "illisible"  # décision de l'enseignant seulement (rare) : 0 point, distinct dans le suivi
 RATE = {JUSTE: 1.0, FORME: 0.5, FAUX: 0.0, VIDE: 0.0, ILLISIBLE: 0.0}  # règle globale de l'enseignant
 
@@ -63,7 +67,7 @@ def _equiv(a: str, b: str) -> bool:
     return any(a in g and b in g for g in EQUIV_GROUPS) or (a, b) in EQUIV_ONE_WAY
 
 
-def judge(answer, expected: str, kind: str, accept=(), reject=()) -> str:
+def judge(answer, expected: str, kind: str, accept=(), reject=(), forme=(), partiel=None) -> str:
     """Statut d'une réponse courte face au corrigé (voir l'en-tête du module)."""
     if answer is None:
         return ATTENTE
@@ -74,6 +78,10 @@ def judge(answer, expected: str, kind: str, accept=(), reject=()) -> str:
         return JUSTE
     if a in {clean(x, kind) for x in reject}:
         return FAUX
+    if a in {clean(x, kind) for x in forme}:
+        return FORME
+    if a in {clean(x, kind) for x in (partiel or {})}:
+        return PARTIEL
     if kind == "text":
         return FAUX  # q7 : affichage exact demandé, la casse et les espaces font partie de la réponse
     if kind == "number":
@@ -93,6 +101,12 @@ def judge(answer, expected: str, kind: str, accept=(), reject=()) -> str:
     if kind == "enum" and call and call.group(1).casefold() == e.casefold():
         return FORME
     return FAUX
+
+
+def points_partiels(answer, kind, partiel) -> float:
+    """Points prévus par le corrigé pour cette réponse (`short_partiel`), 0 si elle n'y est pas."""
+    a = clean(answer or "", kind)
+    return next((float(p) for x, p in (partiel or {}).items() if clean(x, kind) == a), 0.0)
 
 
 def _fmt(x) -> str:
@@ -151,8 +165,10 @@ def grade_class(results_dir, template: dict, key: dict, vocab: dict, truth_dir=T
     students = _students(name, Path(lists_dir))
     expected = key.get("short_answers", {})
     accept, reject = key.get("short_accept", {}), key.get("short_reject", {})
+    forme, partiel = key.get("short_forme", {}), key.get("short_partiel", {})
     kinds = {k: v.get("kind", "enum") for k, v in vocab.get("fields", {}).items()}
-    pts = {f: p for f, p in _short_fields(template).items() if f in expected}
+    from .correction import points_champs
+    pts = {f: p for f, p in {**_short_fields(template), **points_champs(key, template)}.items() if f in expected}
 
     rows, details = [], []
     qcm_path = Path(truth_dir) / f"{name}.qcm_truth.json"
@@ -175,8 +191,11 @@ def grade_class(results_dir, template: dict, key: dict, vocab: dict, truth_dir=T
                 ans, src = readings.get(cid, {}).get(fid), "lecture"
                 if cid not in readings:
                     src = "non lue"
-            st = judge(ans, expected[fid], kinds.get(fid, "enum"), accept.get(fid, ()), reject.get(fid, ()))
-            got = None if st == ATTENTE else p * RATE[st]
+            kd = kinds.get(fid, "enum")
+            st = judge(ans, expected[fid], kd, accept.get(fid, ()), reject.get(fid, ()), forme.get(fid, ()),
+                       partiel.get(fid))
+            got = (None if st == ATTENTE else points_partiels(ans, kd, partiel.get(fid)) if st == PARTIEL
+                   else p * RATE[st])
             short += got or 0.0
             counts[st] += 1
             details.append({"copie": cid, "champ": fid, "reponse": "" if ans is None else ans,
