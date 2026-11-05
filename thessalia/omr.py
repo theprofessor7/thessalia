@@ -43,7 +43,10 @@ class OMRConfig:
     full_policy: str = "auto"      # "auto" | "checked" | "cancelled" | "review"
     inset_grille_mm: float = 1.0   # même marge pour une case de grille de chiffres (cases collées)
     search_mm: float = 2.0         # rayon de recherche du raffinement local
-    search_grille_mm: float = 1.0  # … pour une case de grille, autour du recalage de sa colonne
+    search_grille_mm: float = 1.0  # … pour une colonne de grille autour de la grille, une case autour de sa colonne
+    search_grille_page_mm: float = 5.0  # … pour la grille entière (décalage de 2,5 mm vu en simulation difficile)
+    marge_grille_mm: float = 5.0   # contexte autour de la grille (en-têtes C1…, chiffres 0-9) : la rend unique
+    accord_grille: float = 0.35    # haut, bas et grille entière d'accord à cette part de case près, sinon revue
     max_dev_mm: float = 0.8        # écart max à la prédiction des cases voisines
     min_match: float = 0.45        # score mini du template matching
     trust_match: float = 0.75      # au-dessus : recalage local toujours retenu
@@ -111,17 +114,19 @@ def read_page(aligned_img, blank_img, fields, dpi, cfg: OMRConfig | None = None,
     grilles = [f for f in fields if f["type"] == "digit_grid"]
     omr_fields = [f for f in fields if f["type"] in ("mcq", "truefalse")] + [c for g in grilles for c in colonnes(g)]
     # 1) raffinement local de toutes les cases de la page
+    # grille : motif régulier (une case tous les 4,8 mm), une case ou une colonne se recale aussi bien sur sa
+    # voisine -> chiffre faux. On recale d'abord la grille entière avec ses en-têtes, puis chaque colonne, puis
+    # chaque case, tout près à chaque fois (simulation Midterm, 2 et 5 novembre 2026)
+    recal = {g["id"]: recaler_grille(norm_scan, norm_blank, g, dpi, cfg) for g in grilles}
     locs = {}
     for f in omr_fields:
         colonne = (0, 0)
         if f["type"] == "digit_col":
-            # grille : motif régulier (une case tous les 4,8 mm), une case seule peut se recaler sur sa voisine
-            # à une demi-case près. On recale d'abord la colonne entière (ses deux bouts sont uniques), puis
-            # chaque case tout près de là (simulation Midterm, 2 novembre 2026)
+            gdx, gdy = recal[f["grille"]]["decalage"]
             bb = [mm_rect_to_px(o["bbox_mm"], dpi) for o in f["options"]]
             col = (min(b[0] for b in bb), min(b[1] for b in bb), max(b[2] for b in bb), max(b[3] for b in bb))
-            cdx, cdy, csc = _locate(norm_scan, norm_blank, col, k, cfg)
-            colonne = (cdx, cdy) if csc >= cfg.min_match else (0, 0)
+            cdx, cdy, csc = _locate(norm_scan, norm_blank, col, k, cfg, cfg.search_grille_mm, (gdx, gdy))
+            colonne = (cdx, cdy) if csc >= cfg.min_match else (gdx, gdy)
         for o in f["options"]:
             outer = mm_rect_to_px(o["bbox_mm"], dpi)
             if f["type"] == "digit_col":
@@ -214,21 +219,55 @@ def read_page(aligned_img, blank_img, fields, dpi, cfg: OMRConfig | None = None,
             }
         out[f["id"]] = decide(f, opts, cfg)
     for g in grilles:
-        out[g["id"]] = decide_grid(g, {c["colonne"]: out.pop(c["id"]) for c in colonnes(g)})
+        out[g["id"]] = decide_grid(g, {c["colonne"]: out.pop(c["id"]) for c in colonnes(g)}, recal[g["id"]])
     return out
 
 
 def colonnes(grille):
     """Les colonnes d'une grille de chiffres, comme des QCM à choix unique (une case par chiffre)."""
     return [{"id": f"{grille['id']}.{c['id']}", "colonne": c["id"], "type": "digit_col", "mode": "single",
-             "options": c["options"]} for c in grille["columns"]]
+             "grille": grille["id"], "options": c["options"]} for c in grille["columns"]]
 
 
-def decide_grid(grille, cols):
-    """Assemble les colonnes lues en numéro. « ok » seulement si chaque colonne est nette, les chiffres sont
-    contigus depuis la 1re colonne et leur nombre est celui attendu (`digits`) ; sinon « review » avec la raison.
-    La valeur garde « ? » à la place d'une colonne douteuse, pour la page de revue."""
+def recaler_grille(norm_scan, norm_blank, grille, dpi, cfg: OMRConfig):
+    """Décalage de la grille entière, et s'il est sûr. Le milieu de la grille se répète d'une case à l'autre ;
+    le haut (en-têtes C1…) et le bas ne se répètent pas. Les trois recalages doivent concorder, à moins d'une
+    fraction de case près, et aucun ne doit buter au bord de la recherche : sinon la grille part en revue
+    (copies 4 et 11 de la simulation du 5 novembre : colonnes lues une case trop haut ou trop bas)."""
+    k = px_per_mm(dpi)
+    bb = [mm_rect_to_px(o["bbox_mm"], dpi) for c in grille["columns"] for o in c["options"]]
+    x0, y0, x1, y1 = min(b[0] for b in bb), min(b[1] for b in bb), max(b[2] for b in bb), max(b[3] for b in bb)
+    hauteurs = sorted({b[1] for b in bb})
+    pas = min((b - a for a, b in zip(hauteurs, hauteurs[1:]) if b - a > 2), default=5 * k)
+    largeurs = sorted({b[0] for b in bb})
+    pas = min(pas, min((b - a for a, b in zip(largeurs, largeurs[1:]) if b - a > 2), default=pas))
+    m, bord = int(round(cfg.marge_grille_mm * k)), int(round(1.5 * k))
+    s = int(round(cfg.search_grille_page_mm * k))
+    zones = {"grille": (x0 - m, y0 - m, x1 + m, y1 + m),
+             "haut": (x0 - m, y0 - m, x1 + m, y0 + bord),
+             "bas": (x0 - m, y1 - bord, x1 + m, y1 + m)}
+    r = {nom: _locate(norm_scan, norm_blank, z, k, cfg, cfg.search_grille_page_mm) for nom, z in zones.items()}
+    dx, dy, _ = r["grille"]
+    raisons = []
+    for nom, (ex, ey, sc) in r.items():
+        if sc <= 0:
+            raisons.append(f"{nom} non retrouvé")
+        elif max(abs(ex), abs(ey)) >= s:
+            raisons.append(f"{nom} au bord de la recherche ({ex}, {ey} px)")
+        elif max(abs(ex - dx), abs(ey - dy)) > cfg.accord_grille * pas:
+            raisons.append(f"{nom} décalé de ({ex}, {ey}) px, grille de ({dx}, {dy}) px")
+    return {"decalage": (dx, dy) if r["grille"][2] > 0 else (0, 0), "sur": not raisons, "raisons": raisons,
+            "scores": {nom: round(v[2], 3) for nom, v in r.items()}}
+
+
+def decide_grid(grille, cols, recalage=None):
+    """Assemble les colonnes lues en numéro. « ok » seulement si la grille est sûrement recalée (`recalage`),
+    chaque colonne est nette, les chiffres sont contigus depuis la 1re colonne et leur nombre est celui attendu
+    (`digits`) ; sinon « review » avec la raison. La valeur garde « ? » à la place d'une colonne douteuse."""
     flags, chiffres, douteux = [], [], False
+    if recalage is not None and not recalage["sur"]:
+        flags.append("grille mal recalée, chiffres peut-être décalés d'une case : "
+                     + "; ".join(recalage["raisons"]))
     for cid, r in cols.items():
         if r["status"] == "review":
             douteux = True
@@ -240,7 +279,7 @@ def decide_grid(grille, cols):
     n = sum(remplies)
     attendu = grille.get("digits")
     if not douteux:
-        if n == 0:
+        if n == 0 and not flags:   # grille mal recalée : « vide » n'est pas sûr non plus
             return {"type": "digit_grid", "value": None, "status": "blank", "flags": ["grille vide"], "columns": cols}
         premier_vide = remplies.index(False) if False in remplies else len(remplies)
         if any(remplies[premier_vide:]):
@@ -248,7 +287,7 @@ def decide_grid(grille, cols):
         if attendu and n != attendu:
             flags.append(f"{n} chiffres au lieu de {attendu}")
     return {"type": "digit_grid", "value": "".join(d for d in chiffres if d) or None,
-            "status": "review" if flags else "ok", "flags": flags, "columns": cols}
+            "status": "review" if flags else "ok", "flags": flags, "columns": cols, "recalage": recalage}
 
 
 def decide(field, opts, cfg: OMRConfig):
