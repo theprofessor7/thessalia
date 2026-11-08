@@ -108,9 +108,16 @@ def apparier(zones, pages, k):
         nat = NATURE.get(z.get("kind"))
         cands = [(i, e) for i, e in enumerate(pages.get(z.get("page"), [])) if e["nature"] != "repère"
                  and (nat is None or e["nature"] == nat)]
-        x, y = z["x_mm"] * k, z["y_mm"] * k
-        best = min(cands, key=lambda c: abs(c[1]["x"] - x) + abs(c[1]["y"] - y), default=None)
-        if best is None or abs(best[1]["x"] - x) + abs(best[1]["y"] - y) > 8:
+        x, y, bas = z["x_mm"] * k, z["y_mm"] * k, (z["y_mm"] + z["h_mm"]) * k
+
+        def dist(e):
+            # blanc : le bas de la zone se pose sur le haut du trait (convention) ; comparer les hauts apparie mal
+            # quand le trait est dessiné seul (Typst) et qu'un autre blanc est juste au-dessus
+            if e["nature"] == "trait":
+                return abs(e["x"] - x) + abs(e["haut_trait"] - bas)
+            return abs(e["x"] - x) + abs(e["y"] - y)
+        best = min(cands, key=lambda c: dist(c[1]), default=None)
+        if best is None or dist(best[1]) > 8:
             res.append((z, None))
         else:
             pris.add((z.get("page"), best[0]))

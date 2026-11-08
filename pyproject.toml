@@ -14,6 +14,7 @@ dependencies = [
   "pymupdf>=1.24",
   "Pillow>=10",
   "pyyaml>=6",          # sujets source (docs/FORMAT_SUJET.md)
+  "typst>=0.13",        # mise en page des sujets, sans dépendance système (remplace WeasyPrint)
 ]
 
 [project.optional-dependencies]

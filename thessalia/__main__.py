@@ -182,6 +182,7 @@ def main(argv=None):
     sj.add_argument("--gabarit", help="gabarit du sujet imprimé : les champs produits y sont confrontés")
     sj.add_argument("--traduction-de", help="exam_id du sujet dont celui-ci est la traduction (barème partagé)")
     sj.add_argument("-o", "--out", help="préfixe des fichiers écrits (ex. keys/midterm_2026_FR)")
+    sj.add_argument("--produire", help="dossier : sujets et corrigés PDF (Typst), zones, gabarits, corrigés")
 
     sp = sub.add_parser("separateur", help="Niveau 2 : mesurer / apprendre le détecteur point ou virgule")
     sp.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")

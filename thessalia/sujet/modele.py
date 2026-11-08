@@ -20,7 +20,7 @@ VF = {"fr": ("V", "F"), "en": ("T", "F")}          # libellés des cases Vrai / 
 RE_BLANC = re.compile(r"\[\[([A-Za-z_]\w*)(?::(\w+))?\]\]")
 
 CLES_EXAMEN = {"id", "langues", "matiere", "titre", "sous_titre", "duree", "version", "session", "points",
-               "identite", "numero_etudiant", "consignes"}
+               "identite", "numero_etudiant", "consignes", "logo"}
 CLES_EXERCICE = {"titre", "points", "contexte", "questions"}
 CLES_QUESTION = {"num", "type", "points", "enonce", "explication", "note"}
 CLES_TYPE = {"qcm": {"choix", "bonne", "plusieurs"}, "vrai_faux": {"affirmations"},
@@ -203,6 +203,7 @@ class _Controle:
         entete = {k: self.texte(ex.get(k), f"examen.{k}", obligatoire=k == "titre")
                   for k in ("matiere", "titre", "sous_titre", "version", "session", "consignes")}
         entete["duree"] = str(ex.get("duree", ""))
+        entete["logo"] = str(ex["logo"]) if "logo" in ex else None
         entete["identite"] = [str(x) for x in ex.get("identite", [])]
         ne = ex.get("numero_etudiant")
         if ne is not None:

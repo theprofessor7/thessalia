@@ -103,3 +103,31 @@ def test_confronter_au_gabarit():
                                  {"id": "q5", "type": "mcq"}]}]}
     err = "\n".join(confronter(ex, gab))
     assert "q2 est « mcq »" in err and "question 3 : 0,25 pt dans la source, 0,5 pt" in err and "q5" in err
+
+
+def test_mise_en_page_gabarit_et_zones(tmp_path):
+    """Sujet mis en page par Typst : le gabarit relu dans le PDF a les champs et les points de la source, toutes
+    les zones sont conformes au PDF, dans chaque langue."""
+    import json
+
+    from thessalia.sujet import produire_tout
+
+    src = tmp_path / "essai.yaml"
+    src.write_text(SUJET.replace("  points: 2\n", "  points: 3\n", 1) + """\
+      - type: code
+        points: 1
+        enonce: {fr: 'Affichez 3.', en: 'Print 3.'}
+        cadre: {lignes: 3}
+        corrige: print(3)
+        criteres:
+          - {texte: affiche 3, points: 1, essais: [[]]}
+""", encoding="utf-8")
+    ex = examen_texte(src.read_text(encoding="utf-8"))
+    produire_tout(ex, src, tmp_path / "out")
+    for lg in ("FR", "EN"):
+        gab = json.loads((tmp_path / "out" / f"gabarit_ESSAI_{lg}.json").read_text(encoding="utf-8"))
+        ids = sorted(f["id"] for p in gab["pages"] for f in p["fields"])
+        assert ids == ["q1.1", "q1.2", "q2", "q3", "q4.1", "q4.2", "q5"]
+        assert (tmp_path / "out" / f"corrige_ESSAI_{lg}.pdf").exists()
+    assert (tmp_path / "out" / "ESSAI_FR.bareme.json").exists()
+    assert json.loads((tmp_path / "out" / "ESSAI_EN.key.json").read_text(encoding="utf-8"))["traduction_de"] == "ESSAI_FR"
