@@ -8,7 +8,9 @@
         scans/<classe>.pdf     copies scannées d'une classe, et <classe>.json (langue du sujet distribué)
         classes/<classe>/      résultats de la lecture (comme sorties/<classe> avec `process`)
         decisions.sqlite       décisions de correction de cet examen
-        listes/, verite/       attributions des copies (copie;etudiant) et vérité apprise, de cet examen
+        listes/, verite/       liste des élèves (.xlsx, sinon la liste commune data/listes), attributions des
+                               copies et vérité apprise, de cet examen
+        notes/notes.xlsx       notes finales (l'ancien classeur est gardé, daté)
 
 Le dossier `examens/` est hors dépôt : il contient des copies d'élèves.
 """
@@ -78,7 +80,8 @@ class Projet:
             raise SystemExit("Source refusée")
         base = f"{ex.id}_{langue.upper()}"
         return {"base": base, "sujet": self.produit / f"sujet_{base}.pdf", "corrige_pdf": self.produit / f"corrige_{base}.pdf",
-                "gabarit": self.gabarits / f"gabarit_{base}.json", "key": self.corriges / f"{base}.key.json"}
+                "gabarit": self.gabarits / f"gabarit_{base}.json", "key": self.corriges / f"{base}.key.json",
+                "vocab": self.corriges / f"{base}.vocab.json"}
 
     def pdfs(self):
         return sorted(self.produit.glob("*.pdf")) if self.produit.is_dir() else []
@@ -117,6 +120,7 @@ class Projet:
             res = self.classes_dir / nom / "results.json"
             ligne = {"classe": nom, "langue": langue, "lue": res.exists(), "copies": None, "a_revoir": None,
                      "taille_mo": round(scan.stat().st_size / 1e6, 1)}
+            ligne["courtes"] = (self.classes_dir / nom / "short_answers.csv").exists()
             if res.exists():
                 r = json.loads(res.read_text(encoding="utf-8"))
                 ligne.update(copies=r.get("n_copies"), a_revoir=sum(c.get("n_review", 0) for c in r.get("copies", [])),
@@ -127,9 +131,86 @@ class Projet:
     def stockage(self):
         """Décisions, vérité d'apprentissage et attributions des copies de CET examen (pas de data/)."""
         return {"db": self.dir / "decisions.sqlite", "truth_dir": self.dir / "verite", "lists_dir": self.dir / "listes"}
+        # (même rangement que correction.stockage_examen, qui s'applique à toute classe de l'examen)
 
     def dossiers_lus(self):
         return [self.classes_dir / c["classe"] for c in self.classes() if c["lue"]]
+
+    # ---------------------------------------------------------------- étapes lourdes
+    def lire_courtes(self, log=print):
+        """Réponses courtes de chaque classe lue, par TrOCR (local, gratuit), avec le vocabulaire de sa langue.
+        Sujet nouveau : tant que son corrigé n'est pas validé par une mesure, tout part en revue avec la lecture
+        proposée (cf. ocr_run.lecture_validee)."""
+        from .ocr_run import run as ocr
+        dossiers = self.dossiers_lus()
+        if not dossiers:
+            raise SystemExit("aucune classe lue")
+        for d in dossiers:
+            info = json.loads((self.scans / f"{d.name}.json").read_text(encoding="utf-8"))
+            log(f"=== {d.name} ({info['langue'].upper()})")
+            ocr(d, self.fichiers(info["langue"])["vocab"], "trocr", log=log)
+
+    def preparer(self, log=print):
+        """Routine de la veille (code transcrit et pré-coché, réponses courtes relues) avec les modèles Ollama
+        présents ; ses messages (print) arrivent dans le journal de la tâche."""
+        from .preparer import run
+        dossiers = self.dossiers_lus()
+        if not dossiers:
+            raise SystemExit("aucune classe lue")
+        run(dossiers)
+
+    @property
+    def notes_xlsx(self) -> Path:
+        return self.dir / "notes" / "notes.xlsx"
+
+    def exporter_notes(self, log=print):
+        """Classeur des notes finales (l'ancien est gardé, daté)."""
+        from .excel import run
+        dossiers = self.dossiers_lus()
+        if not dossiers:
+            raise SystemExit("aucune classe lue")
+        return run(dossiers, self.notes_xlsx, db=self.stockage()["db"], log=log)
+
+    def liste(self):
+        """Liste des élèves utilisée : {nom, propre} (propre = celle de l'examen), {erreur} ou None."""
+        from .identite import fichier_liste
+        try:
+            p = fichier_liste(self.stockage()["lists_dir"])
+        except ValueError as e:
+            return {"erreur": str(e)}
+        if p is None:
+            return None
+        return {"nom": p.name, "propre": p.parent.resolve() == (self.dir / "listes").resolve()}
+
+    def deposer_liste(self, contenu: bytes) -> int:
+        """Liste des élèves de cet examen (.xlsx : colonnes NOM, Prénom, Classe) ; l'ancienne est gardée, datée."""
+        import time
+        from .identite import lire_liste
+        if not contenu.startswith(b"PK"):
+            raise ValueError("la liste doit être un classeur Excel (.xlsx)")
+        d = self.dir / "listes"
+        d.mkdir(parents=True, exist_ok=True)
+        tmp = d / "~$nouvelle_liste.xlsx"      # « ~$ » : jamais pris pour la liste pendant la vérification
+        tmp.write_bytes(contenu)
+        try:
+            groupes = lire_liste(tmp)
+        except Exception as e:
+            raise ValueError(f"liste illisible : {e}")
+        finally:
+            tmp.unlink(missing_ok=True)
+        if not groupes:
+            raise ValueError("aucun élève lu : colonnes attendues NOM, Prénom, Classe")
+        for p in d.glob("*.xlsx"):
+            p.rename(p.with_name(p.stem + f".avant-{time.strftime('%Y%m%d-%H%M%S')}.bak"))
+        (d / "liste_eleves.xlsx").write_bytes(contenu)
+        return sum(len(v) for v in groupes.values())
+
+
+def outils():
+    """Ce qui est installé sur ce PC pour les étapes lourdes (tout est facultatif)."""
+    from importlib.util import find_spec
+    from .lecteur_code import modeles_ollama
+    return {"trocr": bool(find_spec("torch") and find_spec("transformers")), "ollama": modeles_ollama()}
 
 
 def projets(racine=RACINE):

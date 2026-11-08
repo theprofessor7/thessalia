@@ -99,6 +99,18 @@ class Memory:
         return h if h and h[2] >= self.minimum and h[1] / h[2] >= self.share else None
 
 
+def stockage_examen(results_dir):
+    """Classe d'un examen de l'application (examens/<nom>/classes/<classe>) : ses décisions, sa vérité apprise, ses
+    attributions et ses gabarits / corrigés sont ceux de l'examen, jamais ceux de data/ (deux classes de même nom
+    dans deux examens ne doivent rien partager). None pour une classe hors application (sorties/…)."""
+    d = Path(results_dir)
+    proj = d.parent.parent
+    if d.parent.name == "classes" and (proj / "produit" / "corriges").is_dir():
+        return {"db": proj / "decisions.sqlite", "truth_dir": proj / "verite", "lists_dir": proj / "listes",
+                "keys_dir": proj / "produit" / "corriges", "templates_dir": proj / "produit" / "gabarits"}
+    return None
+
+
 def group_of(name: str) -> str:
     """supA_3 -> A, supc_1 -> C, supNA_2 -> NA, sup_nb_4 -> NB, supD -> D (regroupement voulu par l'enseignant)."""
     m = re.match(r"sup_?([a-z]+?)(?:_|\d|$)", name, re.I)
@@ -290,10 +302,17 @@ class Classe:
         self.group = group_of(self.name)
         res = load_json(self.dir / "results.json")
         self.exam_id = res["exam_id"]
-        # classe d'un examen de l'application (examens/<nom>/classes/<classe>) : gabarits et corrigés de cet examen
-        produit = self.dir.parent.parent / "produit"
-        dirs = ({"keys_dir": produit / "corriges", "templates_dir": produit / "gabarits"}
-                if self.dir.parent.name == "classes" and (produit / "corriges").is_dir() else {})
+        # classe d'un examen de l'application : tout ce qui la concerne est rangé dans l'examen (cf. stockage_examen),
+        # quel que soit le module qui la charge (outil, second lecteur, pré-cochage, export…) ; une base d'essai
+        # donnée explicitement est respectée
+        st = stockage_examen(self.dir)
+        dirs = {}
+        if st:
+            dirs = {"keys_dir": st["keys_dir"], "templates_dir": st["templates_dir"]}
+            truth_dir = st["truth_dir"] if Path(truth_dir) == Path(TRUTH_DIR) else truth_dir
+            lists_dir = st["lists_dir"] if Path(lists_dir) == Path(LISTS_DIR) else lists_dir
+            if Path(decisions.path) == Path(DB_PATH):
+                decisions = Decisions(st["db"])
         if self.exam_id not in exams:
             exams[self.exam_id] = Exam.load(self.exam_id, **dirs)
         self.exam: Exam = exams[self.exam_id]

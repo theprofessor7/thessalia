@@ -72,13 +72,58 @@
       bien la langue du sujet distribué : un mauvais choix est signalé « GABARIT DOUTEUX » dans le journal.</p>
   </li>
 
+  <li class="etape {{ 'faite' if e.lues and e.courtes == e.lues }}">
+    <h2>4. Lectures longues (facultatif)</h2>
+    <p class="aide">Sur ce PC, sans envoi. Sans elles, tout se corrige quand même dans l'outil, à la main.</p>
+    <form class="enligne" method="post" action="/examens/{{ e.nom }}/courtes">
+      <button class="bouton" {{ 'disabled' if not (e.lues and outils.trocr) }}>Lire les réponses courtes</button>
+    </form>
+    {% if outils.trocr %}
+      <span class="aide">{{ e.courtes }}/{{ e.lues }} classe(s) déjà lue(s). Quelques minutes par classe. Sujet
+        nouveau : toutes les réponses partent en revue, avec la lecture proposée.</span>
+    {% else %}
+      <span class="attente">Lecteur d'écriture non installé (<code>pip install -e ".[trocr]"</code>, ~2 Go).</span>
+    {% endif %}
+    <br>
+    <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer">
+      <button class="bouton" {{ 'disabled' if not (e.lues and outils.ollama) }}>Préparer la nuit (code, second lecteur)</button>
+    </form>
+    {% if outils.ollama is none %}
+      <span class="attente">Ollama ne répond pas (pas installé ou pas lancé : https://ollama.com).</span>
+    {% elif not outils.ollama %}
+      <span class="attente">Ollama sans modèle : <code>ollama pull qwen3-vl:8b-instruct</code> (voir le mode d'emploi).</span>
+    {% else %}
+      <span class="aide">Code transcrit et pré-coché, réponses courtes relues : environ une nuit pour une centaine
+        de copies ; relancer reprend où ça s'était arrêté. Modèles : {{ outils.ollama|join(', ') }}.</span>
+    {% endif %}
+  </li>
+
   <li class="etape {{ 'faite' if ouvert }}">
-    <h2>4. Correction</h2>
+    <h2>5. Correction</h2>
     <form method="post" action="/examens/{{ e.nom }}/corriger">
       <button class="bouton {{ 'principal' if e.lues }}" {{ 'disabled' if not e.lues }}>Corriger les copies lues</button>
     </form>
     <p class="aide">Ouvre l'outil de correction sur les classes de cet examen : vue par question, vue par copie,
-      identification des copies, notes et export.</p>
+      identification des copies.</p>
+  </li>
+
+  <li class="etape {{ 'faite' if notes }}">
+    <h2>6. Notes</h2>
+    {% if liste and liste.erreur %}<p class="erreur">{{ liste.erreur }}</p>
+    {% elif liste %}<p>Liste des élèves : {{ liste.nom }}{{ '' if liste.propre else ' (liste commune, data/listes)' }}.</p>
+    {% else %}<p class="attente">Pas de liste des élèves : les copies ne peuvent pas être attribuées ni les absents comptés.</p>{% endif %}
+    <details><summary>{{ 'Remplacer' if liste and liste.propre else 'Déposer' }} la liste des élèves de cet examen</summary>
+      <form class="formulaire" method="post" action="/examens/{{ e.nom }}/liste" enctype="multipart/form-data">
+        <label>Liste (.xlsx, colonnes NOM, Prénom, Classe) <input type="file" name="liste" accept=".xlsx" required></label>
+        <button class="bouton">Enregistrer</button>
+      </form>
+    </details>
+    <form class="enligne" method="post" action="/examens/{{ e.nom }}/notes">
+      <button class="bouton {{ 'principal' if e.lues }}" {{ 'disabled' if not e.lues }}>Exporter les notes</button>
+    </form>
+    {% if notes %}<a href="/examens/{{ e.nom }}/notes.xlsx">notes_{{ e.nom }}.xlsx</a> <span class="gris">({{ notes }})</span>{% endif %}
+    <p class="aide">Notes sur 20, absents, et une feuille « À vérifier » (copies sans élève, réponses encore en
+      attente). Chaque export garde l'ancien classeur, daté.</p>
   </li>
 </ol>
 {% endblock %}

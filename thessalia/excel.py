@@ -117,17 +117,21 @@ def ecrire_xlsx(path, feuilles):
     return path
 
 
-def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None):
+def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None, log=print):
     from .correction import DB_PATH, Classe, Decisions, Memory, group_of
     from .identite import lire_convoques, lire_liste
     from .serve import GROUP_ORDER, _classes
 
     dec = Decisions(db or DB_PATH)
-    liste = lire_liste()
-    groupe_de = {e: g for g, eleves in liste.items() for e in eleves}
     exams, notes, verifier, memory = {}, [], [], Memory()
     # mémoire des verdicts : mêmes décisions automatiques que dans l'outil de correction
     classes = [Classe(d, exams, dec, memory=memory) for d in _classes(dossiers)]
+    if not classes:
+        raise SystemExit("aucune classe lue à exporter")
+    if len({str(c.lists_dir) for c in classes}) > 1:
+        raise SystemExit("classes de plusieurs examens : exporter chaque examen dans son propre classeur")
+    liste = lire_liste(lists_dir=classes[0].lists_dir)
+    groupe_de = {e: g for g, eleves in liste.items() for e in eleves}
     memory.rebuild(classes)
     for c in classes:
         attrib = c.students()
@@ -144,7 +148,7 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None):
     notes.sort(key=lambda l: (rang(l[0]), l[1]))
     pris = {l[1] for l in notes if l[1]}
     # session à part (BIS) : seuls les convoqués peuvent être absents ; sinon toute la liste
-    convoques = [set(lire_convoques(c.name)) for c in classes]
+    convoques = [set(lire_convoques(c.name, c.lists_dir)) for c in classes]
     if any(convoques):
         if not all(convoques):
             raise ValueError("mélange d'une session à part (fichier .convoques.txt) et d'une session normale : "
@@ -156,7 +160,7 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None):
                      key=lambda l: (rang(l[0]), l[1]))
     copie = sauvegarder(sortie)
     if copie:
-        print(f"Ancien fichier conservé : {copie}")
+        log(f"Ancien fichier conservé : {copie}")
     p = ecrire_xlsx(sortie, [
         ("Notes", [["Groupe", "Élève", "Classe (composé)", "Copie", "QCM", "Réponses courtes", "Code", "Total",
                     "Sur", "En attente", "Note arrondie"]] + notes, [8, 32, 16, 7, 7, 10, 7, 8, 6, 10, 12]),
@@ -164,7 +168,7 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None):
         ("À vérifier", [["Groupe", "Élève", "Classe", "Copie", "En attente", "Raison"]] + verifier,
          [8, 32, 16, 7, 10, 40]),
     ])
-    print(f"{len(notes)} copies, {len(absents)} absents, {len(verifier)} à vérifier -> {p}")
+    log(f"{len(notes)} copies, {len(absents)} absents, {len(verifier)} à vérifier -> {p}")
     if verifier:
-        print("ATTENTION : des notes sont provisoires ou sans élève (feuille « À vérifier »).")
+        log("ATTENTION : des notes sont provisoires ou sans élève (feuille « À vérifier »).")
     return p

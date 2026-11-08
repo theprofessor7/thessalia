@@ -52,18 +52,26 @@ def _xlsx_rows(path):
     return rows
 
 
-def lire_liste(path=None):
+def fichier_liste(lists_dir=None):
+    """Liste des élèves (.xlsx) d'un dossier de listes ; un examen de l'application sans liste à lui utilise la
+    liste commune (data/listes). None s'il n'y en a aucune."""
+    for d in dict.fromkeys([Path(lists_dir or LISTS_DIR), Path(LISTS_DIR)]):
+        # « ~$… » : fichier verrou d'Excel quand la liste est ouverte, pas une liste
+        cands = sorted(p for p in d.glob("*.xlsx") if not p.name.startswith("~$"))
+        if len(cands) > 1:   # jamais de choix silencieux : l'ordre des noms dépend du système
+            raise ValueError(f"Plusieurs listes d'élèves dans {d} : " + ", ".join(c.name for c in cands)
+                             + ". N'en laisser qu'une (déplacer les autres hors de ce dossier).")
+        if cands:
+            return cands[0]
+    return None
+
+
+def lire_liste(path=None, lists_dir=None):
     """{groupe: [« NOM Prénom », …]} depuis la liste de l'enseignant (.xlsx ou .csv ; colonnes NOM, Prénom, Classe)."""
     if path is None:
-        # « ~$… » : fichier verrou d'Excel quand la liste est ouverte, pas une liste
-        cands = sorted(p for p in Path(LISTS_DIR).glob("*.xlsx") if not p.name.startswith("~$"))
-        if not cands:
+        path = fichier_liste(lists_dir)
+        if path is None:
             return {}
-        if len(cands) > 1:   # jamais de choix silencieux : l'ordre des noms dépend du système
-            raise ValueError(f"Plusieurs listes d'élèves dans {LISTS_DIR} : "
-                             + ", ".join(c.name for c in cands)
-                             + ". N'en laisser qu'une (déplacer les autres hors de ce dossier).")
-        path = cands[0]
     path = Path(path)
     if path.suffix.lower() == ".xlsx":
         rows = _xlsx_rows(path)
@@ -178,7 +186,7 @@ def lire_convoques(classe, lists_dir=LISTS_DIR):
     if not p.exists():
         return []
     noms = [l.strip() for l in p.read_text(encoding="utf-8-sig").splitlines() if l.strip() and not l.startswith("#")]
-    connus = {e for es in lire_liste().values() for e in es}
+    connus = {e for es in lire_liste(lists_dir=lists_dir).values() for e in es}
     inconnus = [n for n in noms if n not in connus]
     if inconnus:
         raise ValueError(f"{p.name} : absents de la liste des élèves : " + ", ".join(inconnus))

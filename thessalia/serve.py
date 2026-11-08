@@ -220,7 +220,7 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None)
         cs = group(g)
         # session à part (BIS) : les convoqués, quel que soit leur groupe ; sinon la liste du groupe
         convoques = sorted({e for c in cs for e in lire_convoques(c.name, c.lists_dir)})
-        eleves = convoques or lire_liste().get(g, [])
+        eleves = convoques or lire_liste(lists_dir=cs[0].lists_dir).get(g, []) if cs else []
         att = {c.name: lire_attributions(c.name, c.lists_dir) for c in cs}
         # un élève peut avoir composé avec un autre groupe : pris dans TOUTES les classes
         pris = {e for o in classes.values() for e in lire_attributions(o.name, o.lists_dir).values()}
@@ -272,7 +272,7 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None)
         if cid not in c.copy_ids:
             abort(404)
         if e:
-            liste = lire_liste()
+            liste = lire_liste(lists_dir=c.lists_dir)
             if e not in (lire_convoques(c.name, c.lists_dir) or liste.get(c.group, [])):
                 autre = next((g for g, v in liste.items() if e in v), None)
                 if autre is None:

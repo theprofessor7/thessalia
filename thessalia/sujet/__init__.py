@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 from .corrige import confronter, fichiers
@@ -90,3 +91,12 @@ def produire_tout(ex, source, dossier, gabarits=None, corriges=None, log=print):
         log(f"{langue} : {gab['page_count']} pages, {n} champs, zones conformes ; {c['sujet'].name}, "
               f"{c['corrige'].name}, {gp.name}, {base}.key.json")
         premier = premier or base
+    # tests d'exécution du code (tests_python) : copiés avec les corrigés, l'examen se suffit à lui-même
+    for q in ex.questions():
+        t = getattr(q, "tests_python", None)
+        if t:
+            src = next((p for p in (Path(source).parent / t, Path(t)) if p.is_file()), None)
+            if src is None:
+                raise SystemExit(f"{q.id} : fichier de tests introuvable : {t} (cherché à côté de la source)")
+            if src.resolve() != (corriges / src.name).resolve():
+                shutil.copyfile(src, corriges / src.name)

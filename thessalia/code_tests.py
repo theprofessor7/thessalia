@@ -522,12 +522,12 @@ def precocher_cadre(code, f, tests, modele=None, cache=None):
 
 # ------------------------------------------------------------------ commande
 def run(dossiers, modele=None, force=False):
-    from .correction import Classe, Decisions, Memory
+    from .correction import Classe, Decisions, Memory, stockage_examen
     from .serve import _classes
     exams = {}
     for d in _classes(dossiers):
         c = Classe(d, exams, Decisions(), memory=Memory())
-        tests = charger_tests(c.exam_id)
+        tests = charger_tests(c.exam_id, (stockage_examen(d) or {}).get("keys_dir", "keys"))
         if not tests:
             print(f"{c.name} : pas de tests pour le sujet {c.exam_id} (keys/*.tests.py), rien à faire")
             continue

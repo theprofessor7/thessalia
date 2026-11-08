@@ -5,12 +5,13 @@ affiche son journal. Rien ne sort de la machine (serveur sur 127.0.0.1).
 """
 from __future__ import annotations
 
+import contextlib
 import threading
 import time
 from pathlib import Path
 from urllib.parse import quote
 
-from .projet import Projet, creer, nom_valide, projets
+from .projet import Projet, creer, nom_valide, outils, projets
 
 
 class Taches:
@@ -31,9 +32,20 @@ class Taches:
             t["journal"].append(" ".join(str(x) for x in a))
             del t["journal"][:-400]
 
+        class Sortie:                     # print des modules (preparer, excel…) → journal
+            def write(self, s):
+                for ligne in s.splitlines():
+                    if ligne.strip():
+                        log(ligne)
+                return len(s)
+
+            def flush(self):
+                pass
+
         def corps():
             try:
-                fn(log)
+                with contextlib.redirect_stdout(Sortie()):
+                    fn(log)
                 t["etat"] = "terminé"
                 if apres:
                     apres()
@@ -69,7 +81,7 @@ def enregistrer(app, racine: Path, charger):
         return {"nom": p.nom, "titre": (ex.entete["titre"][ex.langues[0]] if ex else None), "id": ex.id if ex else None,
                 "erreurs": err, "langues": ex.langues if ex else [], "questions": len(ex.questions()) if ex else 0,
                 "points": ex.points if ex else None, "produit": p.produit_a_jour(), "classes": cl,
-                "lues": sum(c["lue"] for c in cl), "copies": sum(c["copies"] or 0 for c in cl)}
+                "lues": sum(c["lue"] for c in cl), "courtes": sum(c["lue"] and c["courtes"] for c in cl), "copies": sum(c["copies"] or 0 for c in cl)}
 
     @app.context_processor
     def contexte_examens():
@@ -97,8 +109,12 @@ def enregistrer(app, racine: Path, charger):
     def examen_page(nom):
         p = projet(nom)
         t = taches.courante if taches.courante and taches.courante["projet"] == nom else None
+        notes = p.notes_xlsx
         return render_template("examen.html", e=resume(p), pdfs=[f.name for f in p.pdfs()], tache=t,
-                               ouvert=etat["ouvert"] == nom, message=request.args.get("m"))
+                               ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=outils(),
+                               liste=p.liste(),
+                               notes=time.strftime("%d/%m/%Y %H:%M", time.localtime(notes.stat().st_mtime))
+                               if notes.exists() else None)
 
     @app.post("/examens/<nom>/source")
     def remplacer_source(nom):
@@ -172,6 +188,42 @@ def enregistrer(app, racine: Path, charger):
             return redirect(_vers(f"/examens/{nom}", e))
         etat["ouvert"] = nom
         return redirect("/")
+
+    @app.post("/examens/<nom>/courtes")
+    def courtes(nom):
+        p = projet(nom)
+        return lancer(nom, "Lire les réponses courtes", lambda log: p.lire_courtes(log=log), apres_lecture(nom))
+
+    @app.post("/examens/<nom>/preparer")
+    def preparer(nom):
+        p = projet(nom)
+        return lancer(nom, "Préparer la correction (modèles locaux)", lambda log: p.preparer(log=log),
+                      apres_lecture(nom))
+
+    @app.post("/examens/<nom>/liste")
+    def deposer_liste(nom):
+        p = projet(nom)
+        f = request.files.get("liste")
+        if not f or not f.filename:
+            return redirect(_vers(f"/examens/{nom}", "Choisissez la liste des élèves (.xlsx)."))
+        try:
+            n = p.deposer_liste(f.read())
+        except ValueError as e:
+            return redirect(_vers(f"/examens/{nom}", e))
+        return redirect(_vers(f"/examens/{nom}", f"Liste des élèves enregistrée : {n} élèves."))
+
+    @app.post("/examens/<nom>/notes")
+    def exporter(nom):
+        p = projet(nom)
+        return lancer(nom, "Exporter les notes", lambda log: p.exporter_notes(log=log))
+
+    @app.route("/examens/<nom>/notes.xlsx")
+    def notes_xlsx(nom):
+        p = projet(nom)
+        if not p.notes_xlsx.exists():
+            abort(404)
+        return send_from_directory(p.notes_xlsx.parent.resolve(), p.notes_xlsx.name, as_attachment=True,
+                                   download_name=f"notes_{nom}.xlsx")
 
     @app.route("/tache")
     def tache():

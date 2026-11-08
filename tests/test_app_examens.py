@@ -69,3 +69,23 @@ def test_examen_de_bout_en_bout(tmp_path):
     compte = lambda p: sqlite3.connect(p).execute("SELECT COUNT(*) FROM decision WHERE classe='supA_1'").fetchone()[0]
     assert compte(racine / "essai" / "decisions.sqlite") == 1 and compte(tmp_path / "decisions.sqlite") == 0
     assert (racine / "essai" / "verite" / "supA_1.appris.json").exists()
+
+    # liste des élèves de l'examen, puis notes exportées dans l'examen (journal de la tâche, téléchargement)
+    from thessalia.excel import ecrire_xlsx
+    from thessalia.identite import _xlsx_rows
+    ecrire_xlsx(tmp_path / "liste.xlsx", [("Liste", [["NOM", "Prénom", "Classe"], ["MARTIN", "Alice", "supA_1"],
+                                                     ["DURAND", "Paul", "supA_1"]], [10, 10, 10])])
+    r = c.post("/examens/essai/liste", data={"liste": ((tmp_path / "liste.xlsx").open("rb"), "liste.xlsx")},
+               content_type="multipart/form-data")
+    assert "2%20%C3%A9l%C3%A8ves" in r.headers["Location"]
+    assert "liste_eleves.xlsx" in c.get("/examens/essai").get_data(as_text=True)
+    c.post("/examens/essai/notes")
+    t = _attendre(c)
+    assert t["etat"] == "terminé", t["journal"]
+    assert any("2 copies, 2 absents, 2 à vérifier" in l for l in t["journal"]), t["journal"]
+    xl = racine / "essai" / "notes" / "notes.xlsx"
+    assert len(_xlsx_rows(xl)) == 3                                       # en-tête + 2 copies
+    assert c.get("/examens/essai/notes.xlsx").data == xl.read_bytes()
+    c.post("/examens/essai/notes")                                        # second export : l'ancien est gardé
+    assert _attendre(c)["etat"] == "terminé"
+    assert len(list((racine / "essai" / "notes").glob("*.xlsx"))) == 2
