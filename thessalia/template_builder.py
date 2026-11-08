@@ -28,6 +28,8 @@ import re
 import string
 from pathlib import Path
 
+import pymupdf
+
 from .common import A4_MM, MM_PER_PT, TEMPLATE_SCHEMA, load_json, save_json
 
 RE_QUESTION = re.compile(r"^\s*Question\s+(\d+)\s*$", re.I)
@@ -59,13 +61,55 @@ def _xywh(b):
     return [round(b[0], 2), round(b[1], 2), round(b[2] - b[0], 2), round(b[3] - b[1], 2)]
 
 
+def _trait_typst(g):
+    """Rectangle (pymupdf.Rect, points) d'un trait horizontal que Typst dessine en remplissant un contour de
+    4 segments (bordure d'un seul côté : soulignement) ; None sinon."""
+    items = g.get("items") or []
+    if len(items) != 4 or any(it[0] != "l" for it in items):
+        return None
+    pts = [p for it in items for p in it[1:3]]
+    xs, ys = sorted({round(p.x, 2) for p in pts}), sorted({round(p.y, 2) for p in pts})
+    if len(xs) != 2 or len(ys) != 2 or (ys[1] - ys[0]) * MM_PER_PT > 1.2:
+        return None
+    return pymupdf.Rect(xs[0], ys[0], xs[1], ys[1])
+
+
 def _classify_drawings(page):
     """Retourne les primitives utiles d'une page (coordonnées en mm, x0,y0,x1,y1)."""
     fid, boxes, blanks, frames, idlines, cells = [], [], [], [], [], []
     pw, ph = page.rect.width * MM_PER_PT, page.rect.height * MM_PER_PT
     seen = set()
     for g in page.get_drawings():
+        if g.get("type") == "s":
+            # Typst : bordure tracée au trait (rectangle ou soulignement), centrée sur le bord -> on en déduit les
+            # deux rectangles qu'aurait dessinés WeasyPrint (bord extérieur et intérieur de la bordure)
+            items, e = g.get("items") or [], (g.get("width") or 0) * MM_PER_PT / 2
+            if len(items) != 1 or _lum(g.get("color")) >= 0.75:
+                continue
+            if items[0][0] == "re":
+                r = _mm(items[0][1])
+                o, i = [r[0] - e, r[1] - e, r[2] + e, r[3] + e], [r[0] + e, r[1] + e, r[2] - e, r[3] - e]
+                w, h = o[2] - o[0], o[3] - o[1]
+                key = (round(o[0], 1), round(o[1], 1), round(w, 1), round(h, 1), "s")
+                if key in seen or _lum(g.get("color")) >= 0.35:
+                    continue
+                seen.add(key)
+                if 2.5 <= w <= 6.5 and 2.5 <= h <= 6.5 and abs(w - h) < 0.6:
+                    boxes.append({"outer": o, "inner": i})
+                elif 3 <= w <= 10 and 3 <= h <= 10:
+                    cells.append({"outer": o, "inner": i})
+                elif w >= 40 and h >= 12:
+                    frames.append({"outer": o, "inner": i})
+            # un trait isolé n'est pas un blanc : WeasyPrint trace ainsi les bordures de tableau, et Typst
+            # dessine ses soulignements en rectangle rempli (`_trait_typst`)
+            continue
         if g.get("type") not in ("f", "fs"):
+            continue
+        trait = _trait_typst(g)
+        if trait:   # Typst : soulignement = mince rectangle rempli ; zone d'écriture de 5 mm au-dessus
+            x0, _, x1, y1 = _mm(trait)
+            if x1 - x0 >= 10 and _lum(g.get("fill")) < 0.75:
+                (blanks if _lum(g.get("fill")) < 0.35 else idlines).append([x0, y1 - 5.04, x1, y1])
             continue
         items = g["items"]
         if not items or any(it[0] != "re" for it in items):

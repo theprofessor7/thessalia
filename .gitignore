@@ -32,3 +32,5 @@ sim/
 data/lecteur.json
 data/lecteur.cle
 data/lecteur_depenses.json
+# archive du générateur de sujets (contient sujets et corrigés) : hors dépôt
+esme_python_exam_generator.zip

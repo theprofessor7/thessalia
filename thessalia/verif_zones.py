@@ -16,7 +16,10 @@ import json
 import statistics
 from pathlib import Path
 
+import pymupdf
+
 from .common import MM_PER_PT
+from .template_builder import _trait_typst
 
 ECHELLES = [(1.0, "aucune"), (0.75, "positions multipliées par 4/3 (pixels CSS pris pour des points)"),
             (4 / 3, "positions multipliées par 3/4"), (25.4 / 96, "positions en pixels CSS (96 dpi), pas en mm"),
@@ -38,8 +41,19 @@ def elements(page):
 
     for g in page.get_drawings():
         items = g.get("items") or []
+        ep = (g.get("width") or 0) * MM_PER_PT / 2
+        t = _trait_typst(g) if g.get("type") == "f" else None
+        if t is not None and _lum(g.get("fill")) < 0.35:      # soulignement Typst : mince rectangle rempli
+            x0, y0, x1, y1 = (v * MM_PER_PT for v in t)
+            if x1 - x0 >= 8:
+                out.append({"nature": "trait", "haut_trait": y0, "x": x0, "y": y0, "w": x1 - x0, "h": y1 - y0})
+            continue
         if not items or any(it[0] != "re" for it in items):
             continue
+        if g.get("type") == "s" and len(items) == 1:        # rectangle tracé au trait : bord extérieur
+            r = items[0][1]
+            items = [("re", pymupdf.Rect(r.x0 - ep / MM_PER_PT, r.y0 - ep / MM_PER_PT,
+                                         r.x1 + ep / MM_PER_PT, r.y1 + ep / MM_PER_PT))]
         rs = sorted(([v * MM_PER_PT for v in it[1]] for it in items), key=lambda b: -(b[2] - b[0]) * (b[3] - b[1]))
         o = rs[0]
         x, y, w, h = o[0], o[1], o[2] - o[0], o[3] - o[1]
