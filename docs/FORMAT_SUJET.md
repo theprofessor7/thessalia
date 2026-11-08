@@ -49,6 +49,12 @@ Thessalia refuse le fichier entier, avec le numéro de ligne et la correction à
 - une réponse attendue contient un vrai retour à la ligne (voir 6.3) ;
 - le fichier contient des tabulations.
 
+Pièges de YAML rencontrés en convertissant le Midterm, tous refusés avec un message qui dit quoi faire :
+- un texte sans guillemets contenant « : » suivi d'une espace (« Complétez : ») : très fréquent en français ;
+- entre accolades `{fr: …, en: …}`, une virgule, un « ? » ou un « : » coupent le texte ;
+- un « # » dans un texte sans guillemets : YAML coupe le texte et prend la suite pour un commentaire.
+Dans le doute : **tout texte entre guillemets**.
+
 Les guillemets : `'…'` (simples) gardent le texte tel quel, y compris `\n`. **Préférer les guillemets simples** pour
 les réponses. Les guillemets doubles `"…"` transforment `\n` en retour à la ligne, ce qui est refusé.
 

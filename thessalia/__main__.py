@@ -11,6 +11,7 @@
     identite   proposer l'élève de chaque copie (vignettes Nom/Prénom + liste), à confirmer dans l'outil
     verif-noms page de contrôle des attributions : nom écrit / élève attribué, copies à risque en tête
     verif-zones contrôle d'un fichier de zones (généré avec le sujet) contre le PDF : rapport à coller
+    sujet      source unique d'un examen (YAML, docs/FORMAT_SUJET.md) : contrôle strict, fichiers de corrigé
     precocher  code : pré-cocher les critères en exécutant le code transcrit (tests du sujet, local)
     transcrire lire le code manuscrit : --local (Ollama, gratuit) ou service en ligne (clé, plafond de dépense)
     preparer   la veille de la correction : code transcrit + pré-coché, réponses courtes relues (local, une nuit)
@@ -175,6 +176,13 @@ def main(argv=None):
     vz.add_argument("-o", "--sortie", help="écrire le rapport (Markdown) dans ce fichier au lieu de l'afficher")
     vz.add_argument("--tolerance", type=float, default=0.3, help="écart toléré en mm (défaut 0,3)")
 
+    sj = sub.add_parser("sujet", help="source unique d'un examen (YAML) : contrôle strict, fichiers de corrigé")
+    sj.add_argument("source", help="fichier examen.yaml")
+    sj.add_argument("--langue", help="langue des fichiers de corrigé (fr, en…)")
+    sj.add_argument("--gabarit", help="gabarit du sujet imprimé : les champs produits y sont confrontés")
+    sj.add_argument("--traduction-de", help="exam_id du sujet dont celui-ci est la traduction (barème partagé)")
+    sj.add_argument("-o", "--out", help="préfixe des fichiers écrits (ex. keys/midterm_2026_FR)")
+
     sp = sub.add_parser("separateur", help="Niveau 2 : mesurer / apprendre le détecteur point ou virgule")
     sp.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     sp.add_argument("--kind", action="append", choices=("image", "lecteur", "image+lecteur"),
@@ -296,6 +304,11 @@ def main(argv=None):
     elif a.cmd == "verif-zones":
         from .verif_zones import run as vzrun
         return vzrun(a.pdf, a.zones, a.sortie, a.tolerance)
+    elif a.cmd == "sujet":
+        from .sujet import run as sjrun
+        if a.out and not (a.langue and a.gabarit):
+            ap.error("sujet -o : --langue et --gabarit sont nécessaires")
+        return sjrun(a)
     elif a.cmd == "separateur":
         from .separateur import KINDS, Separateur, class_dirs, run as seprun, write_indices
 

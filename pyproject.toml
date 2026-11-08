@@ -13,6 +13,7 @@ dependencies = [
   "numpy>=1.24",
   "pymupdf>=1.24",
   "Pillow>=10",
+  "pyyaml>=6",          # sujets source (docs/FORMAT_SUJET.md)
 ]
 
 [project.optional-dependencies]
