@@ -11,6 +11,7 @@
     identite   proposer l'élève de chaque copie (vignettes Nom/Prénom + liste), à confirmer dans l'outil
     verif-noms page de contrôle des attributions : nom écrit / élève attribué, copies à risque en tête
     verif-zones contrôle d'un fichier de zones (généré avec le sujet) contre le PDF : rapport à coller
+    app        application : examens (sujet source -> PDF -> scans -> lecture) et outil de correction, navigateur
     sujet      source unique d'un examen (YAML, docs/FORMAT_SUJET.md) : contrôle strict, fichiers de corrigé
     precocher  code : pré-cocher les critères en exécutant le code transcrit (tests du sujet, local)
     transcrire lire le code manuscrit : --local (Ollama, gratuit) ou service en ligne (clé, plafond de dépense)
@@ -176,6 +177,11 @@ def main(argv=None):
     vz.add_argument("-o", "--sortie", help="écrire le rapport (Markdown) dans ce fichier au lieu de l'afficher")
     vz.add_argument("--tolerance", type=float, default=0.3, help="écart toléré en mm (défaut 0,3)")
 
+    ap_ = sub.add_parser("app", help="application : examens, du sujet source à la correction (navigateur)")
+    ap_.add_argument("--examens", default="examens", help="dossier des examens (défaut : examens/)")
+    ap_.add_argument("--port", type=int, default=8765)
+    ap_.add_argument("--no-browser", action="store_true")
+
     sj = sub.add_parser("sujet", help="source unique d'un examen (YAML) : contrôle strict, fichiers de corrigé")
     sj.add_argument("source", help="fichier examen.yaml")
     sj.add_argument("--langue", help="langue des fichiers de corrigé (fr, en…)")
@@ -305,6 +311,9 @@ def main(argv=None):
     elif a.cmd == "verif-zones":
         from .verif_zones import run as vzrun
         return vzrun(a.pdf, a.zones, a.sortie, a.tolerance)
+    elif a.cmd == "app":
+        from .serve import run_app
+        return run_app(a.examens, port=a.port, open_browser=not a.no_browser)
     elif a.cmd == "sujet":
         from .sujet import run as sjrun
         if a.out and not (a.langue and a.gabarit):

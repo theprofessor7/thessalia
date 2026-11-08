@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titre %}Examens{% endblock %}
+{% block nav %}Examens{% endblock %}
+{% block contenu %}
+<h1>Examens</h1>
+{% if message %}<p class="message">{{ message }}</p>{% endif %}
+<p class="aide">Un examen = un dossier dans <code>{{ racine }}/</code> : la source du sujet (<code>examen.yaml</code>),
+les PDF produits, les copies scannées et leur lecture. Tout reste sur cette machine.</p>
+
+{% if examens %}
+<div class="groupes">
+{% for e in examens %}
+  <section class="carte-groupe {{ 'fini' if e.produit and not e.erreurs }}">
+    <h2><a href="/examens/{{ e.nom }}">{{ e.titre or e.nom }}</a></h2>
+    {% if e.erreurs %}
+      <p class="erreur">Source refusée : {{ e.erreurs|length }} erreur{{ 's' if e.erreurs|length > 1 }} à corriger</p>
+    {% else %}
+      <p class="chiffres">{{ e.questions }} questions · {{ e.points|round(2) }} points · {{ e.langues|join(', ')|upper }}</p>
+      <p class="gris">{% if e.produit %}sujets produits{% else %}sujets à produire{% endif %}
+        · {{ e.classes|length }} classe{{ 's' if e.classes|length > 1 }} déposée{{ 's' if e.classes|length > 1 }}
+        · {{ e.copies }} copies lues</p>
+    {% endif %}
+    <p class="liens"><a href="/examens/{{ e.nom }}">Ouvrir</a></p>
+  </section>
+{% endfor %}
+</div>
+{% else %}
+<p>Aucun examen pour l'instant.</p>
+{% endif %}
+
+<h2>Nouvel examen</h2>
+<form class="formulaire" method="post" action="/examens/nouveau" enctype="multipart/form-data">
+  <label>Nom du dossier <input name="nom" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="midterm_2026"></label>
+  <label>Source du sujet <input type="file" name="source" accept=".yaml,.yml" required></label>
+  <label>Images (logo…) <input type="file" name="images" multiple accept="image/*"></label>
+  <button class="bouton principal">Créer l'examen</button>
+</form>
+<p class="aide">Format de la source : <code>docs/FORMAT_SUJET.md</code>. Le fichier est contrôlé dès l'ouverture de l'examen ;
+chaque erreur dit sa ligne et quoi corriger.</p>
+{% endblock %}

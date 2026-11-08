@@ -1,0 +1,71 @@
+"""Application : un examen de bout en bout, du sujet source à l'outil de correction."""
+import io
+import time
+
+import pytest
+
+pytest.importorskip("flask")
+
+from thessalia.__main__ import main as thessalia                     # noqa: E402
+from thessalia.serve import create_app                               # noqa: E402
+
+from test_sujet import SUJET                                          # noqa: E402
+
+
+def _attendre(client, max_s=300):
+    t0 = time.time()
+    while time.time() - t0 < max_s:
+        t = client.get("/tache").get_json()
+        if t and t["etat"] != "en cours":
+            return t
+        time.sleep(0.3)
+    raise AssertionError("tâche trop longue")
+
+
+def test_examen_de_bout_en_bout(tmp_path):
+    racine = tmp_path / "examens"
+    racine.mkdir()
+    app = create_app([], tmp_path / "decisions.sqlite", examens=racine)
+    c = app.test_client()
+    assert c.get("/").headers["Location"].endswith("/examens")
+
+    # source refusée : l'erreur est affichée avec sa ligne
+    r = c.post("/examens/nouveau", data={"nom": "essai", "source": (io.BytesIO(SUJET.replace("bonne: a", "bonne: z").encode()), "examen.yaml")},
+               content_type="multipart/form-data")
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert "Source refusée" in page and "bonne réponse « z »" in page
+
+    # source corrigée, PDF produits
+    c.post("/examens/essai/source", data={"source": (io.BytesIO(SUJET.encode()), "examen.yaml")}, content_type="multipart/form-data")
+    assert "contrôle réussi" in c.get("/examens/essai").get_data(as_text=True)
+    c.post("/examens/essai/produire")
+    t = _attendre(c)
+    assert t["etat"] == "terminé", t["journal"]
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert "sujet_ESSAI_FR.pdf" in page and "corrige_ESSAI_EN.pdf" in page
+    assert c.get("/examens/essai/pdf/sujet_ESSAI_FR.pdf").status_code == 200
+    assert c.get("/examens/essai/pdf/..%2Fexamen.yaml").status_code == 404
+
+    # copies simulées déposées et lues
+    prod = racine / "essai" / "produit"
+    thessalia(["simulate", "-t", str(prod / "gabarits" / "gabarit_ESSAI_FR.json"), "-b", str(prod / "sujet_ESSAI_FR.pdf"),
+               "-o", str(tmp_path / "sim"), "-n", "2"])
+    scans = (tmp_path / "sim" / "scans.pdf").read_bytes()
+    c.post("/examens/essai/deposer", data={"classe": "supA_1", "langue": "fr", "scan": (io.BytesIO(scans), "lot.pdf")},
+           content_type="multipart/form-data")
+    t = _attendre(c)
+    assert t["etat"] == "terminé", t["journal"]
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert "supA_1" in page and "pas encore lue" not in page
+
+    # correction ouverte sur les classes de l'examen
+    assert c.post("/examens/essai/corriger").headers["Location"] == "/"
+    accueil = c.get("/").get_data(as_text=True)
+    assert "supA_1" in accueil and "correction : " in accueil
+    # une décision prise dans l'outil est rangée dans l'examen, jamais dans la base commune
+    import sqlite3
+    r = c.post("/api/decision", json={"classe": "supA_1", "cle": "c01_q2", "verdict": "juste", "texte": "Bonjour, Alice !"})
+    assert r.status_code == 200
+    compte = lambda p: sqlite3.connect(p).execute("SELECT COUNT(*) FROM decision WHERE classe='supA_1'").fetchone()[0]
+    assert compte(racine / "essai" / "decisions.sqlite") == 1 and compte(tmp_path / "decisions.sqlite") == 0
+    assert (racine / "essai" / "verite" / "supA_1.appris.json").exists()

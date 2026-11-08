@@ -114,6 +114,10 @@ class Decisions:
     """Décisions prises dans l'outil : une ligne par réponse (classe, clé cNN_qX.Y)."""
 
     def __init__(self, path=DB_PATH):
+        self.ouvrir(path)
+
+    def ouvrir(self, path):
+        """Change de base (application : chaque examen a la sienne, examens/<nom>/decisions.sqlite)."""
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._db() as db:
@@ -286,8 +290,12 @@ class Classe:
         self.group = group_of(self.name)
         res = load_json(self.dir / "results.json")
         self.exam_id = res["exam_id"]
+        # classe d'un examen de l'application (examens/<nom>/classes/<classe>) : gabarits et corrigés de cet examen
+        produit = self.dir.parent.parent / "produit"
+        dirs = ({"keys_dir": produit / "corriges", "templates_dir": produit / "gabarits"}
+                if self.dir.parent.name == "classes" and (produit / "corriges").is_dir() else {})
         if self.exam_id not in exams:
-            exams[self.exam_id] = Exam.load(self.exam_id)
+            exams[self.exam_id] = Exam.load(self.exam_id, **dirs)
         self.exam: Exam = exams[self.exam_id]
         # traduction exacte d'un autre sujet (`traduction_de` dans le corrigé, décision de l'enseignant le
         # 21 octobre pour le sujet EN) : la mémoire des verdicts est commune pour les champs de même corrigé
@@ -295,7 +303,7 @@ class Classe:
         self.partage = set()
         if src:
             if src not in exams:
-                exams[src] = Exam.load(src)
+                exams[src] = Exam.load(src, **dirs)
             autre = exams[src].key.get("short_answers", {})
             self.partage = {f for f, v in self.exam.key.get("short_answers", {}).items() if autre.get(f) == v}
             self.source = src

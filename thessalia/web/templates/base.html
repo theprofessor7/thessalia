@@ -9,6 +9,7 @@
 <body>
 <header class="barre">
   <a class="logo" href="/">Thessalia</a>
+  {% if mode_examens %}<a class="bouton" href="/examens">Examens</a>{% if examen_ouvert %}<span class="gris">correction : <a href="/examens/{{ examen_ouvert }}">{{ examen_ouvert }}</a></span>{% endif %}{% endif %}
   <nav>{% block nav %}{% endblock %}</nav>
   <span class="espace"></span>
   {% if nb_a_la_main %}<a class="bouton alerte" href="/a-la-main" title="page absente du scan ou illisible">{{ nb_a_la_main }} copie{{ 's' if nb_a_la_main > 1 }} à reprendre sur le papier</a>{% endif %}

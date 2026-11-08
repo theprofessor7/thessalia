@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block titre %}{{ e.titre or e.nom }}{% endblock %}
+{% block nav %}<a href="/examens">Examens</a> › {{ e.titre or e.nom }}{% endblock %}
+{% block contenu %}
+<h1>{{ e.titre or e.nom }}</h1>
+{% if message %}<p class="message">{{ message }}</p>{% endif %}
+
+{% if tache %}
+<section class="tache {{ tache.etat|replace(' ', '-') }}" id="tache">
+  <h2>{{ tache.titre }} — <span id="tache-etat">{{ tache.etat }}</span></h2>
+  <pre id="journal">{{ tache.journal|join('\n') }}</pre>
+</section>
+{% endif %}
+
+<ol class="etapes">
+  <li class="etape {{ 'faite' if not e.erreurs }}">
+    <h2>1. Source du sujet</h2>
+    {% if e.erreurs %}
+      <p class="erreur">Source refusée. Corrigez le fichier puis déposez-le à nouveau :</p>
+      <ul class="erreurs">{% for m in e.erreurs %}<li>{{ m }}</li>{% endfor %}</ul>
+    {% else %}
+      <p>{{ e.id }} · {{ e.questions }} questions · {{ e.points|round(2) }} points · langues {{ e.langues|join(', ')|upper }} :
+        <span class="ok">contrôle réussi</span></p>
+    {% endif %}
+    <details><summary>Remplacer la source</summary>
+      <form class="formulaire" method="post" action="/examens/{{ e.nom }}/source" enctype="multipart/form-data">
+        <label>Source <input type="file" name="source" accept=".yaml,.yml" required></label>
+        <label>Images <input type="file" name="images" multiple accept="image/*"></label>
+        <button class="bouton">Remplacer</button>
+      </form>
+      <p class="aide">L'ancienne source est gardée à côté, datée.</p>
+    </details>
+  </li>
+
+  <li class="etape {{ 'faite' if e.produit }}">
+    <h2>2. Sujets et corrigés</h2>
+    {% if e.produit %}
+      <p><span class="ok">À jour.</span> À imprimer : {% for f in pdfs if f.startswith('sujet_') %}<a href="/examens/{{ e.nom }}/pdf/{{ f }}" target="_blank">{{ f }}</a>{{ ', ' if not loop.last }}{% endfor %}.
+        Corrigés : {% for f in pdfs if f.startswith('corrige_') %}<a href="/examens/{{ e.nom }}/pdf/{{ f }}" target="_blank">{{ f }}</a>{{ ', ' if not loop.last }}{% endfor %}.</p>
+    {% elif pdfs %}
+      <p class="attente">La source a changé depuis la dernière production : produisez à nouveau avant d'imprimer.</p>
+    {% else %}
+      <p class="gris">Pas encore produits.</p>
+    {% endif %}
+    <form method="post" action="/examens/{{ e.nom }}/produire">
+      <button class="bouton {{ 'principal' if not e.produit }}" {{ 'disabled' if e.erreurs }}>Produire les PDF</button>
+    </form>
+    <p class="aide">Mise en page, gabarit relu dans le PDF et corrigés, contrôlés : refusé si une zone de réponse
+      n'est pas exactement là où le PDF la dessine.</p>
+  </li>
+
+  <li class="etape {{ 'faite' if e.lues }}">
+    <h2>3. Copies scannées</h2>
+    {% if e.classes %}
+    <table class="tableau">
+      <tr><th>Classe</th><th>Sujet</th><th class="n">Copies</th><th class="n">À revoir</th><th></th></tr>
+      {% for c in e.classes %}
+      <tr><td>{{ c.classe }}</td><td>{{ (c.langue or '?')|upper }}</td>
+        <td class="n">{{ c.copies if c.lue else '—' }}</td><td class="n">{{ c.a_revoir if c.lue else '—' }}</td>
+        <td>{% if not c.lue %}<span class="attente">pas encore lue</span>{% elif c.lue_avant %}<span class="attente">scan remplacé</span>{% endif %}
+          <form class="enligne" method="post" action="/examens/{{ e.nom }}/lire/{{ c.classe }}"><button class="bouton">{{ 'Relire' if c.lue else 'Lire' }}</button></form></td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    <form class="formulaire" method="post" action="/examens/{{ e.nom }}/deposer" enctype="multipart/form-data">
+      <label>Classe <input name="classe" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="supA_1"></label>
+      <label>Sujet distribué <select name="langue">{% for l in e.langues %}<option value="{{ l }}">{{ l|upper }}</option>{% endfor %}</select></label>
+      <label>PDF des copies <input type="file" name="scan" accept=".pdf" required></label>
+      <button class="bouton principal" {{ 'disabled' if not e.produit }}>Déposer et lire</button>
+    </form>
+    <p class="aide">Un PDF par classe, tel qu'il sort du scanner (A3, pages tournées ou blanches : gérés). Choisissez
+      bien la langue du sujet distribué : un mauvais choix est signalé « GABARIT DOUTEUX » dans le journal.</p>
+  </li>
+
+  <li class="etape {{ 'faite' if ouvert }}">
+    <h2>4. Correction</h2>
+    <form method="post" action="/examens/{{ e.nom }}/corriger">
+      <button class="bouton {{ 'principal' if e.lues }}" {{ 'disabled' if not e.lues }}>Corriger les copies lues</button>
+    </form>
+    <p class="aide">Ouvre l'outil de correction sur les classes de cet examen : vue par question, vue par copie,
+      identification des copies, notes et export.</p>
+  </li>
+</ol>
+{% endblock %}
+{% block scripts %}
+{% if tache and tache.etat == 'en cours' %}
+<script>
+// journal de la tâche en cours ; la page se recharge quand elle se termine
+const suivre = async () => {
+  const t = await (await fetch('/tache')).json();
+  if (!t) return;
+  document.getElementById('journal').textContent = t.journal.join('\n');
+  document.getElementById('tache-etat').textContent = t.etat;
+  if (t.etat === 'en cours') setTimeout(suivre, 1500); else location.reload();
+};
+setTimeout(suivre, 1500);
+</script>
+{% endif %}
+{% endblock %}

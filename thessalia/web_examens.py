@@ -1,0 +1,179 @@
+"""Pages « Examens » de l'application : du sujet source aux copies lues, puis l'outil de correction.
+
+Une tâche longue (produire les PDF, lire une classe) tourne en arrière-plan, une à la fois ; la page de l'examen
+affiche son journal. Rien ne sort de la machine (serveur sur 127.0.0.1).
+"""
+from __future__ import annotations
+
+import threading
+import time
+from pathlib import Path
+from urllib.parse import quote
+
+from .projet import Projet, creer, nom_valide, projets
+
+
+class Taches:
+    """Une seule tâche longue à la fois (lire des scans prend de la mémoire)."""
+
+    def __init__(self):
+        self.courante = None
+        self._verrou = threading.Lock()
+
+    def lancer(self, projet, titre, fn, apres=None):
+        with self._verrou:
+            if self.courante and self.courante["etat"] == "en cours":
+                raise RuntimeError(f"une tâche tourne déjà : {self.courante['titre']}")
+            t = {"projet": projet, "titre": titre, "etat": "en cours", "journal": [], "debut": time.time(), "fin": None}
+            self.courante = t
+
+        def log(*a):
+            t["journal"].append(" ".join(str(x) for x in a))
+            del t["journal"][:-400]
+
+        def corps():
+            try:
+                fn(log)
+                t["etat"] = "terminé"
+                if apres:
+                    apres()
+            except SystemExit as e:
+                t["etat"] = "erreur"
+                log(str(e))
+            except Exception as e:      # erreur imprévue : affichée telle quelle, jamais avalée
+                t["etat"] = "erreur"
+                log(f"{type(e).__name__} : {e}")
+            t["fin"] = time.time()
+        threading.Thread(target=corps, daemon=True).start()
+        return t
+
+
+def _vers(chemin, message):
+    return f"{chemin}?m={quote(str(message))}"
+
+
+def enregistrer(app, racine: Path, charger):
+    from flask import abort, jsonify, redirect, render_template, request, send_from_directory
+
+    taches = Taches()
+    etat = {"ouvert": None}          # examen dont les classes sont dans l'outil de correction
+
+    def projet(nom) -> Projet:
+        if not nom_valide(nom) or not (racine / nom).is_dir():
+            abort(404)
+        return Projet(racine / nom)
+
+    def resume(p: Projet):
+        ex, err = p.controle()
+        cl = p.classes()
+        return {"nom": p.nom, "titre": (ex.entete["titre"][ex.langues[0]] if ex else None), "id": ex.id if ex else None,
+                "erreurs": err, "langues": ex.langues if ex else [], "questions": len(ex.questions()) if ex else 0,
+                "points": ex.points if ex else None, "produit": p.produit_a_jour(), "classes": cl,
+                "lues": sum(c["lue"] for c in cl), "copies": sum(c["copies"] or 0 for c in cl)}
+
+    @app.context_processor
+    def contexte_examens():
+        return {"examen_ouvert": etat["ouvert"]}
+
+    @app.route("/examens")
+    def examens_page():
+        return render_template("examens.html", examens=[resume(p) for p in projets(racine)], racine=str(racine),
+                               message=request.args.get("m"))
+
+    @app.post("/examens/nouveau")
+    def nouvel_examen():
+        nom = (request.form.get("nom") or "").strip()
+        src = request.files.get("source")
+        if not src or not src.filename:
+            return redirect(_vers("/examens", "Choisissez le fichier examen.yaml."))
+        images = {f.filename: f.read() for f in request.files.getlist("images") if f and f.filename}
+        try:
+            creer(nom, src.read(), racine, images)
+        except ValueError as e:
+            return redirect(_vers("/examens", str(e)))
+        return redirect(f"/examens/{nom}")
+
+    @app.route("/examens/<nom>")
+    def examen_page(nom):
+        p = projet(nom)
+        t = taches.courante if taches.courante and taches.courante["projet"] == nom else None
+        return render_template("examen.html", e=resume(p), pdfs=[f.name for f in p.pdfs()], tache=t,
+                               ouvert=etat["ouvert"] == nom, message=request.args.get("m"))
+
+    @app.post("/examens/<nom>/source")
+    def remplacer_source(nom):
+        p = projet(nom)
+        src = request.files.get("source")
+        if not src or not src.filename:
+            return redirect(_vers(f"/examens/{nom}", "Choisissez un fichier .yaml."))
+        if p.source:
+            p.source.rename(p.source.with_name(p.source.stem + f".avant-{time.strftime('%Y%m%d-%H%M%S')}.txt"))
+        (p.dir / "examen.yaml").write_bytes(src.read())
+        for f in request.files.getlist("images"):
+            if f and f.filename and nom_valide(f.filename):
+                (p.dir / f.filename).write_bytes(f.read())
+        return redirect(f"/examens/{nom}")
+
+    def lancer(nom, titre, fn, apres=None):
+        try:
+            taches.lancer(nom, titre, fn, apres)
+        except RuntimeError as e:
+            return redirect(_vers(f"/examens/{nom}", e))
+        return redirect(f"/examens/{nom}")
+
+    @app.post("/examens/<nom>/produire")
+    def produire(nom):
+        p = projet(nom)
+        return lancer(nom, "Produire les sujets et corrigés", lambda log: p.produire(log=log))
+
+    @app.route("/examens/<nom>/pdf/<fichier>")
+    def pdf(nom, fichier):
+        p = projet(nom)
+        if not fichier.endswith(".pdf") or fichier not in {f.name for f in p.pdfs()}:
+            abort(404)
+        return send_from_directory(p.produit.resolve(), fichier)
+
+    def apres_lecture(nom):
+        def f():
+            if etat["ouvert"] == nom:     # l'outil de correction voit aussitôt la classe lue
+                p = Projet(racine / nom)
+                charger(p.dossiers_lus(), p.stockage())
+        return f
+
+    @app.post("/examens/<nom>/deposer")
+    def deposer(nom):
+        p = projet(nom)
+        f = request.files.get("scan")
+        classe, langue = (request.form.get("classe") or "").strip(), request.form.get("langue")
+        if not f or not f.filename:
+            return redirect(_vers(f"/examens/{nom}", "Choisissez le PDF des copies scannées."))
+        try:
+            p.deposer(classe, langue, f.read())
+        except ValueError as e:
+            return redirect(_vers(f"/examens/{nom}", e))
+        return lancer(nom, f"Lire les copies de {classe}", lambda log: p.traiter(classe, log=log), apres_lecture(nom))
+
+    @app.post("/examens/<nom>/lire/<classe>")
+    def relire(nom, classe):
+        p = projet(nom)
+        if not (p.scans / f"{classe}.pdf").exists():
+            abort(404)
+        return lancer(nom, f"Lire les copies de {classe}", lambda log: p.traiter(classe, log=log), apres_lecture(nom))
+
+    @app.post("/examens/<nom>/corriger")
+    def corriger(nom):
+        p = projet(nom)
+        dossiers = p.dossiers_lus()
+        if not dossiers:
+            return redirect(_vers(f"/examens/{nom}", "Aucune classe lue pour l'instant."))
+        try:
+            charger(dossiers, p.stockage())
+        except SystemExit as e:
+            return redirect(_vers(f"/examens/{nom}", e))
+        etat["ouvert"] = nom
+        return redirect("/")
+
+    @app.route("/tache")
+    def tache():
+        t = taches.courante
+        return jsonify(None if t is None else {k: t[k] for k in ("projet", "titre", "etat", "journal")})

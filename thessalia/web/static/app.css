@@ -196,3 +196,22 @@ body.voir-claude .banc-detail.src-claude { display:block; }
 .carte.desaccord { outline:3px dashed var(--forme); outline-offset:-3px; }
 .banc-cache { display:none !important; }
 body.voir-local .banc-cache { display:revert !important; }
+
+/* ---- pages Examens (application) ---- */
+.message { background:var(--doutef); border:1px solid var(--trait); border-radius:6px; padding:6px 10px; }
+.erreur { color:var(--faux); font-weight:600; }
+.erreurs { background:var(--fauxf); border-radius:6px; padding:8px 8px 8px 28px; font-family:ui-monospace, Consolas, monospace; font-size:12.5px; }
+.etapes { list-style:none; padding:0; display:grid; gap:12px; max-width:980px; }
+.etape { background:var(--carte); border:1px solid var(--trait); border-left:5px solid var(--doute); border-radius:8px; padding:4px 14px 10px; }
+.etape.faite { border-left-color:var(--juste); }
+.etape h2 { margin:8px 0 6px; }
+.formulaire { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:end; margin:8px 0; }
+.formulaire label { display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--gris); }
+.formulaire input, .formulaire select { font:inherit; color:var(--encre); background:var(--fond); border:1px solid var(--trait); border-radius:5px; padding:4px 6px; }
+.tableau { border-collapse:collapse; margin:6px 0; font-size:13px; }
+.tableau th, .tableau td { padding:4px 10px; border-bottom:1px solid var(--trait); text-align:left; }
+.enligne { display:inline; margin-left:8px; }
+.bouton[disabled] { opacity:.45; cursor:not-allowed; }
+.tache { background:var(--carte); border:1px solid var(--trait); border-left:5px solid var(--doute); border-radius:8px; padding:4px 14px 10px; margin-bottom:12px; max-width:980px; }
+.tache.terminé { border-left-color:var(--juste); } .tache.erreur { border-left-color:var(--faux); }
+.tache pre { max-height:260px; overflow:auto; background:var(--fond); padding:8px; border-radius:6px; font-size:12px; white-space:pre-wrap; }

@@ -39,7 +39,7 @@ def _qkey(fid):
     return [int(x) if x.isdigit() else 0 for x in fid.replace("q", "").split(".")]
 
 
-def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False):
+def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None):
     """apprendre=False (mode essai) : aucune étiquette d'apprentissage écrite (data/truth/<classe>.appris.json).
     banc=True (mode banc d'essai, avec l'essai) : l'enseignant corrige les cadres de code À L'AVEUGLE (rien de
     pré-coché, rien de la machine affiché) ; ses choix (base d'essai) forment H. Boutons en haut de la vue par
@@ -52,15 +52,31 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False):
     app = Flask(__name__, template_folder=str(web / "templates"), static_folder=str(web / "static"))
     app.json.ensure_ascii = False
     decisions, exams, memory = Decisions(db_path), {}, Memory()
-    classes = {d.name: Classe(d, exams, decisions, memory=memory) for d in _classes(paths)}
-    if not classes:
+    classes, groups = {}, {}
+
+    def charger(dossiers, stockage=None):
+        """(Re)charge les classes corrigées, en place : les pages s'en servent aussitôt (application des examens :
+        « Corriger » ouvre les classes d'un examen). `stockage` : base des décisions, vérité et attributions propres
+        à l'examen ; sans lui, celles de data/. Deux classes de même nom dans deux examens ne partagent ainsi
+        jamais leurs décisions."""
+        st = stockage or {}
+        decisions.ouvrir(st.get("db", db_path))
+        dirs = {k: st[k] for k in ("truth_dir", "lists_dir") if k in st}
+        exams.clear()       # corrigés relus : un examen a pu être reproduit entre-temps
+        nouv = ({d.name: Classe(d, exams, decisions, memory=memory, **dirs) for d in _classes(dossiers)}
+                if dossiers else {})
+        classes.clear()
+        classes.update(nouv)
+        groups.clear()
+        for c in classes.values():  # vérité d'apprentissage à jour dès le chargement (classes déjà travaillées)
+            if apprendre and decisions.of(c.name):
+                c.save_labels()
+            groups.setdefault(c.group, []).append(c)
+        memory.dirty = True
+
+    charger(paths)
+    if not classes and examens is None:
         raise SystemExit("Aucune classe trouvée (dossiers contenant results.json).")
-    for c in classes.values():  # vérité d'apprentissage à jour dès le démarrage (classes déjà travaillées)
-        if apprendre and decisions.of(c.name):
-            c.save_labels()
-    groups = {}
-    for c in classes.values():
-        groups.setdefault(c.group, []).append(c)
 
     @app.before_request
     def refresh_memory():
@@ -139,6 +155,9 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False):
 
     @app.route("/")
     def home():
+        if not classes and examens is not None:
+            from flask import redirect
+            return redirect("/examens")
         data = [{"groupe": g, "classes": summary(groups[g]), "a_la_main": a_la_main(g)} for g in sorted(groups, key=_gkey)]
         return render_template("accueil.html", groupes=data)
 
@@ -361,7 +380,10 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False):
             resp.headers["Cache-Control"] = "no-store"
         return resp
 
-    app.jinja_env.globals.update(rate=RATE)
+    app.jinja_env.globals.update(rate=RATE, mode_examens=examens is not None)
+    if examens is not None:
+        from .web_examens import enregistrer
+        enregistrer(app, Path(examens), charger)
     return app
 
 
@@ -378,6 +400,17 @@ def run(paths, port=8765, open_browser=True, db_path=DB_PATH, essai=False, banc=
     url = f"http://127.0.0.1:{port}/"
     print(f"Outil de correction{' (BANC : humain / Claude / local)' if banc else ''}{' (ESSAI : décisions à part, rien appris)' if essai else ''} : {url}  "
           f"(Ctrl+C pour arrêter ; décisions dans {db_path})")
+    if open_browser:
+        webbrowser.open(url)
+    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+
+
+def run_app(examens="examens", port=8765, open_browser=True, db_path=DB_PATH):
+    """Application : pages Examens (sujet source, PDF, dépôt des scans, lecture) + outil de correction."""
+    Path(examens).mkdir(parents=True, exist_ok=True)
+    app = create_app([], db_path, examens=examens)
+    url = f"http://127.0.0.1:{port}/examens"
+    print(f"Thessalia : {url}  (Ctrl+C pour arrêter ; examens dans {Path(examens).resolve()}, décisions dans {db_path})")
     if open_browser:
         webbrowser.open(url)
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)

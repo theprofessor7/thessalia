@@ -34,3 +34,5 @@ data/lecteur.cle
 data/lecteur_depenses.json
 # archive du générateur de sujets (contient sujets et corrigés) : hors dépôt
 esme_python_exam_generator.zip
+# examens de l application (source, PDF produits, scans et résultats des élèves) : hors dépôt
+examens/

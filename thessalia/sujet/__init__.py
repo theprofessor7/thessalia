@@ -57,17 +57,22 @@ def run(a):
             print(f"  -> {p}")
 
 
-def produire_tout(ex, source, dossier):
+def produire_tout(ex, source, dossier, gabarits=None, corriges=None, log=print):
+    """Sujets, corrigés PDF, zones (dans `dossier`), gabarits (`gabarits`) et fichiers de corrigé (`corriges`) de
+    toutes les langues ; SystemExit avec la raison si un contrôle échoue."""
     from ..template_builder import build_template
     from ..verif_zones import controler
     from .mise_en_page import produire
 
+    gabarits, corriges = Path(gabarits or dossier), Path(corriges or dossier)
+    gabarits.mkdir(parents=True, exist_ok=True)
+    corriges.mkdir(parents=True, exist_ok=True)
     premier = None
     for langue in ex.langues:
         c = produire(ex, source, dossier, langue)
         base = f"{ex.id}_{langue.upper()}"
         gab = build_template(c["sujet"], exam_id=base)
-        gp = dossier / f"gabarit_{base}.json"
+        gp = gabarits / f"gabarit_{base}.json"
         gp.write_text(json.dumps(gab, ensure_ascii=False, indent=1), encoding="utf-8")
         rapport, ok = controler(c["sujet"], c["zones"])
         (dossier / f"verif_zones_{base}.md").write_text(rapport, encoding="utf-8")
@@ -75,16 +80,13 @@ def produire_tout(ex, source, dossier):
         if not ok:
             err.append(f"zones non conformes au PDF : voir {dossier / f'verif_zones_{base}.md'}")
         if err:
-            print(f"{langue} : REFUSÉ")
-            for m in err:
-                print("  -", m)
-            raise SystemExit(1)
+            raise SystemExit(f"{langue} : REFUSÉ\n" + "\n".join("  - " + m for m in err))
         key, vocab, bareme = fichiers(ex, langue, base, source.name, premier)
         for suffixe, contenu in ((".key.json", key), (".vocab.json", vocab), (".bareme.json", bareme)):
             if contenu is not None:
                 texte = json.dumps(contenu, ensure_ascii=False, indent=1) + "\n"
-                (dossier / f"{base}{suffixe}").write_text(texte, encoding="utf-8")
+                (corriges / f"{base}{suffixe}").write_text(texte, encoding="utf-8")
         n = sum(len(p["fields"]) for p in gab["pages"])
-        print(f"{langue} : {gab['page_count']} pages, {n} champs, zones conformes ; {c['sujet'].name}, "
+        log(f"{langue} : {gab['page_count']} pages, {n} champs, zones conformes ; {c['sujet'].name}, "
               f"{c['corrige'].name}, {gp.name}, {base}.key.json")
         premier = premier or base
