@@ -19,7 +19,7 @@ Il faut **Python 3.10 ou plus récent** et **git**.
 Récupérer Thessalia, dans un dossier dont le chemin ne contient pas « $ » (par exemple `C:\Thessalia`) :
 
 ```
-git clone <adresse du dépôt> C:\Thessalia
+git clone https://github.com/theprofessor7/thessalia.git C:\Thessalia
 ```
 
 Puis :
