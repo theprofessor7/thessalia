@@ -16,6 +16,8 @@ Lire d'abord `HANDOFF.md` (où on en est, chiffres mesurés, prochaines étapes)
    des **options opt-in** : désactivées tant que la clé n'est pas fournie (`ocr._require_env`).
 3. **Données d'étudiants.** Jamais de scan, de vignette ni de résultat dans le dépôt ou un partage
    (cf. `.gitignore`). Les vignettes envoyées à un service externe ne contiennent jamais l'identité.
+   **Dépôt public** : aucun nom d'élève (ni note nominative) dans HANDOFF, les commentaires, les tests ou les messages
+   de commit ; exemples avec des noms inventés. Les sujets et corrigés (`templates/`, `keys/`, `sujets/`) restent hors dépôt.
 4. **Le gabarit vient du PDF.** Ne jamais mesurer de coordonnées à la main : `python -m thessalia template`
    lit les positions exactes dans le PDF vectoriel WeasyPrint.
 
