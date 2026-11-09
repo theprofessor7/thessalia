@@ -27,6 +27,9 @@ Puis :
 - **Windows** : double-cliquer sur `installer.bat`.
 - **macOS / Linux** : dans un terminal, `./installer.sh`.
 
+L'installeur est un simple programme Python (`installer.py`), lisible par tous. Si Windows bloque le
+double-clic, voir « Si Windows bloque » (§ 6).
+
 L'installeur demande s'il faut ajouter le **lecteur d'écriture** (~2 Go). Il lit automatiquement les réponses
 courtes. Sans lui, tout fonctionne : les réponses courtes se corrigent à la main dans l'outil. On peut relancer
 l'installeur plus tard pour l'ajouter.
@@ -163,11 +166,46 @@ Pour sauvegarder un examen, copier son dossier sur un support personnel.
 
 Le sujet lui-même (`examen.yaml`) se partage avec les collègues. Il est **confidentiel jusqu'à l'examen**.
 
-## 6. En cas de problème
+## 6. Si Windows bloque
+
+Les fichiers `.bat` ne font que lancer Python. Ils sont parfois bloqués quand même, de deux façons.
+
+**Écran bleu « Windows a protégé votre ordinateur » (SmartScreen).** Cela arrive quand Thessalia a été
+téléchargé en **ZIP** depuis GitHub au lieu de `git clone` : Windows marque alors les fichiers comme venant
+d'internet. Deux solutions :
+
+- cliquer **« Informations complémentaires »**, puis **« Exécuter quand même »** ;
+- ou, mieux, avant de décompresser : clic droit sur le ZIP → **Propriétés** → cocher **« Débloquer »** → OK,
+  puis décompresser.
+
+Avec `git clone`, cet écran n'apparaît pas.
+
+**Rien ne se passe, ou un message de l'antivirus ou de l'administrateur.** Sur un PC géré par la DSI, les
+scripts peuvent être interdits. Taper alors les commandes à la main, dans une fenêtre PowerShell ouverte dans
+le dossier de Thessalia (Explorateur → dossier de Thessalia → taper `powershell` dans la barre d'adresse →
+Entrée).
+
+Installer (une fois) :
+
+```
+py installer.py
+```
+
+Lancer (à chaque fois) :
+
+```
+.venv\Scripts\python -m thessalia app
+```
+
+Si `py` n'est pas reconnu, remplacer `py` par `python`. Si même `python installer.py` est refusé, demander à
+la DSI d'autoriser Python : Thessalia n'a besoin de rien d'autre.
+
+## 7. En cas de problème
 
 | Problème | Que faire |
 |---|---|
-| `installer.bat` : « Python introuvable » | Installer Python en cochant « Add python.exe to PATH », puis relancer. |
+| `installer.bat` : « Python introuvable » ou « py n'est pas reconnu » | Installer Python en cochant « Add python.exe to PATH », puis relancer. |
+| Écran bleu SmartScreen, ou double-clic sans effet | Voir « Si Windows bloque » (§ 6). |
 | « le chemin du dossier contient $ » | Cloner Thessalia ailleurs, par exemple `C:\Thessalia`. |
 | La page ne s'ouvre pas | Vérifier que la fenêtre noire est ouverte, puis aller sur http://127.0.0.1:8765/examens. |
 | « Address already in use » | Thessalia tourne déjà : utiliser la fenêtre ouverte. |

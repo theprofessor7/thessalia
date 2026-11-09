@@ -1,5 +1,10 @@
 @echo off
-rem Installation de Thessalia (Windows) : double-cliquer. Lance installer.ps1 sans changer la politique du PC.
+rem Installation de Thessalia (Windows) : double-cliquer. Lance installer.py avec le Python du PC.
 cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0installer.ps1" %*
+where py >nul 2>nul
+if %errorlevel%==0 (
+  py -3 installer.py %*
+) else (
+  python installer.py %*
+)
 pause
