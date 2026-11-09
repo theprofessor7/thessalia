@@ -21,11 +21,14 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 
+NOTE_MAX = 20     # un barème peut dépasser 20 (Midterm 2026 : q10 à 1 pt, total 20,25) : la note finale est plafonnée
+
+
 def arrondi_demi(note):
-    """Arrondi au demi-point supérieur. Le passage par 3 décimales évite qu'un 15,0000001 devienne 15,5."""
+    """Arrondi au demi-point supérieur, plafonné à 20. Le passage par 3 décimales évite qu'un 15,0000001 devienne 15,5."""
     if note is None:
         return None
-    return math.ceil(round(note, 3) * 2) / 2
+    return min(math.ceil(round(note, 3) * 2) / 2, NOTE_MAX)
 
 
 def sauvegarder(path, maintenant=None):
@@ -163,7 +166,7 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None, log=print):
         log(f"Ancien fichier conservé : {copie}")
     p = ecrire_xlsx(sortie, [
         ("Notes", [["Groupe", "Élève", "Classe (composé)", "Copie", "QCM", "Réponses courtes", "Code", "Total",
-                    "Sur", "En attente", "Note arrondie"]] + notes, [8, 32, 16, 7, 7, 10, 7, 8, 6, 10, 12]),
+                    "Sur", "En attente", "Note arrondie (max 20)"]] + notes, [8, 32, 16, 7, 7, 10, 7, 8, 6, 10, 12]),
         ("Absents", [["Groupe", "Élève"]] + absents, [8, 32]),
         ("À vérifier", [["Groupe", "Élève", "Classe", "Copie", "En attente", "Raison"]] + verifier,
          [8, 32, 16, 7, 10, 40]),

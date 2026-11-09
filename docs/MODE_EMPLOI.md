@@ -103,6 +103,10 @@ redéposer avec la bonne langue.
 - **Lire les réponses courtes** (lecteur d'écriture) : quelques minutes par classe. Pour un sujet nouveau,
   **toutes** les réponses partent en revue, avec la lecture proposée. C'est voulu : un sujet n'est validé
   qu'après une mesure sur des copies corrigées.
+- **Sujet validé** : à mesure que vous corrigez les réponses courtes, la page compte les lectures que la machine
+  aurait acceptées d'office et combien sont justes d'après vous. Le bouton s'active à partir de 30 lectures
+  vérifiées **sans aucun écart**. Ensuite, les réponses sûres de ce sujet sont acceptées d'office ; les autres
+  restent en revue. Produire à nouveau le sujet annule la validation.
 - **Préparer la nuit** (Ollama) : transcrit le code manuscrit, pré-coche les critères du barème en exécutant le
   code, et fait relire les réponses courtes par un second modèle. Compter environ une nuit pour une centaine de
   copies. Si c'est interrompu, relancer : la préparation reprend où elle s'était arrêtée.

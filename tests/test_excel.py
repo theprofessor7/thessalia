@@ -22,6 +22,7 @@ def test_arrondi_demi_point_superieur():
     assert arrondi_demi(12.5) == 12.5
     assert arrondi_demi(0) == 0
     assert arrondi_demi(None) is None
+    assert arrondi_demi(20.25) == 20 and arrondi_demi(19.8) == 20          # plafond (Midterm 2026 sur 20,25)
 
 
 def test_sauvegarde_avant_ecrasement(tmp_path):

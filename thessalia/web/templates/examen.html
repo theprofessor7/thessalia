@@ -84,6 +84,21 @@
     {% else %}
       <span class="attente">Lecteur d'écriture non installé (<code>pip install -e ".[trocr]"</code>, ~2 Go).</span>
     {% endif %}
+    {% for l, m in validation.items() %}
+    <div class="validation">Sujet {{ l|upper }} :
+      {% if m.validee %}<span class="ok">lecture validée</span>{% if m.mesure %} le {{ m.mesure.date }}
+        ({{ m.mesure.justes }}/{{ m.mesure.verifiees }} lectures justes){% endif %} : les réponses sûres sont acceptées d'office.
+      {% else %}
+        nouveau, toutes les réponses courtes en revue.
+        Lectures que la machine aurait acceptées, déjà vérifiées par vous : <b>{{ m.justes }}/{{ m.n }} justes</b>.
+        <form class="enligne" method="post" action="/examens/{{ e.nom }}/valider/{{ l }}"
+              onsubmit="return confirm('Accepter désormais d\'office les réponses courtes sûres du sujet {{ l|upper }} ?')">
+          <button class="bouton" {{ 'disabled' if not m.possible }}>Sujet validé</button></form>
+        {% if m.pourquoi %}<span class="aide">{{ m.pourquoi }}.</span>{% endif %}
+        {% if m.ecarts %}<details><summary>Écarts</summary><ul>{% for cl, cp, ch, lu, v in m.ecarts[:20] %}
+          <li>{{ cl }} {{ cp }} {{ ch }} : lu « {{ lu }} », vous : {{ v }}</li>{% endfor %}</ul></details>{% endif %}
+      {% endif %}</div>
+    {% endfor %}
     <br>
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer">
       <button class="bouton" {{ 'disabled' if not (e.lues and outils.ollama) }}>Préparer la nuit (code, second lecteur)</button>

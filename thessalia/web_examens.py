@@ -83,6 +83,9 @@ def enregistrer(app, racine: Path, charger):
                 "points": ex.points if ex else None, "produit": p.produit_a_jour(), "classes": cl,
                 "lues": sum(c["lue"] for c in cl), "courtes": sum(c["lue"] and c["courtes"] for c in cl), "copies": sum(c["copies"] or 0 for c in cl)}
 
+    def resume_lues(p):
+        return any(c["lue"] and c["courtes"] for c in p.classes())
+
     @app.context_processor
     def contexte_examens():
         return {"examen_ouvert": etat["ouvert"]}
@@ -112,7 +115,7 @@ def enregistrer(app, racine: Path, charger):
         notes = p.notes_xlsx
         return render_template("examen.html", e=resume(p), pdfs=[f.name for f in p.pdfs()], tache=t,
                                ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=outils(),
-                               liste=p.liste(),
+                               liste=p.liste(), validation=p.mesure_lecture() if resume_lues(p) else {},
                                notes=time.strftime("%d/%m/%Y %H:%M", time.localtime(notes.stat().st_mtime))
                                if notes.exists() else None)
 
@@ -193,6 +196,16 @@ def enregistrer(app, racine: Path, charger):
     def courtes(nom):
         p = projet(nom)
         return lancer(nom, "Lire les réponses courtes", lambda log: p.lire_courtes(log=log), apres_lecture(nom))
+
+    @app.post("/examens/<nom>/valider/<langue>")
+    def valider(nom, langue):
+        p = projet(nom)
+        try:
+            m = p.valider_lecture(langue)
+        except ValueError as e:
+            return redirect(_vers(f"/examens/{nom}", e))
+        return lancer(nom, f"Sujet {langue.upper()} validé ({m['justes']}/{m['n']} lectures justes) : relecture des "
+                           "réponses courtes", lambda log: p.lire_courtes(log=log), apres_lecture(nom))
 
     @app.post("/examens/<nom>/preparer")
     def preparer(nom):

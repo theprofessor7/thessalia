@@ -22,7 +22,7 @@ def _attendre(client, max_s=300):
     raise AssertionError("tâche trop longue")
 
 
-def test_examen_de_bout_en_bout(tmp_path):
+def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     racine = tmp_path / "examens"
     racine.mkdir()
     app = create_app([], tmp_path / "decisions.sqlite", examens=racine)
@@ -89,3 +89,34 @@ def test_examen_de_bout_en_bout(tmp_path):
     c.post("/examens/essai/notes")                                        # second export : l'ancien est gardé
     assert _attendre(c)["etat"] == "terminé"
     assert len(list((racine / "essai" / "notes").glob("*.xlsx"))) == 2
+
+    # sujet validé : seulement après une mesure sans écart sur des lectures vérifiées par l'enseignant
+    import json
+    from thessalia import projet as projet_mod
+    from thessalia.ocr_run import NOUVEAU
+    monkeypatch.setattr(projet_mod, "VALIDATION_MIN", 2)
+    monkeypatch.setattr(projet_mod.Projet, "lire_courtes", lambda self, log=print: log("relu"))
+    cl = racine / "essai" / "classes" / "supA_1"
+    (cl / "short_answers.csv").write_text("copy", encoding="utf-8")
+
+    def lu(copie, valeur):
+        r = cl / copie / "result.json"
+        doc = json.loads(r.read_text(encoding="utf-8"))
+        doc["fields"]["q2"]["ocr"] = {"value": valeur, "status": "review", "reason": NOUVEAU}
+        r.write_text(json.dumps(doc), encoding="utf-8")
+    lu("copy_001", "Bonjour, Alice !")
+    lu("copy_002", "Bonjour Alice")                                      # la machine lit sans virgule…
+    c.post("/api/decision", json={"classe": "supA_1", "cle": "c02_q2", "verdict": "juste"})   # …l'enseignant : juste
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert "1/2 justes" in page and "note différente" in page
+    r = c.post("/examens/essai/valider/fr")
+    assert "refus" in r.headers["Location"]
+    key = racine / "essai" / "produit" / "corriges" / "ESSAI_FR.key.json"
+    assert "lecture_validee" not in json.loads(key.read_text(encoding="utf-8"))
+    lu("copy_002", "Bonjour, Alice !")
+    assert "2/2 justes" in c.get("/examens/essai").get_data(as_text=True)
+    c.post("/examens/essai/valider/fr")
+    assert _attendre(c)["journal"] == ["relu"]
+    k = json.loads(key.read_text(encoding="utf-8"))
+    assert k["lecture_validee"] is True and k["lecture_validee_mesure"]["justes"] == 2
+    assert "lecture validée" in c.get("/examens/essai").get_data(as_text=True)

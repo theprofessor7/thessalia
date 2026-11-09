@@ -24,6 +24,7 @@ from .sujet.modele import examen
 from .sujet.source import ErreurSujet
 
 RACINE = Path("examens")
+VALIDATION_MIN = 30      # lectures vérifiées par l'enseignant, sans aucun écart, avant de valider un sujet
 RE_NOM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,60}$")
 
 
@@ -158,6 +159,72 @@ class Projet:
         if not dossiers:
             raise SystemExit("aucune classe lue")
         run(dossiers)
+
+    # ---------------------------------------------------------------- validation de la lecture
+    def mesure_lecture(self):
+        """Par langue : les lectures que la machine aurait acceptées d'office (sujet pas encore validé) et que
+        l'enseignant a déjà décidées, comparées à sa décision (points identiques ou non). Rien n'est jamais
+        validé sans cette mesure : {langue: {base, validee, n, justes, ecarts: [(classe, copie, champ, lu, verdict)],
+        possible, pourquoi}}."""
+        from .correction import Classe, Decisions
+        from .ocr_run import NOUVEAU
+        ex, err = self.controle()
+        if err:
+            return {}
+        out = {}
+        for langue in ex.langues:
+            f = self.fichiers(langue)
+            key = json.loads(f["key"].read_text(encoding="utf-8")) if f["key"].exists() else {}
+            out[langue] = {"base": f["base"], "validee": key.get("lecture_validee") is True,
+                           "mesure": key.get("lecture_validee_mesure"), "n": 0, "justes": 0, "ecarts": []}
+        dec, exams = Decisions(self.stockage()["db"]), {}
+        for d in self.dossiers_lus():
+            meta = self.scans / f"{d.name}.json"
+            langue = json.loads(meta.read_text(encoding="utf-8")).get("langue") if meta.exists() else None
+            if langue not in out:
+                continue
+            c = Classe(d, exams, dec)
+            for it in c.short_items(use_memory=False):
+                if it.get("raison") != NOUVEAU or it.get("origine") != "enseignant":
+                    continue
+                prop = it["proposition"]
+                machine = c.exam.points_verdict(c.exam.verdict(prop or "", it["champ"]), prop, it["champ"], it["max"])
+                m = out[langue]
+                m["n"] += 1
+                if it["points"] is not None and abs(machine - it["points"]) < 1e-6:
+                    m["justes"] += 1
+                else:
+                    m["ecarts"].append((c.name, it["copie"], it["champ"], prop, it["verdict"]))
+        for m in out.values():
+            if m["validee"]:
+                m.update(possible=False, pourquoi="déjà validé")
+            elif m["n"] < VALIDATION_MIN:
+                m.update(possible=False, pourquoi=f"{m['n']} lecture(s) vérifiée(s) par vous, il en faut au moins "
+                                                  f"{VALIDATION_MIN} : corriger d'abord des réponses courtes dans l'outil")
+            elif m["ecarts"]:
+                m.update(possible=False, pourquoi=f"{len(m['ecarts'])} lecture(s) que la machine aurait acceptées "
+                                                  "avec une note différente de la vôtre : le sujet reste en revue")
+            else:
+                m.update(possible=True, pourquoi=None)
+        return out
+
+    def valider_lecture(self, langue: str):
+        """Le corrigé de cette langue est déclaré « lecture validée », avec la mesure qui le justifie ; les lectures
+        déjà faites sont à relancer (rapide : elles sont en cache) pour que les réponses sûres passent acceptées.
+        Produire à nouveau le sujet efface la validation (nouveau corrigé, nouvelle mesure)."""
+        import time
+        m = self.mesure_lecture().get(langue)
+        if not m:
+            raise ValueError(f"langue inconnue : {langue}")
+        if not m["possible"]:
+            raise ValueError(f"validation refusée : {m['pourquoi']}")
+        p = self.fichiers(langue)["key"]
+        key = json.loads(p.read_text(encoding="utf-8"))
+        key["lecture_validee"] = True
+        key["lecture_validee_mesure"] = {"date": time.strftime("%Y-%m-%d %H:%M"), "verifiees": m["n"],
+                                         "justes": m["justes"]}
+        p.write_text(json.dumps(key, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        return m
 
     @property
     def notes_xlsx(self) -> Path:

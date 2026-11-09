@@ -3,12 +3,21 @@ import json
 from argparse import Namespace
 from pathlib import Path
 
+import pytest
+
 from thessalia.pipeline import Processor
 from thessalia.simulate import main as simulate
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# anciens sujets d'examen : sur le PC de l'enseignant seulement (hors dépôt public)
+_LOCAL = Path(__file__).resolve().parent.parent
+sujets_locaux = pytest.mark.skipif(not (_LOCAL / "templates" / "26_27_Examen_Socle_Python_FR.pdf").exists()
+                                   or not (_LOCAL / "keys" / "socle_python_FR.key.json").exists(),
+                                   reason="anciens sujets absents (hors dépôt public)")
 
+
+@sujets_locaux
 def test_end_to_end(tmp_path):
     tpl = ROOT / "templates/socle_python_FR.json"
     blank = ROOT / "templates/26_27_Examen_Socle_Python_FR.pdf"

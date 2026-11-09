@@ -20,19 +20,23 @@ les moteurs payants (`--backend claude|google`) ne s'activent que si une clé es
 
 Reprise du développement : lire `HANDOFF.md` et `CLAUDE.md`.
 
-## Utilisation
+## Utilisation en ligne de commande
+
+Les sujets et corrigés d'examen ne sont pas dans le dépôt (`templates/`, `keys/`, `sujets/` restent sur le PC
+de l'enseignant). Un sujet se décrit dans un fichier source (`docs/FORMAT_SUJET.md`) ; l'application produit son
+gabarit et ses corrigés.
 
 ```bash
 # 1. Une fois par sujet : gabarit depuis le PDF vierge (coordonnées exactes, lues dans le PDF)
-python -m thessalia template templates/26_27_Examen_Socle_Python_FR.pdf \
-       -o templates/socle_python_FR.json --exam-id socle-python-2026-FR
+python -m thessalia template templates/<sujet>.pdf \
+       -o templates/<sujet>.json --exam-id <sujet>
 
 # 2. Traiter un lot de scans (PDF multipages, images, TIFF, ou dossier)
 #    -k (optionnel) : corrigé pour noter les QCM
 python -m thessalia process scans/lot_TD1.pdf \
-       -t templates/socle_python_FR.json \
-       -b templates/26_27_Examen_Socle_Python_FR.pdf \
-       -k keys/socle_python_FR.key.json \
+       -t templates/<sujet>.json \
+       -b templates/<sujet>.pdf \
+       -k keys/<sujet>.key.json \
        -o sorties/lot_TD1
 ```
 
@@ -49,12 +53,10 @@ sorties/lot_TD1/
     crops/identity.nom.png, q2.1.png, q12.png …   vignettes pour niveaux 2/3 et la revue
 ```
 
-![Overlay de contrôle : croix au crayon clair envoyée en revue (orange), croix au stylo lues (vert)](docs/exemple_overlay_q4.jpg)
-
 Niveau 2 (réponses courtes), après `process` :
 
 ```bash
-python -m thessalia ocr sorties/lot_TD1 -v keys/python_core_EN.vocab.json --backend trocr
+python -m thessalia ocr sorties/lot_TD1 -v keys/<sujet>.vocab.json --backend trocr
 # -> short_answers.csv (valeurs lues, « ? » = à valider) et ocr_review.csv (propositions)
 ```
 
@@ -75,7 +77,7 @@ Dans le gabarit, clé `"omr"` (ou `--full-policy` en ligne de commande) :
 ## Tester sans vrais scans
 
 ```bash
-python -m thessalia simulate -t templates/socle_python_FR.json -b templates/26_27_Examen_Socle_Python_FR.pdf \
+python -m thessalia simulate -t templates/<sujet>.json -b templates/<sujet>.pdf \
        -o sim/lot -n 10 --hard            # copies remplies + scannées synthétiques + truth.json
 python -m thessalia process sim/lot/scans.pdf -t … -b … -o out/lot
 python -m thessalia evaluate out/lot sim/lot/truth.json

@@ -6,7 +6,14 @@ from thessalia.template_builder import build_template
 
 T = Path(__file__).resolve().parent.parent / "templates"
 
+# anciens sujets d'examen : sur le PC de l'enseignant seulement (hors dépôt public)
+_LOCAL = Path(__file__).resolve().parent.parent
+sujets_locaux = pytest.mark.skipif(not (_LOCAL / "templates" / "26_27_Examen_Socle_Python_FR.pdf").exists()
+                                   or not (_LOCAL / "keys" / "socle_python_FR.key.json").exists(),
+                                   reason="anciens sujets absents (hors dépôt public)")
 
+
+@sujets_locaux
 @pytest.mark.parametrize("pdf", ["26_27_Examen_Socle_Python_FR.pdf", "26_27_Exam_Python_Core_EN.pdf"])
 def test_builder_finds_everything(pdf):
     tpl = build_template(T / pdf)

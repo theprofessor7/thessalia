@@ -1,5 +1,15 @@
 """Pré-cochage du code par exécution : réparation tolérée, contrôle du réparateur, tests du sujet B."""
+from pathlib import Path
+
+import pytest
+
 from thessalia.code_tests import charger_tests, garde, precocher_cadre, reparer
+
+# anciens sujets d'examen : sur le PC de l'enseignant seulement (hors dépôt public)
+_LOCAL = Path(__file__).resolve().parent.parent
+sujets_locaux = pytest.mark.skipif(not (_LOCAL / "templates" / "26_27_Examen_Socle_Python_FR.pdf").exists()
+                                   or not (_LOCAL / "keys" / "socle_python_FR.key.json").exists(),
+                                   reason="anciens sujets absents (hors dépôt public)")
 
 
 def test_reparation_des_fautes_tolerees():
@@ -32,6 +42,7 @@ def test_garde_tolere_le_texte_des_invites():
     assert garde('n = int(input(note))', 'n = int(input(int(note)))')               # du code ajouté
 
 
+@sujets_locaux
 def test_precocher_cadre_sujet_b():
     tests = charger_tests("socle-python-2026-FR-B")
     assert tests and "q15" in tests
