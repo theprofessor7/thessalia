@@ -68,6 +68,7 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     assert r.status_code == 200
     compte = lambda p: sqlite3.connect(p).execute("SELECT COUNT(*) FROM decision WHERE classe='supA_1'").fetchone()[0]
     assert compte(racine / "essai" / "decisions.sqlite") == 1 and compte(tmp_path / "decisions.sqlite") == 0
+    assert "sujets à produire" not in c.get("/examens").get_data(as_text=True)   # corriger ne « change » pas le sujet
     assert (racine / "essai" / "verite" / "supA_1.appris.json").exists()
 
     # liste des élèves de l'examen, puis notes exportées dans l'examen (journal de la tâche, téléchargement)

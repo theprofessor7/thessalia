@@ -24,7 +24,8 @@ from .sujet.modele import examen
 from .sujet.source import ErreurSujet
 
 RACINE = Path("examens")
-VALIDATION_MIN = 30      # lectures vérifiées par l'enseignant, sans aucun écart, avant de valider un sujet
+SOURCES = {".yaml", ".yml", ".png", ".jpg", ".jpeg", ".svg", ".gif"}    # fichiers dont dépendent les PDF produits
+VALIDATION_MIN = 30     # lectures vérifiées par l'enseignant, sans aucun écart, avant de valider un sujet
 RE_NOM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,60}$")
 
 
@@ -62,7 +63,9 @@ class Projet:
         if self.source is None or not self.corriges.is_dir():
             return False
         faits = [p.stat().st_mtime for p in self.corriges.glob("*.key.json")]
-        sources = [p.stat().st_mtime for p in self.dir.iterdir() if p.is_file()]
+        # seulement la source et ses images (pas decisions.sqlite, modifié à chaque correction)
+        sources = [p.stat().st_mtime for p in self.dir.iterdir()
+                   if p.is_file() and p.suffix.lower() in SOURCES]
         return bool(faits) and min(faits) >= max(sources)
 
     def produire(self, log=print):

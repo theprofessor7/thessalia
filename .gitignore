@@ -3,6 +3,7 @@ scans/
 sorties/
 out/
 *.pdf
+!docs/Thessalia_mode_emploi.pdf
 !templates/*.pdf
 crops/
 # sujets d'examen (PDF, zones, corrigés) : confidentiels jusqu'à l'examen
