@@ -37,3 +37,18 @@ def test_connexion(tmp_path):
     assert r.headers["Location"] == "/"                                 # jamais de redirection vers un autre site
     assert c.get("/premiere-connexion").headers["Location"].endswith("/connexion")   # un seul compte
 
+
+
+def test_second_lancement_refuse():
+    """Sous Windows, un second Thessalia s'installait sur le même port sans erreur et l'ancien répondait."""
+    import socket
+
+    from thessalia.serve import _refuser_si_occupe, port_occupe
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        s.listen()
+        port = s.getsockname()[1]
+        assert port_occupe(port)
+        with pytest.raises(SystemExit, match="tourne déjà"):
+            _refuser_si_occupe(port)
+    assert not port_occupe(port)

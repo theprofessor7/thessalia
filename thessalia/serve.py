@@ -394,12 +394,28 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
 ESSAI_DB = Path("data/correction_essai.sqlite")
 
 
+def port_occupe(port) -> bool:
+    """Un autre serveur écoute-t-il déjà sur 127.0.0.1:port ? Sous Windows, un second Thessalia pourrait s'y
+    installer sans erreur (SO_REUSEADDR) et l'ancien continuerait de répondre, avec son ancien code (9 nov.)."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def _refuser_si_occupe(port):
+    if port_occupe(port):
+        raise SystemExit(f"Thessalia tourne déjà (adresse http://127.0.0.1:{port}/ occupée) : une autre fenêtre noire "
+                         "est ouverte. La fermer, puis relancer ; ou utiliser l'onglet déjà ouvert.")
+
+
 def run(paths, port=8765, open_browser=True, db_path=DB_PATH, essai=False, banc=False):
     """essai=True : base de décisions à part (data/correction_essai.sqlite), aucune étiquette d'apprentissage :
     pour essayer l'outil sur une classe déjà corrigée sans toucher à ses décisions."""
     essai = essai or banc          # le banc d'essai ne touche jamais aux vraies décisions
     if essai:
         db_path = ESSAI_DB
+    _refuser_si_occupe(port)
     app = create_app(paths, db_path, apprendre=not essai, banc=banc)
     url = f"http://127.0.0.1:{port}/"
     print(f"Outil de correction{' (BANC : humain / Claude / local)' if banc else ''}{' (ESSAI : décisions à part, rien appris)' if essai else ''} : {url}  "
@@ -412,6 +428,7 @@ def run(paths, port=8765, open_browser=True, db_path=DB_PATH, essai=False, banc=
 def run_app(examens="examens", port=8765, open_browser=True, db_path=DB_PATH):
     """Application : pages Examens (sujet source, PDF, dépôt des scans, lecture) + outil de correction."""
     from .compte import Compte
+    _refuser_si_occupe(port)
     Path(examens).mkdir(parents=True, exist_ok=True)
     app = create_app([], db_path, examens=examens, compte=Compte())
     url = f"http://127.0.0.1:{port}/examens"
