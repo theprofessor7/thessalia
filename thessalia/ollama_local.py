@@ -159,5 +159,18 @@ def telecharger_modele(nom, log=print):
     log(f"{nom} est prêt.")
 
 
+def supprimer_modele(nom, log=print):
+    """Retire un modèle d'Ollama (libère sa place sur le disque) ; il se retélécharge d'un clic."""
+    if nom not in {n for n, _, _ in MODELES}:
+        raise SystemExit(f"modèle inconnu : {nom}")
+    req = urllib.request.Request(OLLAMA + "/api/delete", data=json.dumps({"model": nom}).encode(), method="DELETE",
+                                 headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=60).read()
+    except Exception as e:
+        raise SystemExit(f"{nom} : suppression impossible ({e})")
+    log(f"{nom} supprimé.")
+
+
 if __name__ == "__main__":       # essai : python -m thessalia.ollama_local
     json.dump(etat(), sys.stdout, ensure_ascii=False, indent=1)

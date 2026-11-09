@@ -82,7 +82,7 @@
       <span class="aide">{{ e.courtes }}/{{ e.lues }} classe(s) déjà lue(s). Quelques minutes par classe. Sujet
         nouveau : toutes les réponses partent en revue, avec la lecture proposée.</span>
     {% else %}
-      <span class="attente">Lecteur d'écriture non installé (<code>pip install -e ".[trocr]"</code>, ~2 Go).</span>
+      <span class="attente">Lecteur d'écriture non installé : <a href="/reglages">l'installer dans Réglages</a> (environ 2 Go).</span>
     {% endif %}
     {% for l, m in validation.items() %}
     <div class="validation">Sujet {{ l|upper }} :
@@ -105,28 +105,9 @@
     </form>
     <span class="aide">Code transcrit et pré-coché, réponses courtes relues : environ une nuit pour une centaine
       de copies ; relancer reprend où ça s'était arrêté.</span>
-    <div class="ollama">
-      <b>Modèles locaux (Ollama)</b>
-      {% if not ollama.installe %}
-        <p>Ollama, logiciel gratuit qui fait tourner les modèles sur ce PC, n'est pas installé.
-          <form class="enligne" method="post" action="/examens/{{ e.nom }}/ollama/installer">
-            <button class="bouton principal">{{ 'Installer Ollama' if ollama.windows else 'Télécharger Ollama' }}</button></form></p>
-      {% elif not ollama.lance %}
-        <p>Ollama est installé mais arrêté.
-          <form class="enligne" method="post" action="/examens/{{ e.nom }}/ollama/demarrer"><button class="bouton">Démarrer Ollama</button></form></p>
-      {% endif %}
-      <table class="tableau modeles">
-        {% for m in ollama.modeles %}
-        <tr><td><code>{{ m.nom }}</code></td><td>{{ m.role }}</td><td class="n">{{ m.taille }}</td>
-          <td>{% if m.present %}<span class="ok">installé</span>{% else %}
-            <form class="enligne" method="post" action="/examens/{{ e.nom }}/ollama/modele">
-              <input type="hidden" name="nom" value="{{ m.nom }}">
-              <button class="bouton" {{ 'disabled' if not ollama.installe }}>Télécharger</button></form>{% endif %}</td></tr>
-        {% endfor %}
-      </table>
-      <p class="aide">Une seule fois par PC, connexion internet nécessaire ; ensuite tout tourne sans internet.
-        Il faut environ 20 Go de disque pour les trois et 16 Go de mémoire.</p>
-    </div>
+    <p class="aide">Modèles locaux : {% set prets = ollama.modeles|selectattr('present')|list %}
+      {% if not ollama.installe %}Ollama n'est pas installé.{% elif not ollama.lance %}Ollama est arrêté.{% else %}{{ prets|length }}/{{ ollama.modeles|length }} installés.{% endif %}
+      <a href="/reglages">Installer ou gérer dans Réglages</a>.</p>
   </li>
 
   <li class="etape {{ 'faite' if ouvert }}">
@@ -149,12 +130,8 @@
         <button class="bouton">Enregistrer</button>
       </form>
     </details>
-    <form method="post" action="/examens/{{ e.nom }}/reglages" class="reglage">
-      <input type="hidden" name="arrondi" value="0">
-      <label><input type="checkbox" name="arrondi" value="1" {{ 'checked' if reglages.arrondi_demi_point }}
-             onchange="this.form.submit()"> Arrondir la note finale au demi-point supérieur
-        <span class="gris">(ex. 13,1 → 13,5 ; décoché : note exacte, 13,1)</span></label>
-    </form>
+    <p class="aide">Note finale : {{ 'arrondie au demi-point supérieur' if reglages.arrondi_demi_point else 'exacte, sans arrondi' }},
+      plafonnée à 20 (<a href="/reglages">modifier dans Réglages</a>).</p>
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/notes">
       <button class="bouton {{ 'principal' if e.lues }}" {{ 'disabled' if not e.lues }}>Exporter les notes</button>
     </form>

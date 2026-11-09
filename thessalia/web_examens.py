@@ -134,12 +134,13 @@ def enregistrer(app, racine: Path, charger):
                 (p.dir / f.filename).write_bytes(f.read())
         return redirect(f"/examens/{nom}")
 
-    def lancer(nom, titre, fn, apres=None):
+    def lancer(nom, titre, fn, apres=None, retour=None):
+        retour = retour or f"/examens/{nom}"
         try:
             taches.lancer(nom, titre, fn, apres)
         except RuntimeError as e:
-            return redirect(_vers(f"/examens/{nom}", e))
-        return redirect(f"/examens/{nom}")
+            return redirect(_vers(retour, e))
+        return redirect(retour)
 
     @app.post("/examens/<nom>/produire")
     def produire(nom):
@@ -208,21 +209,36 @@ def enregistrer(app, racine: Path, charger):
         return lancer(nom, f"Sujet {langue.upper()} validé ({m['justes']}/{m['n']} lectures justes) : relecture des "
                            "réponses courtes", lambda log: p.lire_courtes(log=log), apres_lecture(nom))
 
-    @app.post("/examens/<nom>/ollama/installer")
-    def ollama_installer(nom):
-        projet(nom)
-        return lancer(nom, "Installer Ollama", lambda log: ollama_local.installer(log))
+    # ---------------------------------------------------------------- réglages, extensions, aide
+    REG = "__reglages__"
 
-    @app.post("/examens/<nom>/ollama/demarrer")
-    def ollama_demarrer(nom):
-        projet(nom)
-        return lancer(nom, "Démarrer Ollama", lambda log: ollama_local.demarrer(log))
+    @app.route("/reglages")
+    def reglages_page():
+        from . import extensions, reglages as R
+        t = taches.courante if taches.courante and taches.courante["projet"] == REG else None
+        return render_template("reglages.html", parametres=R.lire(), cartes=extensions.etat(), tache=t,
+                               message=request.args.get("m"))
 
-    @app.post("/examens/<nom>/ollama/modele")
-    def ollama_modele(nom):
-        projet(nom)
-        m = request.form.get("nom", "")
-        return lancer(nom, f"Télécharger le modèle {m}", lambda log: ollama_local.telecharger_modele(m, log))
+    @app.post("/reglages/parametres")
+    def reglages_parametres():
+        from . import reglages as R
+        R.ecrire(arrondi_demi_point="1" in request.form.getlist("arrondi"))    # case décochée : seul le champ caché
+        return redirect(_vers("/reglages", "Réglages enregistrés."))
+
+    @app.post("/reglages/extension")
+    def reglages_extension():
+        from . import extensions
+        ident, action = request.form.get("id", ""), request.form.get("action", "")
+        noms = {"installer": "Installer", "demarrer": "Démarrer", "telecharger": "Télécharger", "supprimer": "Supprimer"}
+        return lancer(REG, f"{noms.get(action, action)} : {ident}", lambda log: extensions.agir(ident, action, log),
+                      retour="/reglages")
+
+    @app.route("/aide")
+    def aide():
+        doc = Path(__file__).resolve().parent.parent / "docs"
+        if not (doc / "Thessalia_mode_emploi.pdf").exists():
+            abort(404)
+        return send_from_directory(doc, "Thessalia_mode_emploi.pdf")
 
     @app.post("/examens/<nom>/preparer")
     def preparer(nom):
@@ -241,12 +257,6 @@ def enregistrer(app, racine: Path, charger):
         except ValueError as e:
             return redirect(_vers(f"/examens/{nom}", e))
         return redirect(_vers(f"/examens/{nom}", f"Liste des élèves enregistrée : {n} élèves."))
-
-    @app.post("/examens/<nom>/reglages")
-    def reglages(nom):
-        p = projet(nom)
-        p.regler(arrondi_demi_point="1" in request.form.getlist("arrondi"))    # case décochée : seul le champ caché
-        return redirect(f"/examens/{nom}#notes")
 
     @app.post("/examens/<nom>/notes")
     def exporter(nom):

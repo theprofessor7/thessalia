@@ -41,6 +41,6 @@ esme_python_exam_generator.zip
 # examens de l application (source, PDF produits, scans et résultats des élèves) : hors dépôt
 examens/
 # sujets et corrigés d'examen (anciens compris) : sur le PC de l'enseignant seulement, dépôt public
-templates/
+/templates/
 keys/
 docs/exemple_overlay_q4.jpg

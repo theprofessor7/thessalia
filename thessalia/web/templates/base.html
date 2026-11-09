@@ -6,18 +6,37 @@
 <title>{% block titre %}Thessalia{% endblock %} — Thessalia</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
-<body>
+<body class="{{ 'avec-menu' if mode_examens }}">
+{% if mode_examens %}
+{% set ici = request.path %}
+<aside class="menu">
+  <a class="menu-logo" href="/examens"><span class="logo-marque">Θ</span>Thessalia</a>
+  <nav class="menu-liens">
+    <a href="/examens" class="{{ 'actif' if ici.startswith('/examens') }}"><span class="ico">⌂</span>Accueil</a>
+    {% if examen_ouvert %}
+    <a href="/" class="{{ 'actif' if not (ici.startswith('/examens') or ici.startswith('/reglages')) }}"><span class="ico">✎</span>Correction
+      <small>{{ examen_ouvert }}</small></a>
+    {% endif %}
+    <a href="/reglages" class="{{ 'actif' if ici.startswith('/reglages') }}"><span class="ico">⚙</span>Réglages</a>
+    <a href="/aide" target="_blank"><span class="ico">?</span>Aide</a>
+  </nav>
+  <div class="menu-bas">
+    {% if utilisateur %}<div class="menu-compte"><span class="avatar">{{ utilisateur[:1]|upper }}</span>{{ utilisateur }}</div>{% endif %}
+    {% if avec_compte %}<form method="post" action="/deconnexion"><button class="bouton discret large">Déconnexion</button></form>{% endif %}
+  </div>
+</aside>
+{% endif %}
+<div class="colonne">
 <header class="barre">
-  <a class="logo" href="{{ '/examens' if mode_examens else '/' }}"><span class="logo-marque">Θ</span>Thessalia</a>
-  {% if mode_examens %}<a class="bouton" href="/examens">Examens</a>{% if examen_ouvert %}<span class="gris">correction : <a href="/examens/{{ examen_ouvert }}">{{ examen_ouvert }}</a></span>{% endif %}{% endif %}
+  {% if not mode_examens %}<a class="logo" href="/"><span class="logo-marque">Θ</span>Thessalia</a>{% endif %}
   <nav>{% block nav %}{% endblock %}</nav>
   <span class="espace"></span>
   {% if nb_a_la_main %}<a class="bouton alerte" href="/a-la-main" title="page absente du scan ou illisible">{{ nb_a_la_main }} copie{{ 's' if nb_a_la_main > 1 }} à reprendre sur le papier</a>{% endif %}
-  <a class="bouton" href="/suivi">Suivi de la machine</a>
+  {% if not mode_examens or examen_ouvert %}<a class="bouton" href="/suivi">Suivi de la machine</a>{% endif %}
   {% block outils %}{% endblock %}
-  {% if avec_compte %}<form method="post" action="/deconnexion" class="enligne"><button class="bouton discret" title="Se déconnecter">Déconnexion</button></form>{% endif %}
 </header>
 <main>{% block contenu %}{% endblock %}</main>
+</div>
 {% block scripts %}{% endblock %}
 </body>
 </html>

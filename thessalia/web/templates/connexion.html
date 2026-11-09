@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ 'Créer votre compte' if premiere else 'Connexion' }} — Thessalia</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="page-connexion">
+<main class="connexion">
+  <div class="marque-connexion"><span class="logo-marque">Θ</span> Thessalia</div>
+  <form class="carte-connexion" method="post">
+    {% if premiere %}
+      <h1>Bienvenue</h1>
+      <p class="aide">Premier lancement sur ce PC : choisissez un identifiant et un mot de passe. Ils seront demandés
+        à chaque ouverture de Thessalia.</p>
+    {% else %}
+      <h1>Connexion</h1>
+    {% endif %}
+    {% if erreur %}<p class="erreur-connexion">{{ erreur|capitalize }}.</p>{% endif %}
+    <label>Identifiant <input name="identifiant" value="{{ identifiant }}" autocomplete="username" required autofocus></label>
+    <label>Mot de passe <input type="password" name="mdp" required
+           autocomplete="{{ 'new-password' if premiere else 'current-password' }}"
+           {% if premiere %}minlength="{{ longueur }}"{% endif %}></label>
+    {% if premiere %}
+      <label>Mot de passe, encore une fois <input type="password" name="mdp2" required minlength="{{ longueur }}" autocomplete="new-password"></label>
+      <p class="aide">Au moins {{ longueur }} caractères. Le mot de passe n'est jamais enregistré en clair.</p>
+    {% else %}
+      <input type="hidden" name="suite" value="{{ suite }}">
+    {% endif %}
+    <button class="bouton principal large">{{ 'Créer le compte' if premiere else 'Se connecter' }}</button>
+    {% if not premiere %}
+      <details class="oubli"><summary>Mot de passe oublié ?</summary>
+        <p class="aide">Fermer Thessalia, supprimer le fichier <code>{{ chemin }}</code> dans le dossier de Thessalia,
+          puis relancer : un nouveau compte vous sera demandé. Vos examens et vos corrections ne sont pas touchés.</p>
+      </details>
+    {% endif %}
+  </form>
+  <p class="aide pied-connexion">Tout reste sur ce PC : rien n'est envoyé sur internet.</p>
+</main>
+</body>
+</html>

@@ -61,7 +61,7 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     # correction ouverte sur les classes de l'examen
     assert c.post("/examens/essai/corriger").headers["Location"] == "/"
     accueil = c.get("/").get_data(as_text=True)
-    assert "supA_1" in accueil and "correction : " in accueil
+    assert "supA_1" in accueil and "<small>essai</small>" in accueil       # menu : examen ouvert en correction
     # une décision prise dans l'outil est rangée dans l'examen, jamais dans la base commune
     import sqlite3
     r = c.post("/api/decision", json={"classe": "supA_1", "cle": "c01_q2", "verdict": "juste", "texte": "Bonjour, Alice !"})
@@ -122,14 +122,17 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     assert k["lecture_validee"] is True and k["lecture_validee_mesure"]["justes"] == 2
     assert "lecture validée" in c.get("/examens/essai").get_data(as_text=True)
 
-    # arrondi au demi-point supérieur : réglable par examen
+    # arrondi au demi-point supérieur : réglage général (page Réglages)
+    from thessalia import reglages as R
     from thessalia.excel import note_finale
+    monkeypatch.setattr(R, "FICHIER", tmp_path / "data" / "reglages.json")
     assert note_finale(13.1) == 13.5 and note_finale(13.1, arrondi=False) == 13.1 and note_finale(20.25, False) == 20
-    assert 'name="arrondi" value="1" checked' in c.get("/examens/essai").get_data(as_text=True)
-    c.post("/examens/essai/reglages", data={"arrondi": "0"})                 # case décochée
-    assert json.loads((racine / "essai" / "reglages.json").read_text())["arrondi_demi_point"] is False
+    assert 'name="arrondi" value="1" checked' in c.get("/reglages").get_data(as_text=True)
+    c.post("/reglages/parametres", data={"arrondi": "0"})                  # interrupteur coupé
+    assert R.lire()["arrondi_demi_point"] is False
+    assert "exacte, sans arrondi" in c.get("/examens/essai").get_data(as_text=True)
     c.post("/examens/essai/notes")
     assert _attendre(c)["etat"] == "terminé"
     assert _xlsx_rows(racine / "essai" / "notes" / "notes.xlsx")[0]["K"] == "Note finale (max 20)"
-    c.post("/examens/essai/reglages", data={"arrondi": ["0", "1"]})          # case cochée
-    assert json.loads((racine / "essai" / "reglages.json").read_text())["arrondi_demi_point"] is True
+    c.post("/reglages/parametres", data={"arrondi": ["0", "1"]})           # interrupteur remis
+    assert R.lire()["arrondi_demi_point"] is True

@@ -128,3 +128,7 @@ def proteger(app, compte: Compte):
         return redirect("/connexion")
 
     app.jinja_env.globals.update(avec_compte=True)
+
+    @app.context_processor
+    def utilisateur():
+        return {"utilisateur": compte.identifiant() if session.get("connecte") else None}

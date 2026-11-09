@@ -31,13 +31,13 @@ L'installeur est un simple programme Python (`installer.py`), lisible par tous. 
 double-clic, voir « Si Windows bloque » (§ 6).
 
 L'installeur demande s'il faut ajouter le **lecteur d'écriture** (~2 Go). Il lit automatiquement les réponses
-courtes. Sans lui, tout fonctionne : les réponses courtes se corrigent à la main dans l'outil. On peut relancer
-l'installeur plus tard pour l'ajouter.
+courtes. Sans lui, tout fonctionne : les réponses courtes se corrigent à la main dans l'outil. On peut l'ajouter
+plus tard en un clic, page **Réglages** de l'application.
 
 ### Facultatif : la préparation de nuit (code manuscrit)
 
 Elle utilise **Ollama**, logiciel gratuit qui fait tourner les modèles sur ce PC. Rien à taper : dans
-l'application, étape 4 d'un examen, le cadre « Modèles locaux » installe Ollama en un clic (Windows ; sur Mac,
+l'application, page **Réglages** (menu de gauche), la carte Ollama l'installe en un clic (Windows ; sur Mac,
 la page de téléchargement s'ouvre), puis chaque modèle avec son bouton « Télécharger » (8B : lecture du code ;
 4B : second lecteur des réponses courtes ; 14B, facultatif : réparateur). Il faut environ 20 Go de disque et
 16 Go de mémoire. Sans réseau, le dossier des modèles d'Ollama peut être copié depuis le PC d'un collègue.
@@ -54,6 +54,10 @@ Au premier lancement, choisir un **identifiant** et un **mot de passe** (8 carac
 demandés ensuite à chaque ouverture (session de 12 heures). Le mot de passe n'est jamais enregistré en clair.
 **Oubli** : fermer Thessalia, supprimer `data/compte.json` dans le dossier de Thessalia, relancer ; un nouveau
 compte est demandé, les examens ne sont pas touchés.
+
+Le **menu de gauche** mène partout : **Accueil** (la liste des examens), **Correction** (l'outil de correction
+de l'examen ouvert), **Réglages** (arrondi des notes ; extensions : lecteur d'écriture, Ollama et ses modèles,
+installés ou supprimés en un clic, comme des modules), **Aide** (le guide PDF). Déconnexion en bas du menu.
 
 ## 3. Mettre à jour
 
@@ -135,7 +139,7 @@ Sans liste, les copies ne peuvent pas être attribuées.
 « Exporter les notes » produit `notes_<examen>.xlsx`, avec trois feuilles :
 
 - **Notes** : une ligne par copie, note sur 20 arrondie au demi-point supérieur (13,1 → 13,5) et plafonnée
-  à 20 ; l'arrondi se désactive par examen (case à cocher de l'étape 6) ;
+  à 20 ; l'arrondi se désactive dans **Réglages** (pour tous les examens) ;
 - **Absents** : élèves de la liste sans copie ;
 - **À vérifier** : copies sans élève ou avec des réponses encore en attente (note provisoire).
 
@@ -211,5 +215,5 @@ la DSI d'autoriser Python : Thessalia n'a besoin de rien d'autre.
 | « Address already in use » | Thessalia tourne déjà : utiliser la fenêtre ouverte. |
 | « Source refusée » | Lire la ligne indiquée ; les pièges courants (« : » dans une phrase, `#`) sont expliqués dans le message. |
 | GABARIT DOUTEUX | Mauvaise langue choisie au dépôt : redéposer le PDF avec l'autre langue. |
-| Boutons de l'étape 4 grisés | Le message à côté indique ce qui manque (lecteur d'écriture, Ollama, modèle). |
+| Boutons de l'étape 4 grisés | Le message à côté indique ce qui manque (lecteur d'écriture, Ollama, modèle) : l'installer depuis **Réglages**. |
 | Autre | Copier le journal de la tâche (en haut de la page) et l'envoyer à l'auteur, **sans** copie d'élève. |

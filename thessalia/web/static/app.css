@@ -296,3 +296,56 @@ main.connexion { width:min(400px, 100% - 32px); padding:0; }
 .reglage { margin:6px 0 10px; } .reglage label { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .ollama { margin-top:12px; padding:10px 14px; border:1px dashed var(--trait); border-radius:10px; }
 .ollama p { margin:6px 0; } .tableau.modeles td { vertical-align:middle; }
+
+/* ==== menu à gauche (application) ==== */
+body.avec-menu { display:grid; grid-template-columns:232px minmax(0, 1fr); min-height:100vh; }
+.menu { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:6px; padding:16px 12px;
+        background:var(--carte); border-right:1px solid var(--trait); }
+.menu-logo { display:flex; align-items:center; gap:9px; padding:4px 10px 16px; font-size:17px; font-weight:700;
+             color:var(--encre); text-decoration:none; }
+.menu-liens { display:flex; flex-direction:column; gap:2px; }
+.menu-liens a { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:9px 12px; border-radius:9px;
+                color:var(--encre); text-decoration:none; font-weight:550; transition:background .12s; }
+.menu-liens a:hover { background:var(--fond); }
+.menu-liens a.actif { background:var(--accentf); color:var(--accent); }
+.menu-liens a small { flex-basis:100%; margin-left:30px; margin-top:-2px; color:var(--gris); font-weight:400; font-size:12px; }
+.menu-liens .ico { width:20px; text-align:center; font-size:16px; color:var(--gris); }
+.menu-liens a.actif .ico { color:var(--accent); }
+.menu-bas { margin-top:auto; display:flex; flex-direction:column; gap:6px; padding-top:12px; border-top:1px solid var(--trait); }
+.menu-compte { display:flex; align-items:center; gap:9px; padding:4px 10px; font-weight:600; }
+.avatar { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; font-size:13px; }
+.colonne { min-width:0; }
+body.avec-menu .barre { min-height:52px; }
+@media (max-width: 860px) {
+  body.avec-menu { grid-template-columns:1fr; }
+  .menu { position:static; height:auto; flex-direction:row; flex-wrap:wrap; align-items:center; padding:8px 12px; border-right:0; border-bottom:1px solid var(--trait); }
+  .menu-liens { flex-direction:row; flex-wrap:wrap; } .menu-logo { padding:4px 8px; } .menu-bas { margin:0 0 0 auto; border:0; padding:0; flex-direction:row; }
+  .menu-liens a small { display:none; }
+}
+
+/* ==== réglages : paramètres et extensions ==== */
+h2.section { font-size:18px; margin:26px 0 10px; }
+.panneau-reglages { background:var(--carte); border:1px solid var(--trait); border-radius:12px; box-shadow:var(--ombre); padding:16px 20px; max-width:980px; }
+.interrupteur { display:flex; gap:14px; align-items:flex-start; cursor:pointer; }
+.interrupteur input { position:absolute; opacity:0; width:1px; height:1px; }
+.curseur { flex:none; position:relative; width:42px; height:24px; margin-top:2px; border-radius:12px; background:var(--trait); transition:background .15s; }
+.curseur::after { content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff;
+                  box-shadow:0 1px 2px rgba(0,0,0,.3); transition:transform .15s; }
+.interrupteur input:checked + .curseur { background:var(--juste); }
+.interrupteur input:checked + .curseur::after { transform:translateX(18px); }
+.interrupteur input:focus-visible + .curseur { outline:2px solid var(--accent); outline-offset:2px; }
+.extensions { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; max-width:1100px; }
+.extension { display:flex; flex-direction:column; background:var(--carte); border:1px solid var(--trait); border-radius:12px;
+             box-shadow:var(--ombre); padding:16px 18px; transition:box-shadow .15s; }
+.extension:hover { box-shadow:var(--ombre-haute); }
+.extension.installee { border-top:3px solid var(--juste); } .extension:not(.installee) { border-top:3px solid var(--trait); }
+.ext-haut { display:flex; gap:12px; align-items:center; }
+.ext-haut h3 { margin:0; font-size:15.5px; } .ext-haut .gris { font-size:12.5px; }
+.ext-ico { display:grid; place-items:center; width:38px; height:38px; border-radius:10px; background:var(--accentf); color:var(--accent); font-size:18px; flex:none; }
+.extension.modele .ext-ico { background:var(--doutef); color:var(--doute); }
+.extension .badge { margin-left:auto; padding:2px 9px; border-radius:20px; font-size:12px; font-weight:600; background:var(--fond); color:var(--gris); white-space:nowrap; }
+.extension .badge.ok { background:var(--justef); color:var(--juste); }
+.extension p { margin:10px 0 12px; color:var(--gris); font-size:13.5px; flex:1; }
+.ext-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.ext-actions .enligne { margin:0; }
+.bouton.danger { color:var(--faux); } .bouton.danger:hover { border-color:var(--faux); background:var(--fauxf); }

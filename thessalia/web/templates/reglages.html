@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block titre %}Réglages{% endblock %}
+{% block nav %}Réglages{% endblock %}
+{% block contenu %}
+<h1>Réglages</h1>
+{% if message %}<p class="message">{{ message }}</p>{% endif %}
+
+{% if tache %}
+<section class="tache {{ tache.etat|replace(' ', '-') }}" id="tache">
+  <h2>{{ tache.titre }} — <span id="tache-etat">{{ tache.etat }}</span></h2>
+  <pre id="journal">{{ tache.journal|join('\n') }}</pre>
+</section>
+{% endif %}
+
+<h2 class="section">Paramètres</h2>
+<form method="post" action="/reglages/parametres" class="panneau-reglages">
+  <input type="hidden" name="arrondi" value="0">
+  <label class="interrupteur">
+    <input type="checkbox" name="arrondi" value="1" {{ 'checked' if parametres.arrondi_demi_point }} onchange="this.form.submit()">
+    <span class="curseur"></span>
+    <span><b>Arrondir la note finale au demi-point supérieur</b><br>
+      <span class="gris">13,1 donne 13,5 ; 13,5 reste 13,5. Décoché : la note reste exacte (13,1). Dans tous les cas,
+        la note est plafonnée à 20. S'applique aux prochains exports des notes.</span></span>
+  </label>
+</form>
+
+<h2 class="section">Extensions</h2>
+<p class="aide">Ce qui s'installe en plus, une fois par PC (internet nécessaire pendant le téléchargement, plus
+  ensuite). Sans elles, Thessalia fonctionne : vous corrigez simplement plus à la main.</p>
+<div class="extensions">
+{% for c in cartes %}
+  <section class="extension {{ 'installee' if c.installe }} {{ 'modele' if c.modele }}">
+    <div class="ext-haut">
+      <span class="ext-ico">{{ '◆' if c.modele else ('✎' if c.id == 'trocr' else '◎') }}</span>
+      <div><h3>{{ c.nom }}</h3><span class="gris">{{ c.taille }}</span></div>
+      <span class="badge {{ 'ok' if c.installe else '' }}">{{ 'installé' if c.installe else 'non installé' }}{% if c.etat and c.installe %} · {{ c.etat }}{% endif %}</span>
+    </div>
+    <p>{{ c.description }}</p>
+    <div class="ext-actions">
+      {% for action, libelle in c.actions %}
+      <form method="post" action="/reglages/extension" class="enligne"
+            {% if action == 'supprimer' %}onsubmit="return confirm('Supprimer {{ c.nom }} de ce PC ? Il se retélécharge en un clic.')"{% endif %}>
+        <input type="hidden" name="id" value="{{ c.id }}"><input type="hidden" name="action" value="{{ action }}">
+        <button class="bouton {{ 'principal' if action in ('installer', 'telecharger') else ('danger' if action == 'supprimer' else '') }}">{{ libelle }}</button>
+      </form>
+      {% endfor %}
+      {% if c.requis and not c.installe %}<span class="gris">nécessite {{ c.requis }}</span>{% endif %}
+    </div>
+  </section>
+{% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}
+{% if tache and tache.etat == 'en cours' %}
+<script>
+const suivre = async () => {
+  const t = await (await fetch('/tache')).json();
+  if (!t) return;
+  document.getElementById('journal').textContent = t.journal.join('\n');
+  document.getElementById('tache-etat').textContent = t.etat;
+  if (t.etat === 'en cours') setTimeout(suivre, 1500); else location.reload();
+};
+setTimeout(suivre, 1500);
+</script>
+{% endif %}
+{% endblock %}

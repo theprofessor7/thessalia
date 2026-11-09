@@ -155,7 +155,7 @@ plus du tout ensuite.
 
   Une question est posée : installer le *lecteur d'écriture* (environ 2 Go) ? Il lit tout seul les réponses
   courtes. Répondez `o` si vous avez la place, sinon `n` : tout fonctionne sans lui, et vous pourrez
-  l'ajouter plus tard en relançant l'installeur.
+  l'ajouter plus tard en un clic, depuis la page *Réglages* de l'application.
 ]
 
 #attention[
@@ -175,7 +175,7 @@ travaillez. La fermer arrête Thessalia ; vos données restent.
   [
     Au *tout premier lancement*, Thessalia vous demande de choisir un *identifiant* et un *mot de passe*
     (8 caractères au moins). Ils sont ensuite demandés à chaque ouverture ; après 12 heures, il faut se
-    reconnecter. Le bouton « Déconnexion », en haut à droite, ferme la session.
+    reconnecter. Le bouton « Déconnexion », en bas du menu de gauche, ferme la session.
 
     Le mot de passe n'est jamais enregistré en clair. Il protège l'application ouverte sur un PC laissé sans
     surveillance ; vos fichiers, eux, sont protégés par votre session Windows.
@@ -193,7 +193,11 @@ travaillez. La fermer arrête Thessalia ; vos données restent.
 // ================================================================== premier examen
 = Votre premier examen, pas à pas
 
-La page d'accueil liste vos examens. « Nouvel examen » en crée un à partir de son fichier source.
+Le *menu de gauche* est toujours là :
+- *Accueil* : la liste de vos examens ; « Nouvel examen » en crée un à partir de son fichier source ;
+- *Correction* : l'outil de correction de l'examen ouvert (le menu affiche son nom dessous) ;
+- *Réglages* : l'arrondi des notes et les extensions à installer (voir « Réglages », plus bas) ;
+- *Aide* : ce guide.
 
 #capture("img/examens.png", legende: [La page des examens. Chaque carte est un examen ; « Ouvrir » mène à ses étapes.])
 
@@ -289,15 +293,9 @@ Le tableau indique ensuite le nombre de copies et le nombre de réponses à revo
 - #bouton-clair[Préparer la nuit] : transcrit le code écrit à la main et pré-coche le barème en l'exécutant.
   À lancer le soir : une centaine de copies tient en une nuit.
 
-#info("Modèles locaux : tout s'installe d'ici, en un clic")[
-  La préparation de nuit utilise *Ollama*, un logiciel gratuit qui fait tourner les modèles sur votre PC.
-  Le cadre « Modèles locaux » de l'étape 4 fait tout pour vous, une fois par PC :
-  - #bouton[Installer Ollama] le télécharge et l'installe, sans question (Windows ; sur Mac, la page de
-    téléchargement s'ouvre) ;
-  - #bouton-clair[Télécharger] en face de chaque modèle le récupère (3 à 9 Go chacun) ; la progression
-    s'affiche dans le journal. Le *8B* lit le code, le *4B* relit les réponses courtes, le *14B* (facultatif)
-    répare les petites fautes du code avant les tests.
-  Il faut environ 20 Go de disque, 16 Go de mémoire, et internet seulement pendant ces téléchargements.
+#info("Ce qu'il faut installer pour ces lectures")[
+  Le lecteur d'écriture, Ollama et ses modèles s'installent en un clic depuis la page *Réglages* (menu de
+  gauche), une fois par PC. La ligne « Modèles locaux » de l'étape 4 dit ce qui est déjà là.
 ]
 
 Sans ces lectures, tout se corrige quand même à la main dans l'étape 5.
@@ -345,12 +343,42 @@ Déposer la *liste des élèves* de l'examen : un fichier Excel avec trois colon
 Puis #bouton[Exporter les notes] : un classeur `notes_<examen>.xlsx` à télécharger, avec trois feuilles :
 
 #table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
-  [*Notes*], [une ligne par copie : élève, détail par partie, total, note sur 20 arrondie au demi-point supérieur (13,1 donne 13,5 ; réglable) ;],
+  [*Notes*], [une ligne par copie : élève, détail par partie, total, note sur 20 arrondie au demi-point supérieur (13,1 donne 13,5 ; réglable dans Réglages) ;],
   [*Absents*], [les élèves de la liste qui n'ont pas de copie ;],
   [*À vérifier*], [les copies sans élève et celles où il reste des réponses à décider (note provisoire).],
 )
 
 #astuce[Chaque export garde l'ancien classeur à côté, daté. Vous ne perdez jamais une version.]
+
+// ================================================================== réglages
+= Réglages
+
+La page *Réglages* (menu de gauche) vaut pour tous les examens de ce PC.
+
+#capture("img/reglages.png", legende: [La page Réglages : l'arrondi, puis les extensions, chacune avec son bouton.])
+
+== Paramètres
+
+- *Arrondir la note finale au demi-point supérieur* : activé, 13,1 donne 13,5 ; désactivé, la note reste exacte
+  (13,1). Dans tous les cas la note est plafonnée à 20. Le changement vaut pour les prochains exports.
+
+== Extensions
+
+Comme des modules qu'on ajoute : chaque carte dit ce que fait l'extension, sa taille, et si elle est installée.
+Un clic l'installe ; la progression s'affiche dans le journal en haut de la page. Internet n'est nécessaire
+que pendant le téléchargement. Sans extension, tout fonctionne : vous corrigez simplement plus à la main.
+
+#table(columns: (auto, auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
+  [*Lecteur d'écriture*], [2 Go], [lit les réponses courtes et les noms (étape 4, « Lire les réponses courtes ») ;],
+  [*Ollama*], [1 Go], [logiciel gratuit qui fait tourner les modèles ci-dessous sur votre PC (Windows : installé sans question ; Mac : la page de téléchargement s'ouvre) ;],
+  [*qwen3-vl:8b*], [6 Go], [lit le code écrit à la main (préparation de nuit) ;],
+  [*qwen3-vl:4b*], [3 Go], [relit les réponses courtes laissées en revue ;],
+  [*qwen3:14b*], [9 Go], [facultatif : répare les petites fautes du code avant les tests.],
+)
+
+Les modèles demandent Ollama démarré ; s'il est arrêté, sa carte propose #bouton-clair[Démarrer].
+#bouton-clair[Supprimer] libère la place d'un modèle ; il se retélécharge d'un clic. Pour tout : environ 20 Go
+de disque et 16 Go de mémoire.
 
 // ================================================================== règles
 = Comment Thessalia note
@@ -366,7 +394,7 @@ Les règles sont celles de l'enseignant, appliquées partout de la même façon 
 - *Nombres* : un nombre décimal est toujours présenté à l'enseignant. Quand la machine hésite entre point et
   virgule, le doute profite à l'élève.
 - *Note finale* : arrondie au *demi-point supérieur* (13,1 donne 13,5 ; 13,5 reste 13,5) et plafonnée à 20.
-  L'arrondi se désactive pour un examen (case à cocher de l'étape 6) : la note reste alors exacte.
+  L'arrondi se désactive dans *Réglages* (interrupteur) : la note reste alors exacte.
 
 // ================================================================== confidentialité
 = Vos fichiers et la confidentialité
@@ -424,7 +452,7 @@ de l'autoriser : Thessalia n'a besoin de rien d'autre.
   [« Address already in use »], [Thessalia tourne déjà : utilisez l'onglet ou la fenêtre déjà ouverts.],
   [« Source refusée »], [Lire la ligne indiquée et la correction proposée, modifier le fichier, « Remplacer la source ».],
   [« GABARIT DOUTEUX »], [Mauvaise langue au dépôt : redéposer le PDF avec l'autre langue.],
-  [Boutons de l'étape 4 grisés], [Le message à côté dit ce qui manque : lecteur d'écriture (relancer l'installeur), Ollama ou un modèle (boutons du cadre « Modèles locaux »).],
+  [Boutons de l'étape 4 grisés], [Le message à côté dit ce qui manque : lecteur d'écriture, Ollama ou un modèle ; les installer depuis la page Réglages.],
   [Mot de passe oublié], [Supprimer `data\compte.json` dans le dossier de Thessalia, puis relancer.],
   [Une note semble fausse], [Ouvrir la copie (« Copies et notes ») : chaque point est détaillé, chaque décision modifiable.],
   [Autre chose], [Copier le journal affiché en haut de la page de l'examen et l'envoyer à l'auteur, *sans* copie ni nom d'élève.],

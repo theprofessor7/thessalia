@@ -237,16 +237,17 @@ class Projet:
         return m
 
     # ---------------------------------------------------------------- réglages
-    REGLAGES = {"arrondi_demi_point": True}
-
     def reglages(self) -> dict:
+        """Réglages généraux (page Réglages), sauf ceux que l'examen garde dans son reglages.json."""
+        from .reglages import DEFAUTS, lire
         p = self.dir / "reglages.json"
-        lu = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
-        return {k: lu.get(k, v) for k, v in self.REGLAGES.items()}
+        propres = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        return {**lire(), **{k: v for k, v in propres.items() if k in DEFAUTS}}
 
     def regler(self, **valeurs):
         r = self.reglages()
-        r.update({k: v for k, v in valeurs.items() if k in self.REGLAGES})
+        from .reglages import DEFAUTS
+        r.update({k: v for k, v in valeurs.items() if k in DEFAUTS})
         (self.dir / "reglages.json").write_text(json.dumps(r, indent=1), encoding="utf-8")
 
     @property
