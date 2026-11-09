@@ -2,6 +2,9 @@
 
 Lecture automatique des copies papier scannées des examens Python ESME — **niveau 1 : QCM et vrai/faux**, avec découpe des zones manuscrites (identité, réponses courtes, code) prêtes pour les niveaux 2 et 3.
 
+**Enseignants** : installation (`installer.bat` / `installer.sh`), lancement (`Thessalia.bat` /
+`Thessalia.command`) et utilisation de l'application : [`docs/MODE_EMPLOI.md`](docs/MODE_EMPLOI.md).
+
 Architecture, formats JSON, résultats mesurés et feuille de route niveaux 2–4 : [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Installation (projet local, portable)
