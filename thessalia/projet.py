@@ -153,6 +153,13 @@ class Projet:
             info = json.loads((self.scans / f"{d.name}.json").read_text(encoding="utf-8"))
             log(f"=== {d.name} ({info['langue'].upper()})")
             ocr(d, self.fichiers(info["langue"])["vocab"], "trocr", log=log)
+        # noms écrits sur les copies : propositions pour « Identifier les copies »
+        from .identite import run as noms
+        log("=== noms des élèves")
+        try:
+            noms(dossiers, lists_dir=self.stockage()["lists_dir"])
+        except SystemExit as e:
+            log(f"noms non lus : {e}")
 
     def preparer(self, log=print):
         """Routine de la veille (code transcrit et pré-coché, réponses courtes relues) avec les modèles Ollama
@@ -229,6 +236,19 @@ class Projet:
         p.write_text(json.dumps(key, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         return m
 
+    # ---------------------------------------------------------------- réglages
+    REGLAGES = {"arrondi_demi_point": True}
+
+    def reglages(self) -> dict:
+        p = self.dir / "reglages.json"
+        lu = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        return {k: lu.get(k, v) for k, v in self.REGLAGES.items()}
+
+    def regler(self, **valeurs):
+        r = self.reglages()
+        r.update({k: v for k, v in valeurs.items() if k in self.REGLAGES})
+        (self.dir / "reglages.json").write_text(json.dumps(r, indent=1), encoding="utf-8")
+
     @property
     def notes_xlsx(self) -> Path:
         return self.dir / "notes" / "notes.xlsx"
@@ -239,7 +259,8 @@ class Projet:
         dossiers = self.dossiers_lus()
         if not dossiers:
             raise SystemExit("aucune classe lue")
-        return run(dossiers, self.notes_xlsx, db=self.stockage()["db"], log=log)
+        return run(dossiers, self.notes_xlsx, db=self.stockage()["db"], log=log,
+                   arrondi=self.reglages()["arrondi_demi_point"])
 
     def liste(self):
         """Liste des élèves utilisée : {nom, propre} (propre = celle de l'examen), {erreur} ou None."""

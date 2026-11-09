@@ -222,11 +222,11 @@ def ecrire_attribution(classe, copy_ids, cid, etudiant, lists_dir=LISTS_DIR):
             w.writerow([c, att.get(c, provisoire(classe, c))])
 
 
-def run(dirs, liste=None, force=False):
+def run(dirs, liste=None, force=False, lists_dir=None):
     from .serve import _classes
 
     classes = _classes(dirs)
-    groupes = lire_liste(liste)
+    groupes = lire_liste(liste, lists_dir=lists_dir)
     if not groupes:
         raise SystemExit("Liste des élèves introuvable (data/listes/*.xlsx, colonnes NOM, Prénom, Classe).")
     lire_vignettes(classes, force=force)
@@ -237,7 +237,7 @@ def run(dirs, liste=None, force=False):
         lus = json.loads((d / LECTURES).read_text(encoding="utf-8"))
         b = bilan.setdefault(g, {"copies": 0, "nettes": 0, "eleves": set()})
         # session à part (BIS) : les convoqués, comme dans l'outil ; sinon la liste du groupe
-        eleves = lire_convoques(d.name) or groupes.get(g, [])
+        eleves = lire_convoques(d.name, lists_dir or LISTS_DIR) or groupes.get(g, [])
         b["eleves"].update(eleves)
         for cid, lec in lus.items():
             b["copies"] += 1

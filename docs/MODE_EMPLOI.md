@@ -36,17 +36,11 @@ l'installeur plus tard pour l'ajouter.
 
 ### Facultatif : la préparation de nuit (code manuscrit)
 
-Pour que le code écrit à la main soit transcrit et pré-noté pendant la nuit, installer **Ollama**
-(https://ollama.com), puis, une fois, dans un terminal :
-
-```
-ollama pull qwen3-vl:8b-instruct
-ollama pull qwen3:14b
-ollama pull qwen3-vl:4b-instruct
-```
-
-Il faut environ 20 Go de disque et 16 Go de mémoire. Sans réseau, le dossier des modèles d'Ollama peut être
-copié depuis le PC d'un collègue.
+Elle utilise **Ollama**, logiciel gratuit qui fait tourner les modèles sur ce PC. Rien à taper : dans
+l'application, étape 4 d'un examen, le cadre « Modèles locaux » installe Ollama en un clic (Windows ; sur Mac,
+la page de téléchargement s'ouvre), puis chaque modèle avec son bouton « Télécharger » (8B : lecture du code ;
+4B : second lecteur des réponses courtes ; 14B, facultatif : réparateur). Il faut environ 20 Go de disque et
+16 Go de mémoire. Sans réseau, le dossier des modèles d'Ollama peut être copié depuis le PC d'un collègue.
 
 ## 2. Lancer
 
@@ -55,6 +49,11 @@ copié depuis le PC d'un collègue.
 
 Le navigateur s'ouvre sur http://127.0.0.1:8765/examens. **Laisser la fenêtre noire ouverte** : la fermer
 arrête Thessalia.
+
+Au premier lancement, choisir un **identifiant** et un **mot de passe** (8 caractères au moins) ; ils sont
+demandés ensuite à chaque ouverture (session de 12 heures). Le mot de passe n'est jamais enregistré en clair.
+**Oubli** : fermer Thessalia, supprimer `data/compte.json` dans le dossier de Thessalia, relancer ; un nouveau
+compte est demandé, les examens ne sont pas touchés.
 
 ## 3. Mettre à jour
 
@@ -135,7 +134,8 @@ Sans liste, les copies ne peuvent pas être attribuées.
 
 « Exporter les notes » produit `notes_<examen>.xlsx`, avec trois feuilles :
 
-- **Notes** : une ligne par copie, notes sur 20 ;
+- **Notes** : une ligne par copie, note sur 20 arrondie au demi-point supérieur (13,1 → 13,5) et plafonnée
+  à 20 ; l'arrondi se désactive par examen (case à cocher de l'étape 6) ;
 - **Absents** : élèves de la liste sans copie ;
 - **À vérifier** : copies sans élève ou avec des réponses encore en attente (note provisoire).
 

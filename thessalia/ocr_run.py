@@ -65,7 +65,8 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
     valide = lecture_validee(vocab_path)
     if not valide:
         log("SUJET NON VALIDÉ : aucune réponse acceptée d'office, toutes en revue "
-            "(poser \"lecture_validee\": true dans le corrigé après mesure sur des copies corrigées)")
+            "(après mesure sur des copies corrigées : bouton « Sujet validé » de l'application, ou "
+            "\"lecture_validee\": true dans le corrigé)")
     copies = sorted(results_dir.glob("copy_*/result.json"))
     if not copies:
         raise SystemExit(f"Aucun résultat dans {results_dir} (lancer d'abord `process`).")

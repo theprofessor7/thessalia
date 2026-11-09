@@ -107,7 +107,7 @@ examen:
   duree: 1 h 10
   session: {fr: Session de novembre 2026, en: November 2026 session}
   points: 12                    # total ; contrôlé contre la somme des exercices
-  identite: [nom, prenom, groupe]
+  identite: [nom, prenom, groupe]   # facultatif : [nom, prenom] par défaut, [] pour aucune zone
   numero_etudiant:              # facultatif : sans cette clé, pas de grille
     chiffres: 7
     exemple: A2024158           # montré à l'élève, avec sa règle de saisie

@@ -127,7 +127,7 @@ def test_mise_en_page_gabarit_et_zones(tmp_path):
     for lg in ("FR", "EN"):
         gab = json.loads((tmp_path / "out" / f"gabarit_ESSAI_{lg}.json").read_text(encoding="utf-8"))
         ids = sorted(f["id"] for p in gab["pages"] for f in p["fields"])
-        assert ids == ["q1.1", "q1.2", "q2", "q3", "q4.1", "q4.2", "q5"]
+        assert ids == ["identity.nom", "identity.prenom", "q1.1", "q1.2", "q2", "q3", "q4.1", "q4.2", "q5"]  # Nom, Prénom par défaut
         assert (tmp_path / "out" / f"corrige_ESSAI_{lg}.pdf").exists()
     assert (tmp_path / "out" / "ESSAI_FR.bareme.json").exists()
     assert json.loads((tmp_path / "out" / "ESSAI_EN.key.json").read_text(encoding="utf-8"))["traduction_de"] == "ESSAI_FR"

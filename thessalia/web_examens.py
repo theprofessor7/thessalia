@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 from urllib.parse import quote
 
+from . import ollama_local
 from .projet import Projet, creer, nom_valide, outils, projets
 
 
@@ -115,7 +116,7 @@ def enregistrer(app, racine: Path, charger):
         notes = p.notes_xlsx
         return render_template("examen.html", e=resume(p), pdfs=[f.name for f in p.pdfs()], tache=t,
                                ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=outils(),
-                               liste=p.liste(), validation=p.mesure_lecture() if resume_lues(p) else {},
+                               liste=p.liste(), reglages=p.reglages(), ollama=ollama_local.etat(), validation=p.mesure_lecture() if resume_lues(p) else {},
                                notes=time.strftime("%d/%m/%Y %H:%M", time.localtime(notes.stat().st_mtime))
                                if notes.exists() else None)
 
@@ -195,7 +196,7 @@ def enregistrer(app, racine: Path, charger):
     @app.post("/examens/<nom>/courtes")
     def courtes(nom):
         p = projet(nom)
-        return lancer(nom, "Lire les réponses courtes", lambda log: p.lire_courtes(log=log), apres_lecture(nom))
+        return lancer(nom, "Lire les réponses courtes et les noms", lambda log: p.lire_courtes(log=log), apres_lecture(nom))
 
     @app.post("/examens/<nom>/valider/<langue>")
     def valider(nom, langue):
@@ -206,6 +207,22 @@ def enregistrer(app, racine: Path, charger):
             return redirect(_vers(f"/examens/{nom}", e))
         return lancer(nom, f"Sujet {langue.upper()} validé ({m['justes']}/{m['n']} lectures justes) : relecture des "
                            "réponses courtes", lambda log: p.lire_courtes(log=log), apres_lecture(nom))
+
+    @app.post("/examens/<nom>/ollama/installer")
+    def ollama_installer(nom):
+        projet(nom)
+        return lancer(nom, "Installer Ollama", lambda log: ollama_local.installer(log))
+
+    @app.post("/examens/<nom>/ollama/demarrer")
+    def ollama_demarrer(nom):
+        projet(nom)
+        return lancer(nom, "Démarrer Ollama", lambda log: ollama_local.demarrer(log))
+
+    @app.post("/examens/<nom>/ollama/modele")
+    def ollama_modele(nom):
+        projet(nom)
+        m = request.form.get("nom", "")
+        return lancer(nom, f"Télécharger le modèle {m}", lambda log: ollama_local.telecharger_modele(m, log))
 
     @app.post("/examens/<nom>/preparer")
     def preparer(nom):
@@ -224,6 +241,12 @@ def enregistrer(app, racine: Path, charger):
         except ValueError as e:
             return redirect(_vers(f"/examens/{nom}", e))
         return redirect(_vers(f"/examens/{nom}", f"Liste des élèves enregistrée : {n} élèves."))
+
+    @app.post("/examens/<nom>/reglages")
+    def reglages(nom):
+        p = projet(nom)
+        p.regler(arrondi_demi_point="1" in request.form.getlist("arrondi"))    # case décochée : seul le champ caché
+        return redirect(f"/examens/{nom}#notes")
 
     @app.post("/examens/<nom>/notes")
     def exporter(nom):

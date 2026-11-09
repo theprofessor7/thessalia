@@ -39,7 +39,7 @@ def _qkey(fid):
     return [int(x) if x.isdigit() else 0 for x in fid.replace("q", "").split(".")]
 
 
-def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None):
+def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None, compte=None):
     """apprendre=False (mode essai) : aucune étiquette d'apprentissage écrite (data/truth/<classe>.appris.json).
     banc=True (mode banc d'essai, avec l'essai) : l'enseignant corrige les cadres de code À L'AVEUGLE (rien de
     pré-coché, rien de la machine affiché) ; ses choix (base d'essai) forment H. Boutons en haut de la vue par
@@ -232,8 +232,9 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None)
                 rang = classer(lus.get(cid, {}), eleves) if lus.get(cid) else []
                 if rang and not att[c.name].get(cid):
                     scores[(c.name, cid)] = dict(rang)
-                rows.append({"classe": c.name, "copie": cid, "num": int(cid.split("_")[-1]),
-                             "nom": f"{cid}/crops/identity.nom.png", "prenom": f"{cid}/crops/identity.prenom.png",
+                vig = {z: f"{cid}/crops/identity.{z}.png" for z in ("nom", "prenom")}
+                vig = {z: p if (c.dir / p).exists() else None for z, p in vig.items()}
+                rows.append({"classe": c.name, "copie": cid, "num": int(cid.split("_")[-1]), **vig,
                              "confirme": att[c.name].get(cid),
                              "propositions": [{"eleve": e, "score": sc} for e, sc in rang[:3]]})
         # proposition pré-remplie : répartition d'ensemble sur les copies non confirmées et les élèves libres
@@ -380,7 +381,10 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None)
             resp.headers["Cache-Control"] = "no-store"
         return resp
 
-    app.jinja_env.globals.update(rate=RATE, mode_examens=examens is not None)
+    app.jinja_env.globals.update(rate=RATE, mode_examens=examens is not None, avec_compte=False)
+    if compte is not None:         # application : identifiant et mot de passe avant toute page (thessalia.compte)
+        from .compte import proteger
+        proteger(app, compte)
     if examens is not None:
         from .web_examens import enregistrer
         enregistrer(app, Path(examens), charger)
@@ -407,8 +411,9 @@ def run(paths, port=8765, open_browser=True, db_path=DB_PATH, essai=False, banc=
 
 def run_app(examens="examens", port=8765, open_browser=True, db_path=DB_PATH):
     """Application : pages Examens (sujet source, PDF, dépôt des scans, lecture) + outil de correction."""
+    from .compte import Compte
     Path(examens).mkdir(parents=True, exist_ok=True)
-    app = create_app([], db_path, examens=examens)
+    app = create_app([], db_path, examens=examens, compte=Compte())
     url = f"http://127.0.0.1:{port}/examens"
     print(f"Thessalia : {url}  (Ctrl+C pour arrêter ; examens dans {Path(examens).resolve()}, décisions dans {db_path})")
     if open_browser:

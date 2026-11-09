@@ -211,10 +211,16 @@ def _couverture(ex, langue):
     t = lambda k: (e.get(k) or {}).get(langue, "")
     logo = f"image({ts(Path(e['logo']).name)}, width: 30mm)," if e.get("logo") else ""
     meta = " · ".join(x for x in (e.get("duree"), f"{ex.points:g} points", t("version"), t("session")) if x)
-    out.append(f"#align(center)[#stack(spacing: 3mm, {logo} text(size: 9.5pt, fill: GRIS, tracking: 0.08em, "
-               f"upper({ts(t('matiere'))})), text(size: 22pt, weight: \"bold\", fill: ACCENT, {ts(t('titre'))}), "
-               f"box(stroke: 1pt + rgb(\"#9b2335\"), inset: (x: 6pt, y: 3pt), radius: 2pt, "
-               f"text(weight: \"bold\", fill: rgb(\"#9b2335\"), {ts(t('sous_titre'))})), text(size: 10pt, {ts(meta)}))]")
+    # matière et sous-titre seulement s'ils existent : un cadre de sous-titre vide ressemblait à une case à cocher
+    lignes = [logo] if logo else []
+    if t("matiere"):
+        lignes.append(f"text(size: 9.5pt, fill: GRIS, tracking: 0.08em, upper({ts(t('matiere'))})),")
+    lignes.append(f"text(size: 22pt, weight: \"bold\", fill: ACCENT, {ts(t('titre'))}),")
+    if t("sous_titre"):
+        lignes.append(f"box(stroke: 1pt + rgb(\"#9b2335\"), inset: (x: 6pt, y: 3pt), radius: 2pt, "
+                      f"text(weight: \"bold\", fill: rgb(\"#9b2335\"), {ts(t('sous_titre'))})),")
+    lignes.append(f"text(size: 10pt, {ts(meta)})")
+    out.append(f"#align(center)[#stack(spacing: 3mm, {' '.join(lignes)})]")
     ids = e.get("identite") or []
     if ids:
         cols = ", ".join(f"[#text(size: 8pt, fill: GRIS, tracking: 0.05em, upper({ts(m['id'].get(k, k))}))"

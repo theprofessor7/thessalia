@@ -204,7 +204,8 @@ class _Controle:
                   for k in ("matiere", "titre", "sous_titre", "version", "session", "consignes")}
         entete["duree"] = str(ex.get("duree", ""))
         entete["logo"] = str(ex["logo"]) if "logo" in ex else None
-        entete["identite"] = [str(x) for x in ex.get("identite", [])]
+        # par défaut Nom et Prénom : sans zone d'identité, les copies ne s'identifient pas ; `identite: []` les retire
+        entete["identite"] = [str(x) for x in ex["identite"]] if "identite" in ex else ["nom", "prenom"]
         ne = ex.get("numero_etudiant")
         if ne is not None:
             self.cles(ne, {"chiffres", "exemple", "ignorer_prefixe"}, "examen.numero_etudiant", ("chiffres",))

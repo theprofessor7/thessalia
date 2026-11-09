@@ -16,7 +16,7 @@ import numpy as np
 
 from .align import AlignmentError, ReferenceSet, align_page
 from .common import RESULT_SCHEMA, load_json, normalize_background, px_per_mm, render_pdf_pages, save_json
-from .extract import save_crops
+from .extract import save_crops, save_qcm_crops
 from .grade import grade_copy
 from .loader import load_scans
 from .ocr_prep import PrepConfig, mark_stacking, prepare_field
@@ -159,6 +159,7 @@ class Processor:
             overlay_rel = str(op.relative_to(out_dir))
         if self.crops:
             cur["fields"].update(save_crops(al.image, fields, self.dpi, cdir / "crops", out_dir))
+            save_qcm_crops(al.image, fields, self.dpi, cdir / "crops", (self.template.get("page_size_mm") or [210])[0])
             # Niveau 2 : vignettes nettoyées des réponses courtes (encre étudiant seule)
             blank_n = self._blank_norm(page)
             for f in fields:

@@ -169,6 +169,22 @@ plus du tout ensuite.
 examens. Une fenêtre noire reste ouverte à côté : *c'est Thessalia qui tourne, ne la fermez pas* tant que vous
 travaillez. La fermer arrête Thessalia ; vos données restent.
 
+== Votre compte
+
+#grid(columns: (1fr, 44%), column-gutter: 14pt,
+  [
+    Au *tout premier lancement*, Thessalia vous demande de choisir un *identifiant* et un *mot de passe*
+    (8 caractères au moins). Ils sont ensuite demandés à chaque ouverture ; après 12 heures, il faut se
+    reconnecter. Le bouton « Déconnexion », en haut à droite, ferme la session.
+
+    Le mot de passe n'est jamais enregistré en clair. Il protège l'application ouverte sur un PC laissé sans
+    surveillance ; vos fichiers, eux, sont protégés par votre session Windows.
+
+    *Mot de passe oublié* : fermer Thessalia, supprimer le fichier `data\compte.json` dans le dossier de
+    Thessalia, relancer : un nouveau compte est demandé. Vos examens ne sont pas touchés.
+  ],
+  capture("img/connexion.png", legende: [L'écran de connexion.]))
+
 #astuce[
   Pour récupérer une nouvelle version : Thessalia fermé, dans PowerShell, `cd C:\Thessalia` puis
   `git pull`, puis relancer `installer.bat`. Vos examens ne sont jamais touchés.
@@ -264,15 +280,25 @@ Le tableau indique ensuite le nombre de copies et le nombre de réponses à revo
 
 #capture("img/examen_bas.png", largeur: 92%, legende: [Étapes 4 à 6. Les boutons grisés disent ce qui manque.])
 
-- #bouton-clair[Lire les réponses courtes] : la machine lit l'écriture des élèves (quelques minutes par
-  classe) et vous propose sa lecture. Il faut le lecteur d'écriture (installation).
+- #bouton-clair[Lire les réponses courtes et les noms] : la machine lit l'écriture des élèves (quelques
+  minutes par classe) et vous propose sa lecture ; elle lit aussi les noms, pour l'identification. Il faut le lecteur d'écriture (installation).
 - #bouton-clair[Sujet validé] : pour un sujet nouveau, *toutes* les réponses courtes vous sont présentées,
   même quand la machine est sûre d'elle. Au fil de votre correction, Thessalia compte ses lectures justes.
   Après 30 lectures vérifiées *sans une seule erreur*, ce bouton s'active : ensuite, les réponses sûres sont
   acceptées d'office et vous n'avez plus que les autres.
 - #bouton-clair[Préparer la nuit] : transcrit le code écrit à la main et pré-coche le barème en l'exécutant.
-  Nécessite le logiciel gratuit *Ollama* et ses modèles (voir le mode d'emploi détaillé,
-  `docs/MODE_EMPLOI.md`). À lancer le soir : une centaine de copies tient en une nuit.
+  À lancer le soir : une centaine de copies tient en une nuit.
+
+#info("Modèles locaux : tout s'installe d'ici, en un clic")[
+  La préparation de nuit utilise *Ollama*, un logiciel gratuit qui fait tourner les modèles sur votre PC.
+  Le cadre « Modèles locaux » de l'étape 4 fait tout pour vous, une fois par PC :
+  - #bouton[Installer Ollama] le télécharge et l'installe, sans question (Windows ; sur Mac, la page de
+    téléchargement s'ouvre) ;
+  - #bouton-clair[Télécharger] en face de chaque modèle le récupère (3 à 9 Go chacun) ; la progression
+    s'affiche dans le journal. Le *8B* lit le code, le *4B* relit les réponses courtes, le *14B* (facultatif)
+    répare les petites fautes du code avant les tests.
+  Il faut environ 20 Go de disque, 16 Go de mémoire, et internet seulement pendant ces téléchargements.
+]
 
 Sans ces lectures, tout se corrige quand même à la main dans l'étape 5.
 
@@ -287,7 +313,7 @@ Sans ces lectures, tout se corrige quand même à la main dans l'étape 5.
 La façon la plus rapide de corriger est *par question* : toutes les copies, une seule question. Les réponses
 identiques sont regroupées en *blocs* : vous décidez une fois pour tout le bloc.
 
-#capture("img/question_c.png", legende: [Correction par question. Ici, deux élèves ont écrit « 42 » au lieu de 3 : un seul clic pour le bloc.])
+#capture("img/question_c.png", legende: [Correction par question : l'image de la réponse, la lecture de la machine, l'attendu et le verdict proposé (pointillés).])
 
 Pour chaque réponse, vous voyez l'image de ce que l'élève a écrit, ce que la machine a lu, la réponse attendue,
 et le verdict proposé (cadre pointillé). Vous pouvez :
@@ -319,7 +345,7 @@ Déposer la *liste des élèves* de l'examen : un fichier Excel avec trois colon
 Puis #bouton[Exporter les notes] : un classeur `notes_<examen>.xlsx` à télécharger, avec trois feuilles :
 
 #table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
-  [*Notes*], [une ligne par copie : élève, détail par partie, total, note sur 20 arrondie au demi-point ;],
+  [*Notes*], [une ligne par copie : élève, détail par partie, total, note sur 20 arrondie au demi-point supérieur (13,1 donne 13,5 ; réglable) ;],
   [*Absents*], [les élèves de la liste qui n'ont pas de copie ;],
   [*À vérifier*], [les copies sans élève et celles où il reste des réponses à décider (note provisoire).],
 )
@@ -339,7 +365,8 @@ Les règles sont celles de l'enseignant, appliquées partout de la même façon 
   raturée ou noircie part en *« à décider »*.
 - *Nombres* : un nombre décimal est toujours présenté à l'enseignant. Quand la machine hésite entre point et
   virgule, le doute profite à l'élève.
-- *Note finale* : arrondie au demi-point supérieur et plafonnée à 20.
+- *Note finale* : arrondie au *demi-point supérieur* (13,1 donne 13,5 ; 13,5 reste 13,5) et plafonnée à 20.
+  L'arrondi se désactive pour un examen (case à cocher de l'étape 6) : la note reste alors exacte.
 
 // ================================================================== confidentialité
 = Vos fichiers et la confidentialité
@@ -397,7 +424,8 @@ de l'autoriser : Thessalia n'a besoin de rien d'autre.
   [« Address already in use »], [Thessalia tourne déjà : utilisez l'onglet ou la fenêtre déjà ouverts.],
   [« Source refusée »], [Lire la ligne indiquée et la correction proposée, modifier le fichier, « Remplacer la source ».],
   [« GABARIT DOUTEUX »], [Mauvaise langue au dépôt : redéposer le PDF avec l'autre langue.],
-  [Boutons de l'étape 4 grisés], [Le message à côté dit ce qui manque (lecteur d'écriture, Ollama).],
+  [Boutons de l'étape 4 grisés], [Le message à côté dit ce qui manque : lecteur d'écriture (relancer l'installeur), Ollama ou un modèle (boutons du cadre « Modèles locaux »).],
+  [Mot de passe oublié], [Supprimer `data\compte.json` dans le dossier de Thessalia, puis relancer.],
   [Une note semble fausse], [Ouvrir la copie (« Copies et notes ») : chaque point est détaillé, chaque décision modifiable.],
   [Autre chose], [Copier le journal affiché en haut de la page de l'examen et l'envoyer à l'auteur, *sans* copie ni nom d'élève.],
 )

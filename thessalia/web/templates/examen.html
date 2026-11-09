@@ -76,7 +76,7 @@
     <h2>4. Lectures longues (facultatif)</h2>
     <p class="aide">Sur ce PC, sans envoi. Sans elles, tout se corrige quand même dans l'outil, à la main.</p>
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/courtes">
-      <button class="bouton" {{ 'disabled' if not (e.lues and outils.trocr) }}>Lire les réponses courtes</button>
+      <button class="bouton" {{ 'disabled' if not (e.lues and outils.trocr) }}>Lire les réponses courtes et les noms</button>
     </form>
     {% if outils.trocr %}
       <span class="aide">{{ e.courtes }}/{{ e.lues }} classe(s) déjà lue(s). Quelques minutes par classe. Sujet
@@ -103,14 +103,30 @@
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer">
       <button class="bouton" {{ 'disabled' if not (e.lues and outils.ollama) }}>Préparer la nuit (code, second lecteur)</button>
     </form>
-    {% if outils.ollama is none %}
-      <span class="attente">Ollama ne répond pas (pas installé ou pas lancé : https://ollama.com).</span>
-    {% elif not outils.ollama %}
-      <span class="attente">Ollama sans modèle : <code>ollama pull qwen3-vl:8b-instruct</code> (voir le mode d'emploi).</span>
-    {% else %}
-      <span class="aide">Code transcrit et pré-coché, réponses courtes relues : environ une nuit pour une centaine
-        de copies ; relancer reprend où ça s'était arrêté. Modèles : {{ outils.ollama|join(', ') }}.</span>
-    {% endif %}
+    <span class="aide">Code transcrit et pré-coché, réponses courtes relues : environ une nuit pour une centaine
+      de copies ; relancer reprend où ça s'était arrêté.</span>
+    <div class="ollama">
+      <b>Modèles locaux (Ollama)</b>
+      {% if not ollama.installe %}
+        <p>Ollama, logiciel gratuit qui fait tourner les modèles sur ce PC, n'est pas installé.
+          <form class="enligne" method="post" action="/examens/{{ e.nom }}/ollama/installer">
+            <button class="bouton principal">{{ 'Installer Ollama' if ollama.windows else 'Télécharger Ollama' }}</button></form></p>
+      {% elif not ollama.lance %}
+        <p>Ollama est installé mais arrêté.
+          <form class="enligne" method="post" action="/examens/{{ e.nom }}/ollama/demarrer"><button class="bouton">Démarrer Ollama</button></form></p>
+      {% endif %}
+      <table class="tableau modeles">
+        {% for m in ollama.modeles %}
+        <tr><td><code>{{ m.nom }}</code></td><td>{{ m.role }}</td><td class="n">{{ m.taille }}</td>
+          <td>{% if m.present %}<span class="ok">installé</span>{% else %}
+            <form class="enligne" method="post" action="/examens/{{ e.nom }}/ollama/modele">
+              <input type="hidden" name="nom" value="{{ m.nom }}">
+              <button class="bouton" {{ 'disabled' if not ollama.installe }}>Télécharger</button></form>{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+      <p class="aide">Une seule fois par PC, connexion internet nécessaire ; ensuite tout tourne sans internet.
+        Il faut environ 20 Go de disque pour les trois et 16 Go de mémoire.</p>
+    </div>
   </li>
 
   <li class="etape {{ 'faite' if ouvert }}">
@@ -122,7 +138,7 @@
       identification des copies.</p>
   </li>
 
-  <li class="etape {{ 'faite' if notes }}">
+  <li class="etape {{ 'faite' if notes }}" id="notes">
     <h2>6. Notes</h2>
     {% if liste and liste.erreur %}<p class="erreur">{{ liste.erreur }}</p>
     {% elif liste %}<p>Liste des élèves : {{ liste.nom }}{{ '' if liste.propre else ' (liste commune, data/listes)' }}.</p>
@@ -133,11 +149,17 @@
         <button class="bouton">Enregistrer</button>
       </form>
     </details>
+    <form method="post" action="/examens/{{ e.nom }}/reglages" class="reglage">
+      <input type="hidden" name="arrondi" value="0">
+      <label><input type="checkbox" name="arrondi" value="1" {{ 'checked' if reglages.arrondi_demi_point }}
+             onchange="this.form.submit()"> Arrondir la note finale au demi-point supérieur
+        <span class="gris">(ex. 13,1 → 13,5 ; décoché : note exacte, 13,1)</span></label>
+    </form>
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/notes">
       <button class="bouton {{ 'principal' if e.lues }}" {{ 'disabled' if not e.lues }}>Exporter les notes</button>
     </form>
     {% if notes %}<a href="/examens/{{ e.nom }}/notes.xlsx">notes_{{ e.nom }}.xlsx</a> <span class="gris">({{ notes }})</span>{% endif %}
-    <p class="aide">Notes sur 20, absents, et une feuille « À vérifier » (copies sans élève, réponses encore en
+    <p class="aide">Notes sur 20 (plafonnées à 20), absents, et une feuille « À vérifier » (copies sans élève, réponses encore en
       attente). Chaque export garde l'ancien classeur, daté.</p>
   </li>
 </ol>

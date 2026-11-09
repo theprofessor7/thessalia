@@ -8,7 +8,10 @@
   Le nom pré-rempli est une <b>proposition</b> de la machine (lecture de la vignette) : vérifiez-le sur l'image.
   <kbd>Entrée</kbd> confirmer et passer à la suivante · tapez quelques lettres pour chercher dans la liste ·
   champ vidé + <kbd>Entrée</kbd> : retirer l'attribution. Après chaque confirmation, les noms proposés plus bas se recalculent (surlignés) ; un nom que vous avez tapé n'est jamais remplacé, et il est enregistré dès que vous quittez le champ.
-  {% if not data.lus %}<br><span class="attente">Pas encore de proposition : lancer <code>python -m thessalia identite sorties/booster</code>.</span>{% endif %}</p>
+  {% if not data.copies|selectattr('nom')|list %}<br><span class="attente">Ce sujet n'a pas de zone Nom / Prénom : identifier chaque copie d'après le papier (ou la vue « Copies et notes »).</span>
+  {% elif not data.lus %}<br><span class="attente">Pas encore de proposition de nom :
+    {% if mode_examens %}sur la page de l'examen, « Lire les réponses courtes » lit aussi les noms (lecteur d'écriture installé).
+    {% else %}lancer <code>python -m thessalia identite &lt;dossier de la classe&gt;</code>.{% endif %}</span>{% endif %}</p>
 <datalist id="eleves">{% for e in data.eleves %}<option value="{{ e }}">{% endfor %}</datalist>
 <p><button class="bouton principal" id="tout1">✓ Confirmer toute la page</button>
   <span class="gris">après avoir vérifié chaque image et corrigé les noms faux</span></p>
@@ -79,8 +82,8 @@ D.copies.forEach((c, i) => {
     props.append(b);
   }
   ligne.append(el("span", {className: "num", textContent: c.classe + " · copie " + c.num}),
-    el("img", {src: "/img/" + c.classe + "/" + c.nom, alt: "nom", loading: "lazy"}),
-    el("img", {src: "/img/" + c.classe + "/" + c.prenom, alt: "prénom", loading: "lazy"}),
+    c.nom ? el("img", {src: "/img/" + c.classe + "/" + c.nom, alt: "nom", loading: "lazy"}) : el("span", {className: "gris", textContent: "pas de zone Nom"}),
+    c.prenom ? el("img", {src: "/img/" + c.classe + "/" + c.prenom, alt: "prénom", loading: "lazy"}) : el("span", {className: "gris", textContent: "pas de zone Prénom"}),
     el("div", {className: "choix"}, champ, etat, props));
   const peindre = () => {
     ligne.classList.toggle("confirme", !!c.confirme);

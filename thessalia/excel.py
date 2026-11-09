@@ -24,6 +24,13 @@ from xml.sax.saxutils import escape
 NOTE_MAX = 20     # un barème peut dépasser 20 (Midterm 2026 : q10 à 1 pt, total 20,25) : la note finale est plafonnée
 
 
+def note_finale(note, arrondi=True):
+    """Note du classeur : au demi-point supérieur (règle de l'enseignant, réglable par examen) ou exacte ; max 20."""
+    if note is None:
+        return None
+    return arrondi_demi(note) if arrondi else min(round(note, 2), NOTE_MAX)
+
+
 def arrondi_demi(note):
     """Arrondi au demi-point supérieur, plafonné à 20. Le passage par 3 décimales évite qu'un 15,0000001 devienne 15,5."""
     if note is None:
@@ -120,7 +127,8 @@ def ecrire_xlsx(path, feuilles):
     return path
 
 
-def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None, log=print):
+def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None, log=print, arrondi=True):
+    """arrondi=False : note finale exacte (2 décimales) au lieu du demi-point supérieur ; plafonnée à 20 dans les deux cas."""
     from .correction import DB_PATH, Classe, Decisions, Memory, group_of
     from .identite import lire_convoques, lire_liste
     from .serve import GROUP_ORDER, _classes
@@ -142,7 +150,7 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None, log=print):
             eleve = r["etudiant"] if r["copie"] in attrib else None
             g = groupe_de.get(eleve) or group_of(c.name)
             ligne = [g, eleve or "", c.name, int(r["copie"].split("_")[-1]), r["qcm"], r["courtes"], r["code"],
-                     r["total"], r["max"], r["en_attente"], arrondi_demi(r["total"])]
+                     r["total"], r["max"], r["en_attente"], note_finale(r["total"], arrondi)]
             notes.append(ligne)
             if not eleve or r["en_attente"]:
                 verifier.append([g, eleve or "(non identifiée)", c.name, ligne[3], r["en_attente"],
@@ -166,7 +174,7 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None, log=print):
         log(f"Ancien fichier conservé : {copie}")
     p = ecrire_xlsx(sortie, [
         ("Notes", [["Groupe", "Élève", "Classe (composé)", "Copie", "QCM", "Réponses courtes", "Code", "Total",
-                    "Sur", "En attente", "Note arrondie (max 20)"]] + notes, [8, 32, 16, 7, 7, 10, 7, 8, 6, 10, 12]),
+                    "Sur", "En attente", "Note arrondie (max 20)" if arrondi else "Note finale (max 20)"]] + notes, [8, 32, 16, 7, 7, 10, 7, 8, 6, 10, 12]),
         ("Absents", [["Groupe", "Élève"]] + absents, [8, 32]),
         ("À vérifier", [["Groupe", "Élève", "Classe", "Copie", "En attente", "Raison"]] + verifier,
          [8, 32, 16, 7, 10, 40]),

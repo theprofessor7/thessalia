@@ -8,13 +8,14 @@
 </head>
 <body>
 <header class="barre">
-  <a class="logo" href="/">Thessalia</a>
+  <a class="logo" href="{{ '/examens' if mode_examens else '/' }}"><span class="logo-marque">Θ</span>Thessalia</a>
   {% if mode_examens %}<a class="bouton" href="/examens">Examens</a>{% if examen_ouvert %}<span class="gris">correction : <a href="/examens/{{ examen_ouvert }}">{{ examen_ouvert }}</a></span>{% endif %}{% endif %}
   <nav>{% block nav %}{% endblock %}</nav>
   <span class="espace"></span>
   {% if nb_a_la_main %}<a class="bouton alerte" href="/a-la-main" title="page absente du scan ou illisible">{{ nb_a_la_main }} copie{{ 's' if nb_a_la_main > 1 }} à reprendre sur le papier</a>{% endif %}
   <a class="bouton" href="/suivi">Suivi de la machine</a>
   {% block outils %}{% endblock %}
+  {% if avec_compte %}<form method="post" action="/deconnexion" class="enligne"><button class="bouton discret" title="Se déconnecter">Déconnexion</button></form>{% endif %}
 </header>
 <main>{% block contenu %}{% endblock %}</main>
 {% block scripts %}{% endblock %}

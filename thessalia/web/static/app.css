@@ -215,3 +215,84 @@ body.voir-local .banc-cache { display:revert !important; }
 .tache { background:var(--carte); border:1px solid var(--trait); border-left:5px solid var(--doute); border-radius:8px; padding:4px 14px 10px; margin-bottom:12px; max-width:980px; }
 .tache.terminé { border-left-color:var(--juste); } .tache.erreur { border-left-color:var(--faux); }
 .tache pre { max-height:260px; overflow:auto; background:var(--fond); padding:8px; border-radius:6px; font-size:12px; white-space:pre-wrap; }
+
+/* ==== thème (novembre 2026) : couleurs, relief, boutons ; surcharge les règles ci-dessus ==== */
+:root {
+  --fond:#f3f4f7; --carte:#fff; --encre:#1c2333; --gris:#5f6b7a; --trait:#e1e4ea; --accent:#2a5caa; --accent-fonce:#1f4785;
+  --accentf:#e8eef8; --ombre:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08); --ombre-haute:0 6px 18px rgba(16,24,40,.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fond:#15181e; --carte:#1f232b; --encre:#e8eaef; --gris:#9aa3b2; --trait:#323844; --accent:#7aa6ec;
+          --accent-fonce:#a8c4f2; --accentf:#22304a; --ombre:0 1px 2px rgba(0,0,0,.4); --ombre-haute:0 6px 18px rgba(0,0,0,.5); }
+}
+body { font:14.5px/1.5 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif; -webkit-font-smoothing:antialiased; }
+main { padding:20px 24px 70px; }
+h1 { font-size:23px; font-weight:700; letter-spacing:-.01em; margin:6px 0 12px; }
+h2 { font-size:16px; font-weight:650; }
+a { text-decoration-thickness:1px; text-underline-offset:2px; }
+
+/* barre du haut */
+.barre { padding:10px 24px; gap:14px; border-bottom:1px solid var(--trait); box-shadow:var(--ombre); }
+.barre .logo { display:flex; align-items:center; gap:8px; font-size:16px; letter-spacing:.01em; }
+.logo-marque { display:inline-grid; place-items:center; width:26px; height:26px; border-radius:7px; background:var(--accent);
+               color:#fff; font-weight:700; font-size:19px; line-height:1; font-family:Georgia, "Times New Roman", serif; }
+.barre nav a { color:var(--accent); }
+
+/* boutons */
+.bouton { padding:6px 13px; border-radius:8px; border-color:var(--trait); box-shadow:0 1px 1px rgba(16,24,40,.04);
+          transition:background .12s, border-color .12s, box-shadow .12s, transform .05s; }
+.bouton:hover { border-color:var(--accent); background:var(--accentf); }
+.bouton:active { transform:translateY(1px); }
+.bouton.principal { font-weight:600; box-shadow:0 1px 2px rgba(42,92,170,.35); }
+.bouton.principal:hover { background:var(--accent-fonce); border-color:var(--accent-fonce); }
+.bouton.discret { border-color:transparent; background:transparent; box-shadow:none; color:var(--gris); }
+.bouton.discret:hover { color:var(--accent); background:var(--accentf); }
+.bouton.large { width:100%; padding:9px 13px; font-size:15px; }
+.bouton[disabled]:hover { background:var(--carte); border-color:var(--trait); }
+.verdict, .option, .critere { border-radius:7px; transition:background .1s, border-color .1s; }
+.verdict:hover, .option:hover, .critere:hover { border-color:var(--accent); }
+
+/* cartes */
+.carte-groupe, .etape, .tache, .carte, .note, .indicateur, .ligne-nom, .message {
+  border-color:var(--trait); border-radius:10px; box-shadow:var(--ombre); }
+.carte-groupe { padding:14px 18px; transition:box-shadow .15s, transform .15s; }
+.carte-groupe:hover { box-shadow:var(--ombre-haute); }
+.carte-groupe h2 a { text-decoration:none; } .carte-groupe h2 a:hover { text-decoration:underline; }
+.carte-groupe .liens a { font-weight:600; }
+.pastille { border-radius:9px; padding:8px 12px; min-width:104px; transition:box-shadow .12s; }
+.pastille:hover { box-shadow:var(--ombre-haute); border-color:var(--accent); }
+.carte { padding:8px 10px; }
+.carte img, .ligne-nom img { border-radius:6px; }
+.groupes { gap:16px; }
+
+/* étapes d'un examen */
+.etapes { gap:14px; }
+.etape { padding:6px 20px 14px; }
+.etape h2 { font-size:17px; margin:10px 0 8px; }
+.etape.faite h2::after { content:"✓"; margin-left:8px; color:var(--juste); font-weight:700; }
+.etape .aide { margin:6px 0 2px; }
+.formulaire input, .formulaire select { padding:6px 8px; border-radius:7px; background:var(--carte); }
+input:focus, select:focus, textarea:focus, .bouton:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.tableau { background:var(--carte); border-radius:8px; overflow:hidden; }
+.tableau th { color:var(--gris); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; }
+.message { padding:9px 14px; background:var(--accentf); border-color:transparent; }
+
+/* connexion */
+body.page-connexion { min-height:100vh; display:grid; place-items:center;
+  background:linear-gradient(160deg, var(--accent) 0%, var(--accent-fonce) 55%, #17345f 100%); }
+main.connexion { width:min(400px, 100% - 32px); padding:0; }
+.marque-connexion { display:flex; align-items:center; gap:10px; justify-content:center; color:#fff; font-size:24px;
+                    font-weight:700; margin-bottom:18px; }
+.marque-connexion .logo-marque { background:#fff; color:var(--accent); width:36px; height:36px; font-size:25px; border-radius:9px; }
+.carte-connexion { background:var(--carte); border-radius:14px; padding:24px 26px 20px; box-shadow:0 18px 40px rgba(0,0,0,.25);
+                   display:flex; flex-direction:column; gap:12px; }
+.carte-connexion h1 { margin:0; }
+.carte-connexion label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--gris); font-weight:600; }
+.carte-connexion input { font:inherit; font-size:15px; padding:9px 11px; border:1px solid var(--trait); border-radius:8px;
+                         background:var(--carte); color:var(--encre); }
+.erreur-connexion { margin:0; padding:8px 12px; border-radius:8px; background:var(--fauxf); color:var(--faux); font-weight:600; }
+.carte-connexion details { margin-top:2px; } .carte-connexion .aide { margin:0; }
+.pied-connexion { text-align:center; color:rgba(255,255,255,.8); margin-top:14px; }
+.reglage { margin:6px 0 10px; } .reglage label { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.ollama { margin-top:12px; padding:10px 14px; border:1px dashed var(--trait); border-radius:10px; }
+.ollama p { margin:6px 0; } .tableau.modeles td { vertical-align:middle; }
