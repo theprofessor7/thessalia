@@ -5,12 +5,7 @@
 <h1>{{ e.titre or e.nom }}</h1>
 {% if message %}<p class="message">{{ message }}</p>{% endif %}
 
-{% if tache %}
-<section class="tache {{ tache.etat|replace(' ', '-') }}" id="tache">
-  <h2>{{ tache.titre }} — <span id="tache-etat">{{ tache.etat }}</span></h2>
-  <pre id="journal">{{ tache.journal|join('\n') }}</pre>
-</section>
-{% endif %}
+{% include "_tache.html" %}
 
 <ol class="etapes">
   <li class="etape {{ 'faite' if not e.erreurs }}">
@@ -152,18 +147,4 @@
   </li>
 </ol>
 {% endblock %}
-{% block scripts %}
-{% if tache and tache.etat == 'en cours' %}
-<script>
-// journal de la tâche en cours ; la page se recharge quand elle se termine
-const suivre = async () => {
-  const t = await (await fetch('/tache')).json();
-  if (!t) return;
-  document.getElementById('journal').textContent = t.journal.join('\n');
-  document.getElementById('tache-etat').textContent = t.etat;
-  if (t.etat === 'en cours') setTimeout(suivre, 1500); else location.reload();
-};
-setTimeout(suivre, 1500);
-</script>
-{% endif %}
-{% endblock %}
+{% block scripts %}{% include "_tache_js.html" %}{% endblock %}

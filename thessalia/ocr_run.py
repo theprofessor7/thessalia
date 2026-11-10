@@ -119,6 +119,10 @@ def run(results_dir, vocab_path, backend="trocr", truth=None, backend_kw=None, l
             cache[keys[i]] = {"md5": sums[i], "candidates": [[t, float(s)] for t, s in c]}
         save_json(cache, cache_path)
         done = j + len(idx)
+        if getattr(log, "progression", None):
+            dt = time.time() - t0
+            log.progression(100 * done // len(rest), f"{done}/{len(rest)} réponses lues · reste environ "
+                            f"{max(1, round((len(rest) - done) * dt / done / 60))} min")
         if time.time() - last >= 15 or done == len(rest):
             last, dt = time.time(), time.time() - t0
             log(f"  {done}/{len(rest)} vignettes lues, {dt / done:.1f} s/vignette, "

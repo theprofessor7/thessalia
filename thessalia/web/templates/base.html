@@ -39,5 +39,35 @@
 <main>{% block contenu %}{% endblock %}</main>
 </div>
 {% block scripts %}{% endblock %}
+<script>
+// Fin d'une tâche longue (lecture, export, téléchargement…) : fenêtre « Terminé » ou « Erreur » avec le résultat,
+// et titre de l'onglet marqué tant que la page n'a pas été regardée.
+(() => {
+  let fin = null;
+  try { fin = JSON.parse(sessionStorage.getItem('thessalia-fin') || 'null'); sessionStorage.removeItem('thessalia-fin'); } catch (e) {}
+  if (!fin) return;
+  const ok = fin.etat === 'terminé';
+  const fond = document.createElement('div');
+  fond.className = 'fin-tache-fond';
+  const boite = document.createElement('div');
+  boite.className = 'fin-tache ' + (ok ? 'reussie' : 'echouee');
+  boite.setAttribute('role', 'alertdialog');
+  const ico = document.createElement('div'); ico.className = 'fin-ico'; ico.textContent = ok ? '✓' : '!';
+  const h = document.createElement('h3'); h.textContent = (ok ? 'Terminé : ' : 'Erreur : ') + fin.titre;
+  const p = document.createElement('p'); p.textContent = fin.resultat || '';
+  const aide = document.createElement('p'); aide.className = 'gris';
+  aide.textContent = ok ? '' : 'Le détail est dans le journal, en haut de la page.';
+  const b = document.createElement('button'); b.className = 'bouton principal'; b.textContent = 'OK';
+  const fermer = () => { fond.remove(); document.title = titre; };
+  b.onclick = fermer; fond.onclick = e => { if (e.target === fond) fermer(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' || e.key === 'Enter') fermer(); }, {once: true});
+  boite.append(ico, h, p, aide, b); fond.append(boite); document.body.append(fond); b.focus();
+  const titre = document.title;
+  if (document.hidden) {
+    document.title = (ok ? '✓ Terminé · ' : '! Erreur · ') + titre;
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => document.title = titre, 4000); }, {once: true});
+  }
+})();
+</script>
 </body>
 </html>

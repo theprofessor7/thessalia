@@ -92,7 +92,13 @@ class Processor:
         copies, cur, last = [], None, 0
         self.blank_pages, self.other_pages, pending = [], [], []
         N = self.template["page_count"]
-        for sp in load_scans(scan_paths, self.dpi):
+        from .loader import count_pages
+        jauge = getattr(self.log, "progression", None)
+        total = count_pages(scan_paths) if jauge else 0
+        for i_page, sp in enumerate(load_scans(scan_paths, self.dpi), 1):
+            if total:
+                jauge(100 * (i_page - 1) // total, f"page {i_page}/{total}"
+                      + (f" · copie {len(copies)}" if copies else ""))
             expected = last % N + 1
             try:
                 al = align_page(sp.gray, sp.px_mm, self.ref, expected_page=expected)

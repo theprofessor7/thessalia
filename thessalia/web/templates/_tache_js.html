@@ -1,17 +1,25 @@
 {% if tache and tache.etat == 'en cours' %}
 <script>
+// tâche en cours : jauge et étape mises à jour chaque seconde ; la page se recharge quand elle se termine
 const suivre = async () => {
   const t = await (await fetch('/tache')).json();
   if (!t) return;
-  document.getElementById('journal').textContent = t.journal.join('\n');
-  document.getElementById('tache-etat').textContent = t.etat;
+  const $ = id => document.getElementById(id);
+  $('journal').textContent = t.journal.join('\n');
+  $('etape').textContent = t.journal.length ? t.journal[t.journal.length - 1] : '';
+  $('tache-etat').textContent = t.etat;
   if (t.progression) {
-    document.getElementById('jauge').hidden = false;
-    document.getElementById('jauge-barre').style.width = t.progression.pc + '%';
-    document.getElementById('jauge-pc').textContent = t.progression.pc + ' %';
-    document.getElementById('jauge-texte').textContent = t.progression.texte;
+    $('jauge').classList.remove('indeterminee');
+    $('jauge-barre').style.width = t.progression.pc + '%';
+    $('jauge-pc').textContent = t.progression.pc + ' %';
+    $('jauge-texte').textContent = t.progression.texte;
   }
-  if (t.etat === 'en cours') setTimeout(suivre, 1000); else location.reload();
+  if (t.etat === 'en cours') { setTimeout(suivre, 1000); return; }
+  try {
+    sessionStorage.setItem('thessalia-fin', JSON.stringify({titre: t.titre, etat: t.etat,
+      resultat: t.journal.length ? t.journal[t.journal.length - 1] : ''}));
+  } catch (e) {}
+  location.reload();
 };
 setTimeout(suivre, 1000);
 </script>

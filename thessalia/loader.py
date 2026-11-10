@@ -59,8 +59,7 @@ def _load_image(path: Path):
             break
 
 
-def load_scans(paths, dpi: int = 200):
-    """Accepte fichiers et dossiers ; les dossiers sont lus en ordre alphabétique."""
+def _fichiers(paths):
     files = []
     for p in paths:
         p = Path(p)
@@ -68,6 +67,28 @@ def load_scans(paths, dpi: int = 200):
             files += sorted(f for f in p.iterdir() if f.suffix.lower() in IMG_EXT | {".pdf"})
         else:
             files.append(p)
+    return files
+
+
+def count_pages(paths) -> int:
+    """Nombre de pages à lire (jauge d'avancement) ; 0 si inconnu."""
+    n = 0
+    for f in _fichiers(paths):
+        if f.suffix.lower() == ".pdf":
+            try:
+                import pymupdf
+                with pymupdf.open(f) as doc:
+                    n += len(doc)
+            except Exception:
+                return 0
+        elif f.suffix.lower() in IMG_EXT:
+            n += 1
+    return n
+
+
+def load_scans(paths, dpi: int = 200):
+    """Accepte fichiers et dossiers ; les dossiers sont lus en ordre alphabétique."""
+    files = _fichiers(paths)
     for f in files:
         if f.suffix.lower() == ".pdf":
             yield from _load_pdf(f, dpi)

@@ -34,8 +34,8 @@ class Taches:
             t["journal"].append(" ".join(str(x) for x in a))
             del t["journal"][:-400]
 
-        def progression(pc, texte=""):    # jauge affichée au-dessus du journal (téléchargements)
-            t["progression"] = {"pc": max(0, min(100, int(pc))), "texte": texte}
+        def progression(pc, texte=""):    # jauge de la page ; None : étape sans avancement chiffré (jauge qui défile)
+            t["progression"] = None if pc is None else {"pc": max(0, min(100, int(pc))), "texte": texte}
         log.progression = progression
 
         class Sortie:                     # print des modules (preparer, excel…) → journal

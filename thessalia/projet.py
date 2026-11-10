@@ -156,11 +156,15 @@ class Projet:
         for d in dossiers:
             info = json.loads((self.scans / f"{d.name}.json").read_text(encoding="utf-8"))
             log(f"=== {d.name} ({info['langue'].upper()})")
+            if getattr(log, "progression", None):
+                log.progression(None)
             ocr(d, self.fichiers(info["langue"])["vocab"], "trocr", log=log,
                 backend_kw={"model": modele} if modele else None)
         # noms écrits sur les copies : propositions pour « Identifier les copies »
         from .identite import run as noms
         log("=== noms des élèves")
+        if getattr(log, "progression", None):
+            log.progression(None)
         try:
             noms(dossiers, lists_dir=self.stockage()["lists_dir"])
         except SystemExit as e:

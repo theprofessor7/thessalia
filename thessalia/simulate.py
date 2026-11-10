@@ -254,6 +254,7 @@ def main(a):
                            "identity.groupe": rng.choice(["A1", "B2", "C3"]),
                            "identity.numero": str(rng.randint(20250000, 20259999))}.get(f["id"], "x")
                     draw_text(img, txt, (x + 4, y + h - 3), 5, pen, k, rng)
+                    copy_truth.setdefault("identite", {})[f["id"]] = txt   # noms inventés : liste d'élèves de test
                 elif f["type"] == "short_text" and rng.random() < 0.85:
                     x, y, w, h = f["line_mm"]
                     draw_text(img, rng.choice(SHORT_ANSWERS), (x + 2, y + h - 0.8), 4.5, pen, k, rng)
