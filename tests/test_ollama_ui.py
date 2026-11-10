@@ -96,3 +96,54 @@ def test_jauge_sur_la_page(tmp_path, monkeypatch):
     assert 'style="width:42%"' in page and "42 %" in page
     fin.set()
     _attendre(c)
+
+
+def test_sortie_comme_une_console():
+    """Une tâche dont une bibliothèque interroge la console (isatty : transformers, tqdm) ne s'arrête pas."""
+    import sys
+    from thessalia.web_examens import Taches
+    t = Taches().lancer("x", "essai", lambda log: print("tty :", sys.stdout.isatty(), sys.stdout.encoding))
+    for _ in range(50):
+        if t["etat"] != "en cours":
+            break
+        time.sleep(0.05)
+    assert t["etat"] == "terminé" and t["journal"] == ["tty : False utf-8"], t["journal"]
+
+
+def test_pause_puis_reprise():
+    """Pause : la tâche s'arrête au prochain message, sans être avalée par un `except Exception` ; la reprise
+    relance la même tâche, qui saute ce qui est déjà fait."""
+    import threading
+    from thessalia.web_examens import Taches
+    fait, go = [], threading.Event()
+
+    def lire(log):
+        for i in range(5):
+            if i in fait:
+                continue                      # déjà lu : sauté à la reprise
+            try:
+                log(f"copie {i}")
+            except Exception:                 # un module qui avale ses erreurs ne doit pas avaler la pause
+                pass
+            fait.append(i)
+            if i == 1:
+                go.wait(2)
+    T = Taches()
+    t = T.lancer("x", "Lire", lire, reprenable=True)
+    while len(fait) < 2:
+        time.sleep(0.01)
+    T.pause()
+    go.set()
+    for _ in range(100):
+        if t["etat"] != "en cours":
+            break
+        time.sleep(0.02)
+    assert t["etat"] == "en pause" and fait == [0, 1]       # copie 2 annoncée puis arrêtée avant d'être faite
+    t2 = T.reprendre()
+    for _ in range(100):
+        if t2["etat"] != "en cours":
+            break
+        time.sleep(0.02)
+    assert t2["etat"] == "terminé" and fait == [0, 1, 2, 3, 4]
+    with pytest.raises(RuntimeError):
+        T.pause()                                            # plus rien à mettre en pause

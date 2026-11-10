@@ -46,3 +46,37 @@ def test_classe_de_test():
     ls = [{"ecriture": 50, "date": 1}, {"ecriture": 80, "date": 3}, {"ecriture": 5, "date": 9}]
     assert A.classe_de_test(ls) is ls[1]
     assert A.classe_de_test([{"ecriture": 80, "date": 3}]) is None      # une seule classe : rien pour mesurer
+
+
+def test_affinage_ecriture_reprend_avec_les_memes_exemples(tmp_path, monkeypatch):
+    """Pause puis reprise : l'affinage garde les exemples du départ, même si l'enseignant a corrigé d'autres copies
+    entre-temps (sinon il repartirait de zéro)."""
+    from thessalia import trocr_train
+    monkeypatch.setattr(A, "ECRITURE", {k: tmp_path / f"ecriture_{k}" for k in ("service", "candidat", "precedent")})
+    monkeypatch.setattr(A, "_torch_present", lambda: True)
+    monkeypatch.setattr(A, "MIN_ECRITURE", 2)
+    lot = lambda nom, n, date: {"examen": "ex", "classe": nom, "dossier": tmp_path / nom, "vocab": tmp_path / "v.json",
+                                "etiquettes": {f"c{i:02d}_q1": "x" for i in range(n)}, "ecriture": n, "nombres": 0,
+                                "date": date}
+    donnees = [[lot("A", 30, 1), lot("B", 25, 2)]]
+    monkeypatch.setattr(A, "lots", lambda racine: donnees[0])
+    vus, arret = [], [True]
+
+    class Pause(BaseException):
+        pass
+
+    def entrainer(lots_, out, passes, log):
+        vus.append(sum(len(e) for _, _, e in lots_))
+        if arret[0]:
+            raise Pause()
+    monkeypatch.setattr(trocr_train, "run", entrainer)
+    monkeypatch.setattr(A, "_mesurer_ecriture", lambda test, modeles, log: (10, 15, 25))
+    with pytest.raises(Pause):
+        A.affiner_ecriture(log=lambda *a: None)
+    donnees[0] = [lot("A", 40, 1), lot("B", 25, 2)]              # dix lectures de plus vérifiées pendant la pause
+    arret[0] = False
+    m = A.affiner_ecriture(log=lambda *a: None)
+    assert vus == [30, 30] and m["test"] == "ex / B" and m["mieux"]
+    A.ecarter("ecriture", log=lambda *a: None)
+    A.affiner_ecriture(log=lambda *a: None)                      # nouvel affinage : les nouveaux exemples
+    assert vus[-1] == 40

@@ -4,13 +4,21 @@
 {% set pg = tache.progression %}
 {% set en_cours = tache.etat == 'en cours' %}
 <section class="tache {{ tache.etat|replace(' ', '-') }}" id="tache">
-  <h2>{{ tache.titre }} — <span id="tache-etat">{{ tache.etat }}</span></h2>
-  <div class="jauge {{ 'indeterminee' if not pg }}" id="jauge" {{ 'hidden' if not en_cours }}>
+  <h2>{{ tache.titre }} — <span id="tache-etat">{{ tache.etat }}</span>
+    {% if en_cours and tache.reprenable and not tache.pause %}
+    <form method="post" action="/tache/pause" class="enligne lecture-pause"><button class="bouton rond-pause" title="Mettre en pause : la tâche s'arrête à la fin de l'étape en cours ; « Reprendre » repart d'ici">⏸ Pause</button></form>
+    {% elif tache.etat == 'en pause' %}
+    <form method="post" action="/tache/reprendre" class="enligne lecture-pause"><button class="bouton principal rond-pause" title="Reprendre où la tâche s'était arrêtée">▶ Reprendre</button></form>
+    {% endif %}</h2>
+  <div class="jauge {{ 'indeterminee' if not pg }} {{ 'figee' if tache.etat == 'en pause' }}" id="jauge" {{ 'hidden' if not (en_cours or (tache.etat == 'en pause' and pg)) }}>
     <div class="jauge-fond"><div class="jauge-barre" id="jauge-barre" style="width:{{ pg.pc if pg else 30 }}%"></div></div>
     <span class="jauge-pc" id="jauge-pc">{{ (pg.pc ~ ' %') if pg }}</span>
     <span class="gris" id="jauge-texte">{{ pg.texte if pg }}</span>
   </div>
   <p class="etape-en-cours" id="etape">{{ tache.journal[-1] if tache.journal }}</p>
+  {% if en_cours %}<p class="notif-offre" id="notif-offre" hidden>
+    <button type="button" class="bouton discret" id="notif-bouton">🔔 Me prévenir à la fin</button>
+    <span class="gris">notification de Windows, même si vous travaillez dans une autre fenêtre</span></p>{% endif %}
   <details class="detail-journal" {{ 'open' if tache.etat == 'erreur' }}>
     <summary>Détail ({{ tache.journal|length }} ligne{{ 's' if tache.journal|length > 1 }})</summary>
     <pre id="journal">{{ tache.journal|join('\n') }}</pre>

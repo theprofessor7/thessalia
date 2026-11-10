@@ -15,7 +15,7 @@
     sujet      source unique d'un examen (YAML, docs/FORMAT_SUJET.md) : contrôle strict, fichiers de corrigé
     precocher  code : pré-cocher les critères en exécutant le code transcrit (tests du sujet, local)
     transcrire lire le code manuscrit : --local (Ollama, gratuit) ou service en ligne (clé, plafond de dépense)
-    preparer   la veille de la correction : code transcrit + pré-coché, réponses courtes relues (local, une nuit)
+    preparer   lecture approfondie : code transcrit + pré-coché, réponses courtes relues (local, quelques heures en arrière-plan)
     second-lecteur  réponses courtes : second lecteur local (Qwen3-VL 4B) ; deux lectures identiques = décidée
     code-bilan code : chaîne locale contre les décisions de l'enseignant, quoi améliorer avant la classe suivante
     bilan      ce que les décisions de l'enseignant disent de la machine, par groupe (après correction)
@@ -136,7 +136,7 @@ def main(argv=None):
     tr.add_argument("--refaire", action="store_true", help="local : relire aussi les cadres déjà transcrits par la machine")
     tr.add_argument("--limite", type=int, help="nombre maximal de cadres envoyés ce lancement")
 
-    pr = sub.add_parser("preparer", help="la veille : transcription du code, pré-cochage, second lecteur (local, sans Claude)")
+    pr = sub.add_parser("preparer", help="lecture approfondie : transcription du code, pré-cochage, second lecteur (local, sans Claude, en arrière-plan)")
     pr.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
     pr.add_argument("--vision", default="qwen3-vl:8b-instruct", help="lecteur du code (Ollama)")
     pr.add_argument("--reparateur", default="qwen3:14b", help="réparateur de syntaxe contrôlé (Ollama)")

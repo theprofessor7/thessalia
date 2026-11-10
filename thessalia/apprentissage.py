@@ -153,31 +153,40 @@ def affiner_ecriture(racine="examens", log=print, passes=PASSES):
     from . import trocr_train
     if not _torch_present():
         raise SystemExit("il faut d'abord le lecteur d'écriture (Réglages > Extensions)")
-    ls = lots(racine)
-    test = classe_de_test(ls)
-    if test is None:
-        raise SystemExit(f"il faut au moins deux classes corrigées, dont une avec {MIN_TEST} lectures vérifiées, "
-                         "pour mesurer sur une classe jamais vue")
-    train = [l for l in ls if l is not test and l["ecriture"]]
-    n = sum(l["ecriture"] for l in train)
-    if n < MIN_ECRITURE:
-        raise SystemExit(f"{n} lectures vérifiées hors classe de test : il en faut au moins {MIN_ECRITURE}")
     out = ECRITURE["candidat"]
     if out.exists() and lire_mesure(out):        # candidat déjà mesuré : un nouvel affinage repart de zéro
         shutil.rmtree(out)
-    log(f"Affinage sur {n} lectures vérifiées ({len(train)} classe(s)) ; mesure sur {test['examen']} / "
-        f"{test['classe']} ({test['ecriture']} lectures), jamais vue. Plusieurs heures : laisser le PC allumé ; "
-        "si Thessalia est fermé, relancer reprend où l'affinage s'était arrêté.")
-    try:
-        trocr_train.run([(l["dossier"], l["vocab"], l["etiquettes"]) for l in train], out=out, passes=passes, log=log)
-    except SystemExit as e:
-        if "autres données" in str(e):          # nouvelles corrections depuis l'interruption : on recommence
-            log("Les exemples ont changé depuis l'affinage interrompu : il recommence au début.")
+    gel = out / "exemples.json"
+    if gel.exists():
+        # reprise après une pause ou une coupure : mêmes exemples qu'au départ, même si vous avez corrigé d'autres
+        # copies entre-temps (sinon l'affinage repartirait de zéro) ; ils serviront au prochain affinage
+        g = json.loads(gel.read_text(encoding="utf-8"))
+        train = [dict(l, dossier=Path(l["dossier"])) for l in g["train"]]
+        test = dict(g["test"], dossier=Path(g["test"]["dossier"]))
+        n = sum(l["ecriture"] for l in train)
+        log(f"Reprise de l'affinage : {n} lectures vérifiées, mesure sur {test['examen']} / {test['classe']}.")
+    else:
+        ls = lots(racine)
+        test = classe_de_test(ls)
+        if test is None:
+            raise SystemExit(f"il faut au moins deux classes corrigées, dont une avec {MIN_TEST} lectures vérifiées, "
+                             "pour mesurer sur une classe jamais vue")
+        train = [l for l in ls if l is not test and l["ecriture"]]
+        n = sum(l["ecriture"] for l in train)
+        if n < MIN_ECRITURE:
+            raise SystemExit(f"{n} lectures vérifiées hors classe de test : il en faut au moins {MIN_ECRITURE}")
+        if out.exists():                          # ancien affinage interrompu sans exemples gelés : on recommence
             shutil.rmtree(out)
-            trocr_train.run([(l["dossier"], l["vocab"], l["etiquettes"]) for l in train], out=out, passes=passes,
-                            log=log)
-        else:
-            raise
+        out.mkdir(parents=True, exist_ok=True)
+        cles = ("examen", "classe", "dossier", "vocab", "etiquettes", "ecriture")
+        gel.write_text(json.dumps({"train": [{k: str(l[k]) if k in ("dossier", "vocab") else l[k] for k in cles}
+                                             for l in train],
+                                   "test": {k: str(test[k]) if k in ("dossier", "vocab") else test[k] for k in cles}},
+                                  ensure_ascii=False), encoding="utf-8")
+        log(f"Affinage sur {n} lectures vérifiées ({len(train)} classe(s)) ; mesure sur {test['examen']} / "
+            f"{test['classe']} ({test['ecriture']} lectures), jamais vue. Quelques heures en arrière-plan ; "
+            "« Pause » ou une coupure : la reprise repart d'où l'affinage s'était arrêté.")
+    trocr_train.run([(l["dossier"], l["vocab"], l["etiquettes"]) for l in train], out=out, passes=passes, log=log)
     log("Mesure sur la classe mise de côté…")
     ref = ECRITURE["service"] if ECRITURE["service"].exists() else trocr_train.BASE
     a, b, t = _mesurer_ecriture(test, [str(ref), str(out)], log)

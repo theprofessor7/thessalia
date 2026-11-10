@@ -7,9 +7,24 @@
 
 {% include "_tache.html" %}
 
-<ol class="etapes">
-  <li class="etape {{ 'faite' if not e.erreurs }}">
-    <h2>1. Source du sujet</h2>
+<nav class="etapes-points" aria-label="Étapes de l'examen">
+  {% for x in etapes %}
+  {% set classe = 'faite' if x.faite else ('bloquee' if x.bloque else 'a-faire') %}
+  {% if x.bloque %}<span class="etape-point {{ classe }}" title="Pas encore : {{ x.bloque }}">
+  {% else %}<a class="etape-point {{ classe }}" href="#etape-{{ x.n }}" data-n="{{ x.n }}">{% endif %}
+    <span class="rond">{{ '✓' if x.faite else x.n }}</span><span class="etape-point-titre">{{ x.titre }}</span>
+  {% if x.bloque %}</span>{% else %}</a>{% endif %}
+  {% endfor %}
+</nav>
+
+<div class="assistant" id="assistant" data-courante="{{ courante }}">
+  {% set x = etapes[0] %}
+  <section class="pas {{ 'faite' if x.faite }}" id="etape-1" data-n="1">
+    <h2><span class="pas-num">Étape 1/6</span> {{ x.titre }}
+      {% if x.facultatif %}<span class="badge">facultatif</span>{% endif %}
+      {% if x.faite %}<span class="badge ok">fait</span>{% endif %}</h2>
+    {% if x.bloque %}<p class="bloque">Pas encore : {{ x.bloque }}.</p>{% endif %}
+
     {% if e.erreurs %}
       <p class="erreur">Source refusée. Corrigez le fichier puis déposez-le à nouveau :</p>
       <ul class="erreurs">{% for m in e.erreurs %}<li>{{ m }}</li>{% endfor %}</ul>
@@ -25,10 +40,15 @@
       </form>
       <p class="aide">L'ancienne source est gardée à côté, datée.</p>
     </details>
-  </li>
+    {% include "_pas_nav.html" %}
+  </section>
+  {% set x = etapes[1] %}
+  <section class="pas {{ 'faite' if x.faite }}" id="etape-2" data-n="2">
+    <h2><span class="pas-num">Étape 2/6</span> {{ x.titre }}
+      {% if x.facultatif %}<span class="badge">facultatif</span>{% endif %}
+      {% if x.faite %}<span class="badge ok">fait</span>{% endif %}</h2>
+    {% if x.bloque %}<p class="bloque">Pas encore : {{ x.bloque }}.</p>{% endif %}
 
-  <li class="etape {{ 'faite' if e.produit }}">
-    <h2>2. Sujets et corrigés</h2>
     {% if e.produit %}
       <p><span class="ok">À jour.</span> À imprimer : {% for f in pdfs if f.startswith('sujet_') %}<a href="/examens/{{ e.nom }}/pdf/{{ f }}" target="_blank">{{ f }}</a>{{ ', ' if not loop.last }}{% endfor %}.
         Corrigés : {% for f in pdfs if f.startswith('corrige_') %}<a href="/examens/{{ e.nom }}/pdf/{{ f }}" target="_blank">{{ f }}</a>{{ ', ' if not loop.last }}{% endfor %}.</p>
@@ -38,14 +58,19 @@
       <p class="gris">Pas encore produits.</p>
     {% endif %}
     <form method="post" action="/examens/{{ e.nom }}/produire">
-      <button class="bouton {{ 'principal' if not e.produit }}" {{ 'disabled' if e.erreurs }}>Produire les PDF</button>
+      <button class="bouton {{ 'fait' if e.produit else 'principal' }}" {{ 'disabled' if e.erreurs }}>{{ 'PDF produits · reproduire' if e.produit else 'Produire les PDF' }}</button>
     </form>
     <p class="aide">Mise en page, gabarit relu dans le PDF et corrigés, contrôlés : refusé si une zone de réponse
       n'est pas exactement là où le PDF la dessine.</p>
-  </li>
+    {% include "_pas_nav.html" %}
+  </section>
+  {% set x = etapes[2] %}
+  <section class="pas {{ 'faite' if x.faite }}" id="etape-3" data-n="3">
+    <h2><span class="pas-num">Étape 3/6</span> {{ x.titre }}
+      {% if x.facultatif %}<span class="badge">facultatif</span>{% endif %}
+      {% if x.faite %}<span class="badge ok">fait</span>{% endif %}</h2>
+    {% if x.bloque %}<p class="bloque">Pas encore : {{ x.bloque }}.</p>{% endif %}
 
-  <li class="etape {{ 'faite' if e.lues }}">
-    <h2>3. Copies scannées</h2>
     {% if e.classes %}
     <table class="tableau">
       <tr><th>Classe</th><th>Sujet</th><th class="n">Copies</th><th class="n">À revoir</th><th></th></tr>
@@ -53,7 +78,7 @@
       <tr><td>{{ c.classe }}</td><td>{{ (c.langue or '?')|upper }}</td>
         <td class="n">{{ c.copies if c.lue else '—' }}</td><td class="n">{{ c.a_revoir if c.lue else '—' }}</td>
         <td>{% if not c.lue %}<span class="attente">pas encore lue</span>{% elif c.lue_avant %}<span class="attente">scan remplacé</span>{% endif %}
-          <form class="enligne" method="post" action="/examens/{{ e.nom }}/lire/{{ c.classe }}"><button class="bouton">{{ 'Relire' if c.lue else 'Lire' }}</button></form></td></tr>
+          <form class="enligne" method="post" action="/examens/{{ e.nom }}/lire/{{ c.classe }}"><button class="bouton {{ 'fait' if c.lue else 'principal' }}">{{ 'Lue · relire' if c.lue else 'Lire' }}</button></form></td></tr>
       {% endfor %}
     </table>
     {% endif %}
@@ -61,18 +86,33 @@
       <label>Classe <input name="classe" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="supA_1"></label>
       <label>Sujet distribué <select name="langue">{% for l in e.langues %}<option value="{{ l }}">{{ l|upper }}</option>{% endfor %}</select></label>
       <label>PDF des copies <input type="file" name="scan" accept=".pdf" required></label>
-      <button class="bouton principal" {{ 'disabled' if not e.produit }}>Déposer et lire</button>
+      <button class="bouton {{ 'principal' if not e.lues }}" {{ 'disabled' if not e.produit }}>Déposer et lire</button>
     </form>
     <p class="aide">Un PDF par classe, tel qu'il sort du scanner (A3, pages tournées ou blanches : gérés). Choisissez
       bien la langue du sujet distribué : un mauvais choix est signalé « GABARIT DOUTEUX » dans le journal.</p>
-  </li>
+    {% include "_pas_nav.html" %}
+  </section>
+  {% set x = etapes[3] %}
+  <section class="pas {{ 'faite' if x.faite }}" id="etape-4" data-n="4">
+    <h2><span class="pas-num">Étape 4/6</span> {{ x.titre }}
+      {% if x.facultatif %}<span class="badge">facultatif</span>{% endif %}
+      {% if x.faite %}<span class="badge ok">fait</span>{% endif %}</h2>
+    {% if x.bloque %}<p class="bloque">Pas encore : {{ x.bloque }}.</p>{% endif %}
 
-  <li class="etape {{ 'faite' if e.lues and e.courtes == e.lues }}">
-    <h2>4. Lectures longues (facultatif)</h2>
-    <p class="aide">Sur ce PC, sans envoi. Sans elles, tout se corrige quand même dans l'outil, à la main.</p>
+    <p class="aide">Sur ce PC, sans envoi : la machine lit les réponses courtes et les noms, et
+      propose ses lectures dans l'outil de correction. Sans elles, tout se corrige quand même, à la main.</p>
+    {% set courtes_faites = e.lues and e.courtes == e.lues %}
+    {% set lecture = tache if tache and (tache.titre.startswith('Lire les réponses courtes') or tache.titre.startswith('Sujet ')) else None %}
+    {% if lecture and lecture.etat == 'en cours' %}
+    <form class="enligne" method="post" action="/tache/pause"><button class="bouton lecture-en-cours" {{ 'disabled' if lecture.pause }}>⏸ {{ 'Pause demandée…' if lecture.pause else 'Mettre en pause la lecture' }}</button></form>
+    {% elif lecture and lecture.etat == 'en pause' %}
+    <form class="enligne" method="post" action="/tache/reprendre"><button class="bouton principal">▶ Reprendre la lecture</button></form>
+    {% else %}
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/courtes">
-      <button class="bouton" {{ 'disabled' if not (e.lues and outils.trocr) }}>Lire les réponses courtes et les noms</button>
+      <button class="bouton {{ 'fait' if courtes_faites else 'principal' }}" {{ 'disabled' if not (e.lues and outils.trocr) }}>
+        {{ 'Réponses courtes lues · relire' if courtes_faites else '▶ Lire les réponses courtes et les noms' }}</button>
     </form>
+    {% endif %}
     {% if outils.trocr %}
       <span class="aide">{{ e.courtes }}/{{ e.lues }} classe(s) déjà lue(s). Quelques minutes par classe. Sujet
         nouveau : toutes les réponses partent en revue, avec la lecture proposée.</span>
@@ -95,27 +135,46 @@
       {% endif %}</div>
     {% endfor %}
     <br>
+    {% set profonde = tache if tache and tache.titre.startswith('Lecture approfondie') else None %}
+    {% if profonde and profonde.etat == 'en cours' %}
+    <form class="enligne" method="post" action="/tache/pause"><button class="bouton lecture-en-cours" {{ 'disabled' if profonde.pause }}>⏸ {{ 'Pause demandée…' if profonde.pause else 'Mettre en pause la lecture approfondie' }}</button></form>
+    {% elif profonde and profonde.etat == 'en pause' %}
+    <form class="enligne" method="post" action="/tache/reprendre"><button class="bouton principal">▶ Reprendre la lecture approfondie</button></form>
+    {% else %}
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer">
-      <button class="bouton" {{ 'disabled' if not (e.lues and outils.ollama) }}>Préparer la nuit (code, second lecteur)</button>
+      <button class="bouton" {{ 'disabled' if not (e.lues and outils.ollama) }}>▶ Lancer la lecture approfondie</button>
     </form>
-    <span class="aide">Code transcrit et pré-coché, réponses courtes relues : environ une nuit pour une centaine
-      de copies ; relancer reprend où ça s'était arrêté.</span>
+    {% endif %}
+    <span class="aide">Le code écrit à la main est transcrit et pré-coché, les réponses courtes relues par un
+      second lecteur. Elle tourne en arrière-plan pendant que vous faites autre chose (le PC reste utilisable, un peu
+      plus lent) : quelques heures selon le nombre de copies. Thessalia vous prévient à la fin ; si elle est
+      interrompue, la relancer reprend où elle s'était arrêtée.</span>
     <p class="aide">Modèles locaux : {% set prets = ollama.modeles|selectattr('present')|list %}
       {% if not ollama.installe %}Ollama n'est pas installé.{% elif not ollama.lance %}Ollama est arrêté.{% else %}{{ prets|length }}/{{ ollama.modeles|length }} installés.{% endif %}
       <a href="/reglages">Installer ou gérer dans Réglages</a>.</p>
-  </li>
+    {% include "_pas_nav.html" %}
+  </section>
+  {% set x = etapes[4] %}
+  <section class="pas {{ 'faite' if x.faite }}" id="etape-5" data-n="5">
+    <h2><span class="pas-num">Étape 5/6</span> {{ x.titre }}
+      {% if x.facultatif %}<span class="badge">facultatif</span>{% endif %}
+      {% if x.faite %}<span class="badge ok">fait</span>{% endif %}</h2>
+    {% if x.bloque %}<p class="bloque">Pas encore : {{ x.bloque }}.</p>{% endif %}
 
-  <li class="etape {{ 'faite' if ouvert }}">
-    <h2>5. Correction</h2>
     <form method="post" action="/examens/{{ e.nom }}/corriger">
-      <button class="bouton {{ 'principal' if e.lues }}" {{ 'disabled' if not e.lues }}>Corriger les copies lues</button>
+      <button class="bouton principal" {{ 'disabled' if not e.lues }}>{{ 'Reprendre la correction' if ouvert else 'Corriger les copies lues' }}</button>
     </form>
     <p class="aide">Ouvre l'outil de correction sur les classes de cet examen : vue par question, vue par copie,
       identification des copies.</p>
-  </li>
+    {% include "_pas_nav.html" %}
+  </section>
+  {% set x = etapes[5] %}
+  <section class="pas {{ 'faite' if x.faite }}" id="etape-6" data-n="6">
+    <h2><span class="pas-num">Étape 6/6</span> {{ x.titre }}
+      {% if x.facultatif %}<span class="badge">facultatif</span>{% endif %}
+      {% if x.faite %}<span class="badge ok">fait</span>{% endif %}</h2>
+    {% if x.bloque %}<p class="bloque">Pas encore : {{ x.bloque }}.</p>{% endif %}
 
-  <li class="etape {{ 'faite' if notes }}" id="notes">
-    <h2>6. Notes</h2>
     {% if liste and liste.erreur %}<p class="erreur">{{ liste.erreur }}</p>
     {% elif liste %}<p>Liste des élèves : {{ liste.nom }}{{ '' if liste.propre else ' (liste commune, data/listes)' }}.</p>
     {% else %}<p class="attente">Pas de liste des élèves : les copies ne peuvent pas être attribuées ni les absents comptés.</p>{% endif %}
@@ -139,12 +198,44 @@
     {% set alerte = noms and ((noms.risques and not noms.verifie) or noms.sans) %}
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/notes"
           {% if alerte %}{% set manques = ([noms.sans ~ ' copie(s) sans élève'] if noms.sans else []) + ([noms.risques ~ ' copie(s) à risque non vérifiée(s)'] if noms.risques and not noms.verifie else []) %}onsubmit="return confirm('{{ manques|join(' et ') }}. Exporter quand même ?')"{% endif %}>
-      <button class="bouton {{ 'principal' if e.lues }}" {{ 'disabled' if not e.lues }}>Exporter les notes</button>
+      <button class="bouton {{ 'fait' if notes else 'principal' }}" {{ 'disabled' if not e.lues }}>{{ 'Notes exportées · exporter à nouveau' if notes else 'Exporter les notes' }}</button>
     </form>
     {% if notes %}<a href="/examens/{{ e.nom }}/notes.xlsx">notes_{{ e.nom }}.xlsx</a> <span class="gris">({{ notes }})</span>{% endif %}
     <p class="aide">Notes sur 20 (plafonnées à 20), absents, et une feuille « À vérifier » (copies sans élève, réponses encore en
       attente). Chaque export garde l'ancien classeur, daté.</p>
-  </li>
-</ol>
+    {% include "_pas_nav.html" %}
+  </section>
+</div>
 {% endblock %}
-{% block scripts %}{% include "_tache_js.html" %}{% endblock %}
+{% block scripts %}{% include "_tache_js.html" %}
+<script>
+// Assistant : une étape à la fois (l'adresse garde l'étape : #etape-3), flèches ← → du clavier.
+// Sans JavaScript, toutes les étapes restent affichées l'une sous l'autre.
+(() => {
+  const boite = document.getElementById('assistant');
+  const pas = [...boite.querySelectorAll('.pas')];
+  const accessible = n => !!document.querySelector('.etape-point[data-n="' + n + '"]');
+  const montrer = n => {
+    if (!accessible(n)) n = +boite.dataset.courante;
+    pas.forEach(s => s.classList.toggle('visible', +s.dataset.n === n));
+    document.querySelectorAll('.etape-point').forEach(a => a.classList.toggle('courante', +a.dataset.n === n));
+    boite.dataset.n = n;
+  };
+  const depuisAdresse = () => {
+    const m = location.hash.match(/^#etape-(\d)$/);
+    montrer(m ? +m[1] : +boite.dataset.courante);
+    window.scrollTo({top: 0});           // l'ancre #etape-N ferait défiler jusqu'à l'étape
+  };
+  boite.classList.add('js');
+  window.addEventListener('hashchange', depuisAdresse);
+  depuisAdresse();
+  window.addEventListener('load', () => window.scrollTo({top: 0}));
+  document.addEventListener('keydown', ev => {
+    if (ev.target.closest('input, select, textarea, button') || ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    if (document.querySelector('.fin-tache-fond')) return;
+    const n = +boite.dataset.n + (ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0);
+    if (n !== +boite.dataset.n && n >= 1 && n <= 6 && accessible(n)) location.hash = 'etape-' + n;
+  });
+})();
+</script>
+{% endblock %}

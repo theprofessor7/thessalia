@@ -1,6 +1,24 @@
 {% if tache and tache.etat == 'en cours' %}
 <script>
-// tâche en cours : jauge et étape mises à jour chaque seconde ; la page se recharge quand elle se termine
+// tâche en cours : jauge et étape mises à jour chaque seconde ; la page se recharge quand elle se termine.
+// Notification du système à la fin (autorisée une fois par le navigateur ; l'adresse locale y a droit), utile quand
+// on travaille dans une autre fenêtre pendant une lecture de plusieurs heures.
+const notifPossible = 'Notification' in window;
+if (notifPossible && Notification.permission === 'default') {
+  document.getElementById('notif-offre').hidden = false;
+  document.getElementById('notif-bouton').onclick = async () => {
+    const r = await Notification.requestPermission();
+    document.getElementById('notif-offre').innerHTML = r === 'granted'
+      ? '<span class="ok">🔔 Vous serez prévenu à la fin.</span>'
+      : '<span class="gris">Notifications refusées : la fenêtre de fin s’affichera quand vous reviendrez.</span>';
+  };
+}
+const notifier = t => {
+  if (!notifPossible || Notification.permission !== 'granted' || !document.hidden) return;
+  const n = new Notification(t.etat === 'terminé' ? 'Thessalia : terminé' : 'Thessalia : erreur', {
+    body: t.titre + (t.journal.length ? ' — ' + t.journal[t.journal.length - 1] : ''), tag: 'thessalia-tache'});
+  n.onclick = () => { window.focus(); n.close(); };
+};
 const suivre = async () => {
   const t = await (await fetch('/tache')).json();
   if (!t) return;
@@ -15,6 +33,8 @@ const suivre = async () => {
     $('jauge-texte').textContent = t.progression.texte;
   }
   if (t.etat === 'en cours') { setTimeout(suivre, 1000); return; }
+  if (t.etat === 'en pause') { location.reload(); return; }
+  notifier(t);
   try {
     sessionStorage.setItem('thessalia-fin', JSON.stringify({titre: t.titre, etat: t.etat,
       resultat: t.journal.length ? t.journal[t.journal.length - 1] : ''}));

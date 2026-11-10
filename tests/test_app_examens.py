@@ -172,3 +172,18 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     c.post("/examens/essai/noms-verifies")
     page = c.get("/examens/essai").get_data(as_text=True)
     assert "2 à risque, vérifiées" in page and "Exporter quand même" not in page
+
+
+def test_assistant_etapes():
+    """Assistant de la page d'examen : grisé seulement par un vrai prérequis ; ouvert sur la première étape à faire."""
+    from thessalia.web_examens import etapes_examen
+    e = {"erreurs": [], "produit": False, "classes": [], "lues": 0, "courtes": 0}
+    et, n = etapes_examen(e, None, False, False, True)
+    assert n == 2 and et[2]["bloque"] and et[4]["bloque"] and not et[1]["bloque"]
+    e.update(produit=True, classes=[{"classe": "A"}], lues=1)
+    et, n = etapes_examen(e, None, False, False, True)
+    assert n == 4 and not any(x["bloque"] for x in et)                  # lectures automatiques proposées
+    assert etapes_examen(e, None, False, False, False)[1] == 5          # sans lecteur : droit à la correction
+    e.update(produit=False)                                              # source changée : la classe reste visible
+    assert etapes_examen(e, None, True, False, True)[0][2]["bloque"] is None
+    assert etapes_examen(e, {"titre": "Exporter les notes"}, True, True, True)[1] == 6   # tâche : son étape

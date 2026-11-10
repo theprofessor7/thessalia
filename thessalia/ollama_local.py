@@ -1,6 +1,6 @@
 """Ollama et ses modèles, installés depuis l'application en un clic (plus de commandes à taper).
 
-Ollama est un logiciel gratuit qui fait tourner sur ce PC les modèles de la préparation de nuit (`preparer`) :
+Ollama est un logiciel gratuit qui fait tourner sur ce PC les modèles de la lecture approfondie (`preparer`) :
 lecteur du code manuscrit, second lecteur des réponses courtes, réparateur. Rien n'est envoyé sur internet pendant
 la correction ; internet ne sert qu'à télécharger Ollama et les modèles, une fois.
 

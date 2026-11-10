@@ -70,7 +70,7 @@ def etat():
                "description": "Lit les réponses courtes et les noms écrits à la main (étape 4 d'un examen).",
                "installe": t["installe"], "actions": [] if t["installe"] else [("installer", "Installer")]},
               {"id": "ollama", "nom": "Ollama", "taille": "1 Go",
-               "description": "Logiciel gratuit qui fait tourner sur ce PC les modèles de la préparation de nuit.",
+               "description": "Logiciel gratuit qui fait tourner sur ce PC les modèles de la lecture approfondie (code manuscrit, relecture).",
                "installe": o["installe"],
                "etat": "démarré" if o["lance"] else ("arrêté" if o["installe"] else None),
                "actions": ([("installer", "Installer" if o["windows"] else "Télécharger")] if not o["installe"]

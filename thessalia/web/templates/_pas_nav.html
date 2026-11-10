@@ -1,0 +1,12 @@
+{# Bas d'une étape de l'assistant : précédente, position, suivante (grisée avec la raison si un prérequis manque) #}
+{% set prec = etapes[x.n - 2] if x.n > 1 else None %}
+{% set suiv = etapes[x.n] if x.n < 6 else None %}
+<div class="pas-nav">
+  {% if prec %}<a class="bouton discret" href="#etape-{{ prec.n }}">← {{ prec.titre }}</a>{% else %}<span></span>{% endif %}
+  <span class="gris">{{ x.n }} / 6</span>
+  {% if suiv and not suiv.bloque %}
+    <a class="bouton {{ 'principal' if x.faite or x.facultatif }}" href="#etape-{{ suiv.n }}">
+      {{ 'Passer cette étape' if x.facultatif and not x.faite else suiv.titre }} →</a>
+  {% elif suiv %}<span class="gris suivant-bloque">{{ suiv.titre }} → <br><small>{{ suiv.bloque }}</small></span>
+  {% else %}<span></span>{% endif %}
+</div>

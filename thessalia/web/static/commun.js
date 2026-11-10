@@ -56,7 +56,7 @@ function provenance(it) {
     "enseignant": ["✓ vous", "vous", "décidé par vous"],
     "vérité": ["✓ vérité", "vous", "lecture validée auparavant par l'enseignant"],
     "acceptée": ["⚙ lecteur sûr", "machine", "lu par le lecteur d'écriture et reconnu parmi les réponses prévues du sujet : accepté d'office"],
-    "deux lecteurs": ["⚙ deux lecteurs d'accord", "machine", "le lecteur d'écriture et le second lecteur (préparation de nuit) lisent la même réponse : accepté d'office"],
+    "deux lecteurs": ["⚙ deux lecteurs d'accord", "machine", "le lecteur d'écriture et le second lecteur (lecture approfondie) lisent la même réponse : accepté d'office"],
     "mémoire": ["↺ mémoire" + (h ? " " + h.n + "/" + h.total : ""), "memoire",
                 h ? "dans les autres classes, vous avez jugé cette lecture « " + h.verdict + " » " + h.n + " fois sur " + h.total + " : appliqué d'office" : "votre verdict habituel pour cette lecture"],
     "tests": ["⚙ tests exécutés", "machine", "critères pré-cochés en exécutant le code transcrit avec les tests du barème : à confirmer"],

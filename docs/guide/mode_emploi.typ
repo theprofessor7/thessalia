@@ -96,7 +96,7 @@ internet* : ni les copies, ni les noms, ni les notes.
   case-etape(1, "Écrire le sujet", [Un fichier texte : questions, bonnes réponses, barème, en français et en anglais.]),
   case-etape(2, "Produire les PDF", [Sujet à imprimer et corrigé, dans chaque langue, en un clic.]),
   case-etape(3, "Lire les copies", [Vous déposez le PDF du scanner : cases cochées lues, réponses découpées.]),
-  case-etape(4, "Lectures longues", [_Facultatif._ Réponses écrites et code manuscrit lus par la machine.]),
+  case-etape(4, "Lectures automatiques", [_Facultatif._ Réponses écrites et code manuscrit lus par la machine.]),
   case-etape(5, "Corriger", [Vous confirmez ou corrigez, question par question, en quelques clics.]),
   case-etape(6, "Notes", [Un classeur Excel : notes sur 20, absents, copies à vérifier.]),
 )
@@ -202,7 +202,12 @@ Le *menu de gauche* est toujours là :
 
 #capture("img/examens.png", legende: [La page des examens. Chaque carte est un examen ; « Ouvrir » mène à ses étapes.])
 
-Ouvrir un examen affiche ses *six étapes*, dans l'ordre. Une étape terminée a un trait vert à gauche.
+Un examen se fait en *six étapes*, présentées comme un assistant : une barre de pastilles en haut, une seule
+étape affichée à la fois, et les boutons #bouton-clair[← Précédent] / #bouton[Suivant →] en bas (ou les flèches
+du clavier). Une étape faite a une pastille verte ✓. Une étape grisée attend ce qui lui manque, et le dit : pas
+de dépôt de copies sans PDF produits, pas de correction ni de notes sans classe lue. Une étape faite reste
+accessible : on peut déposer une nouvelle classe pendant qu'on en corrige une autre. Ouvrir un examen mène
+directement à la première étape à faire.
 
 == Étape 1 — Écrire le sujet
 
@@ -237,7 +242,7 @@ et, s'il y en a, les images (logo), puis #bouton[Créer l'examen].
   L'ancienne version est gardée à côté.
 ]
 
-#capture("img/examen_haut.png", largeur: 92%, legende: [Les trois premières étapes d'un examen : source contrôlée, PDF produits, une classe lue.])
+#capture("img/examen_haut.png", largeur: 92%, legende: [L'assistant à l'étape 3 : les pastilles vertes sont faites ; « Suivant » mène à l'étape 4.])
 
 == Étape 2 — Produire les PDF
 
@@ -281,9 +286,9 @@ Le tableau indique ensuite le nombre de copies et le nombre de réponses à revo
   *« GABARIT DOUTEUX »* : redéposez simplement le même PDF avec la bonne langue.
 ]
 
-== Étape 4 — Lectures longues (facultatif)
+== Étape 4 — Lectures automatiques (facultatif)
 
-#capture("img/examen_bas.png", largeur: 92%, legende: [Étapes 4 à 6. Les boutons grisés disent ce qui manque.])
+#capture("img/examen_bas.png", largeur: 92%, legende: [L'étape 4, facultative. Les boutons grisés disent ce qui manque.])
 
 - #bouton-clair[Lire les réponses courtes et les noms] : la machine lit l'écriture des élèves (quelques
   minutes par classe) et vous propose sa lecture ; elle lit aussi les noms, pour l'identification. Il faut le lecteur d'écriture (installation).
@@ -291,8 +296,9 @@ Le tableau indique ensuite le nombre de copies et le nombre de réponses à revo
   même quand la machine est sûre d'elle. Au fil de votre correction, Thessalia compte ses lectures justes.
   Après 30 lectures vérifiées *sans une seule erreur*, ce bouton s'active : ensuite, les réponses sûres sont
   acceptées d'office et vous n'avez plus que les autres.
-- #bouton-clair[Préparer la nuit] : transcrit le code écrit à la main et pré-coche le barème en l'exécutant.
-  À lancer le soir : une centaine de copies tient en une nuit.
+- #bouton-clair[Lancer la lecture approfondie] : transcrit le code écrit à la main, pré-coche le barème en
+  l'exécutant, et fait relire les réponses courtes par un second lecteur. Elle tourne *en arrière-plan* pendant
+  que vous faites autre chose : quelques heures selon le nombre de copies, et Thessalia vous prévient à la fin.
 
 #info("Ce qu'il faut installer pour ces lectures")[
   Le lecteur d'écriture, Ollama et ses modèles s'installent en un clic depuis la page *Réglages* (menu de
@@ -335,7 +341,7 @@ et le verdict proposé (cadre pointillé). Vous pouvez :
 #table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
   [*✓ vous*], [décidé par vous ;],
   [*⚙ lecteur sûr*], [lu par la machine et reconnu parmi les réponses prévues : accepté d'office ;],
-  [*⚙ deux lecteurs d'accord*], [les deux lecteurs (dont celui de la préparation de nuit) lisent la même chose ;],
+  [*⚙ deux lecteurs d'accord*], [les deux lecteurs (dont celui de la lecture approfondie) lisent la même chose ;],
   [*⚙ tests exécutés*], [code : critères pré-cochés en exécutant le code transcrit ;],
   [*↺ mémoire*], [votre verdict habituel pour cette lecture, dans les autres classes ;],
   [*? lecture proposée*], [la machine hésite : à vous de décider.],
@@ -427,7 +433,7 @@ que pendant le téléchargement. Sans extension, tout fonctionne : vous corrigez
 #table(columns: (auto, auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
   [*Lecteur d'écriture*], [2 Go], [lit les réponses courtes et les noms (étape 4, « Lire les réponses courtes ») ;],
   [*Ollama*], [1 Go], [logiciel gratuit qui fait tourner les modèles ci-dessous sur votre PC (Windows : installé sans question ; Mac : la page de téléchargement s'ouvre) ;],
-  [*qwen3-vl:8b*], [6 Go], [lit le code écrit à la main (préparation de nuit) ;],
+  [*qwen3-vl:8b*], [6 Go], [lit le code écrit à la main (lecture approfondie) ;],
   [*qwen3-vl:4b*], [3 Go], [relit les réponses courtes laissées en revue ;],
   [*qwen3:14b*], [9 Go], [facultatif : répare les petites fautes du code avant les tests.],
 )

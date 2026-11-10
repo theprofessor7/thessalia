@@ -148,41 +148,59 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
     for e in range(first):  # mêmes tirages que l'exécution interrompue : l'ordre de la passe reprise est identique
         random.Random(seed + e).shuffle(train)
     t0, done = time.time(), 0
-    for ep in range(first, passes):
-        random.Random(seed + ep).shuffle(train)
-        model.train()
-        opt.zero_grad()
-        tot = 0.0
-        for n, i in enumerate(range(0, len(train), BATCH), 1):
-            if ep == first and n <= skip:
-                continue  # déjà fait avant l'interruption
-            b = train[i:i + BATCH]
-            px = proc(images=[pil(p) for p, _ in b], return_tensors="pt").pixel_values
-            lab = tok([t for _, t in b], padding=True, return_tensors="pt").input_ids
-            if tok.bos_token_id is not None and bool((lab[:, 0] == tok.bos_token_id).all()):
-                lab = lab[:, 1:].clone()  # voir LABELS
-            lab[lab == tok.pad_token_id] = -100
-            loss = model(pixel_values=px, labels=lab).loss
-            (loss / ACCUM).backward()
-            tot += float(loss.detach())
-            if n % ACCUM == 0 or n == n_lots:
+    # Arrêt en cours de route (pause de l'application, Ctrl+C) : le modèle et sa position sont sauvegardés tout de
+    # suite, pour que la reprise ne refasse rien (avant : jusqu'à CHECKPOINT lots perdus). Une erreur ordinaire
+    # (Exception) n'est pas concernée : elle remonte telle quelle.
+    fini = None                     # (passe, lot) : dernier lot entièrement appris
+    try:
+        for ep in range(first, passes):
+            random.Random(seed + ep).shuffle(train)
+            model.train()
+            opt.zero_grad()
+            tot = 0.0
+            for n, i in enumerate(range(0, len(train), BATCH), 1):
+                if ep == first and n <= skip:
+                    continue  # déjà fait avant l'interruption
+                b = train[i:i + BATCH]
+                px = proc(images=[pil(p) for p, _ in b], return_tensors="pt").pixel_values
+                lab = tok([t for _, t in b], padding=True, return_tensors="pt").input_ids
+                if tok.bos_token_id is not None and bool((lab[:, 0] == tok.bos_token_id).all()):
+                    lab = lab[:, 1:].clone()  # voir LABELS
+                lab[lab == tok.pad_token_id] = -100
+                loss = model(pixel_values=px, labels=lab).loss
+                (loss / ACCUM).backward()
+                tot += float(loss.detach())
+                if n % ACCUM == 0 or n == n_lots:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                    opt.step()
+                    opt.zero_grad()
+                done += 1
+                fini = (ep, n)
+                if getattr(log, "progression", None) and n % 5 == 0:   # jauge de l'application
+                    left = ((passes - ep - 1) * n_lots + n_lots - n) * (time.time() - t0) / done / 60
+                    log.progression(100 * (ep * n_lots + n) // (passes * n_lots),
+                                    f"passe {ep + 1}/{passes} · reste environ {left:.0f} min")
+                if n % 40 == 0:
+                    dt = (time.time() - t0) / done
+                    left = ((passes - ep - 1) * n_lots + n_lots - n) * dt / 60
+                    log(f"  passe {ep + 1} lot {n}/{n_lots} : {dt:.1f} s/lot, reste ~{left:.0f} min")
+                if n % CHECKPOINT == 0 and n < n_lots and n % ACCUM == 0:
+                    save(ep, n)
+                    log(f"  sauvegarde intermédiaire : passe {ep + 1}, lot {n}/{n_lots}")
+            save(ep + 1, 0)
+            fini = (ep + 1, 0)
+            fait = n_lots - (skip if ep == first else 0)
+            log(f"passe {ep + 1}/{passes} : perte moyenne {tot / max(fait, 1):.3f} -> {out} enregistré")
+    except BaseException as e:
+        if isinstance(e, Exception) or fini is None:
+            raise
+        pe, pn = fini
+        if pn:                      # pn = 0 : fin de passe, déjà sauvegardée
+            if pn % ACCUM and pn != n_lots:      # gradients du dernier lot pas encore appliqués
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 opt.step()
                 opt.zero_grad()
-            done += 1
-            if getattr(log, "progression", None) and n % 5 == 0:   # jauge de l'application
-                left = ((passes - ep - 1) * n_lots + n_lots - n) * (time.time() - t0) / done / 60
-                log.progression(100 * (ep * n_lots + n) // (passes * n_lots),
-                                f"passe {ep + 1}/{passes} · reste environ {left:.0f} min")
-            if n % 40 == 0:
-                dt = (time.time() - t0) / done
-                left = ((passes - ep - 1) * n_lots + n_lots - n) * dt / 60
-                log(f"  passe {ep + 1} lot {n}/{n_lots} : {dt:.1f} s/lot, reste ~{left:.0f} min")
-            if n % CHECKPOINT == 0 and n < n_lots and n % ACCUM == 0:
-                save(ep, n)
-                log(f"  sauvegarde intermédiaire : passe {ep + 1}, lot {n}/{n_lots}")
-        save(ep + 1, 0)
-        fait = n_lots - (skip if ep == first else 0)
-        log(f"passe {ep + 1}/{passes} : perte moyenne {tot / max(fait, 1):.3f} -> {out} enregistré")
+            save(pe, pn)
+        raise
     log(f"-> {out} (hors dépôt). Mesurer sur un lot jamais vu : ocr <lot> -v … --model {out} --truth …")
     return out

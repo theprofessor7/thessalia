@@ -34,7 +34,7 @@ L'installeur demande s'il faut ajouter le **lecteur d'écriture** (~2 Go). Il li
 courtes. Sans lui, tout fonctionne : les réponses courtes se corrigent à la main dans l'outil. On peut l'ajouter
 plus tard en un clic, page **Réglages** de l'application.
 
-### Facultatif : la préparation de nuit (code manuscrit)
+### Facultatif : la lecture approfondie (code manuscrit)
 
 Elle utilise **Ollama**, logiciel gratuit qui fait tourner les modèles sur ce PC. Rien à taper : dans
 l'application, page **Réglages** (menu de gauche), la carte Ollama l'installe en un clic (Windows ; sur Mac,
@@ -75,7 +75,8 @@ puis relancer l'installeur (il ne refait que ce qui manque). Vos examens ne sont
 
 ## 4. Un examen, du sujet aux notes
 
-La page d'un examen présente les étapes dans l'ordre. Une étape faite est cochée en vert.
+La page d'un examen est un assistant : une étape à la fois, pastilles en haut, « Précédent / Suivant » en bas
+(ou flèches du clavier). Une étape faite est cochée en vert ; une étape grisée dit ce qui lui manque.
 
 ### Étape 1 — Source du sujet
 
@@ -106,7 +107,7 @@ Indiquer le nom de la classe (ex. `supA_1`) et **la langue du sujet distribué**
 lecture prend une à quelques minutes. Si la langue est fausse, le journal affiche **« GABARIT DOUTEUX »** :
 redéposer avec la bonne langue.
 
-### Étape 4 — Lectures longues (facultatif)
+### Étape 4 — Lectures automatiques (facultatif)
 
 - **Lire les réponses courtes** (lecteur d'écriture) : quelques minutes par classe. Pour un sujet nouveau,
   **toutes** les réponses partent en revue, avec la lecture proposée. C'est voulu : un sujet n'est validé
@@ -115,9 +116,10 @@ redéposer avec la bonne langue.
   aurait acceptées d'office et combien sont justes d'après vous. Le bouton s'active à partir de 30 lectures
   vérifiées **sans aucun écart**. Ensuite, les réponses sûres de ce sujet sont acceptées d'office ; les autres
   restent en revue. Produire à nouveau le sujet annule la validation.
-- **Préparer la nuit** (Ollama) : transcrit le code manuscrit, pré-coche les critères du barème en exécutant le
-  code, et fait relire les réponses courtes par un second modèle. Compter environ une nuit pour une centaine de
-  copies. Si c'est interrompu, relancer : la préparation reprend où elle s'était arrêtée.
+- **Lecture approfondie** (Ollama) : transcrit le code manuscrit, pré-coche les critères du barème en exécutant le
+  code, et fait relire les réponses courtes par un second modèle. Elle tourne en arrière-plan pendant que vous
+  travaillez (quelques heures selon le nombre de copies) ; Thessalia prévient à la fin, et la relancer reprend où
+  elle s'était arrêtée.
 
 Une seule tâche longue tourne à la fois. Son journal s'affiche en haut de la page.
 

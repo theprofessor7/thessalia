@@ -401,3 +401,49 @@ h2.section { font-size:18px; margin:26px 0 10px; }
 .ext-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .ext-actions .enligne { margin:0; }
 .bouton.danger { color:var(--faux); } .bouton.danger:hover { border-color:var(--faux); background:var(--fauxf); }
+
+/* assistant de la page d'examen : pastilles, une étape à la fois */
+.etapes-points { display:flex; gap:0; margin:10px 0 16px; max-width:980px; }
+.etape-point { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; text-decoration:none; color:var(--gris);
+            position:relative; font-size:12px; text-align:center; padding:0 4px; }
+.etape-point::before { content:""; position:absolute; top:16px; left:-50%; width:100%; height:3px; background:var(--trait); z-index:0; }
+.etape-point:first-child::before { display:none; }
+.etape-point.faite::before, .etape-point.faite + .etape-point::before { background:var(--juste); }
+.etape-point .rond { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; font-weight:700; font-size:14px;
+                  background:var(--carte); border:2px solid var(--trait); color:var(--gris); position:relative; z-index:1; transition:all .2s; }
+.etape-point.faite .rond { background:var(--juste); border-color:var(--juste); color:#fff; }
+.etape-point.a-faire .rond { border-color:var(--accent); color:var(--accent); }
+.etape-point.bloquee { opacity:.45; cursor:not-allowed; }
+.etape-point.courante .rond { box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); transform:scale(1.12); }
+.etape-point.courante { color:var(--encre); font-weight:700; }
+a.etape-point:hover .rond { border-color:var(--accent); }
+.assistant .pas { background:var(--carte); border:1px solid var(--trait); border-radius:12px; padding:6px 22px 14px;
+                  margin-bottom:14px; max-width:980px; box-shadow:0 2px 10px rgba(0,0,0,.04); }
+.assistant.js .pas { display:none; }
+.assistant.js .pas.visible { display:block; animation:apparait .2s ease-out; }
+.pas h2 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pas-num { font-size:12px; color:var(--gris); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.pas .bloque { background:var(--doutef); color:var(--doute); padding:6px 10px; border-radius:6px; }
+.pas-nav { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:16px; padding-top:12px;
+           border-top:1px solid var(--trait); }
+.suivant-bloque { text-align:right; font-size:13px; }
+@media (max-width: 700px) { .etape-point-titre { display:none; } }
+
+/* trois états de bouton qu'on distingue d'un coup d'œil (remarque de l'enseignant, 10 novembre) :
+   indisponible = gris, bord pointillé ; disponible = bord et texte bleus ; déjà fait = vert avec ✓ */
+.bouton[disabled], .bouton[disabled]:hover { background:repeating-linear-gradient(135deg, var(--fond) 0 6px, transparent 6px 12px);
+  border:1px dashed var(--trait); color:var(--gris); box-shadow:none; opacity:.75; cursor:not-allowed; transform:none; }
+.bouton.principal[disabled] { background:var(--fond); color:var(--gris); }
+.pas .bouton:not(.principal):not(.discret):not(.fait):not(.danger):not([disabled]) { color:var(--accent); border-color:var(--accent); }
+.bouton.fait { color:var(--juste); border-color:var(--juste); background:var(--justef); }
+.bouton.fait::before { content:"✓ "; font-weight:700; }
+.bouton.fait:hover { background:var(--carte); }
+.notif-offre { margin:0 0 6px; font-size:13px; } .notif-offre[hidden] { display:none; }
+
+/* pause / reprise d'une tâche longue */
+.tache h2 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.lecture-pause { margin-left:auto; }
+.rond-pause { border-radius:99px; padding:5px 16px; font-weight:600; }
+.tache.en-pause { border-left-color:var(--forme); }
+.jauge.figee .jauge-barre { background:var(--gris); }
+.bouton.lecture-en-cours { color:var(--forme); border-color:var(--forme); background:var(--formef); font-weight:600; }

@@ -45,7 +45,7 @@
 <div class="extensions">
 {% for quoi, L, nom, ico, duree, desc in [
     ('chiffres', A.chiffres, 'Lecteur de chiffres', '#', 'affinage : quelques minutes', 'Lit les réponses numériques.'),
-    ('ecriture', A.ecriture, "Lecteur d'écriture", '✎', 'affinage : une nuit, environ 6 Go de mémoire', 'Lit les réponses courtes et les noms.')] %}
+    ('ecriture', A.ecriture, "Lecteur d'écriture", '✎', 'affinage : quelques heures en arrière-plan, environ 6 Go de mémoire', 'Lit les réponses courtes et les noms.')] %}
   <section class="extension lecteur {{ 'installee' if L.en_service }}">
     <div class="ext-haut">
       <span class="ext-ico">{{ ico }}</span>

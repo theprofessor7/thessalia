@@ -15,32 +15,51 @@ from . import ollama_local
 from .projet import Projet, creer, nom_valide, outils, projets
 
 
+class Pause(BaseException):
+    """Pause demandée par l'enseignant : levée au prochain message de la tâche. BaseException, pour traverser les
+    `except Exception` des modules (une copie qui échoue ne doit pas avaler la pause)."""
+
+
 class Taches:
-    """Une seule tâche longue à la fois (lire des scans prend de la mémoire)."""
+    """Une seule tâche longue à la fois (lire des scans prend de la mémoire).
+
+    Pause / reprise, pour les tâches qui reprennent où elles s'étaient arrêtées (`reprenable`) : la pause arrête la
+    tâche proprement au prochain point d'étape (la copie ou le cadre en cours se termine), la reprise la relance et
+    elle saute ce qui est déjà fait (lectures en cache, transcriptions enregistrées, affinage sauvegardé)."""
 
     def __init__(self):
         self.courante = None
         self._verrou = threading.Lock()
 
-    def lancer(self, projet, titre, fn, apres=None):
+    def lancer(self, projet, titre, fn, apres=None, reprenable=False):
         with self._verrou:
             if self.courante and self.courante["etat"] == "en cours":
                 raise RuntimeError(f"une tâche tourne déjà : {self.courante['titre']}")
+            ancien = self.courante if self.courante and self.courante["titre"] == titre else None
             t = {"projet": projet, "titre": titre, "etat": "en cours", "journal": [], "debut": time.time(), "fin": None,
-                 "progression": None}
+                 "progression": ancien["progression"] if ancien else None, "reprenable": reprenable,
+                 "pause": False, "relancer": (fn, apres)}
             self.courante = t
 
         def log(*a):
             t["journal"].append(" ".join(str(x) for x in a))
             del t["journal"][:-400]
+            if t["pause"]:
+                raise Pause()
 
         def progression(pc, texte=""):    # jauge de la page ; None : étape sans avancement chiffré (jauge qui défile)
             t["progression"] = None if pc is None else {"pc": max(0, min(100, int(pc))), "texte": texte}
+            if t["pause"]:
+                raise Pause()
         log.progression = progression
 
-        class Sortie:                     # print des modules (preparer, excel…) → journal
+        class Sortie:                     # print des modules (preparer, excel…) → journal, ligne par ligne
+            def __init__(self):
+                self.reste = ""           # print("a", b) écrit en plusieurs morceaux : une seule ligne au journal
+
             def write(self, s):
-                for ligne in s.splitlines():
+                *lignes, self.reste = (self.reste + s.replace("\r", "\n")).split("\n")
+                for ligne in lignes:
                     if ligne.strip():
                         log(ligne)
                 return len(s)
@@ -48,13 +67,37 @@ class Taches:
             def flush(self):
                 pass
 
+            def vider(self):
+                if self.reste.strip():
+                    log(self.reste)
+                self.reste = ""
+
+            # ce que les bibliothèques demandent à une console (transformers, barres de progression) : sans ces
+            # méthodes, la lecture des réponses courtes s'arrêtait net (« 'Sortie' object has no attribute 'isatty' »)
+            encoding, errors = "utf-8", "replace"
+
+            def isatty(self):
+                return False
+
+            def writable(self):
+                return True
+
         def corps():
             try:
-                with contextlib.redirect_stdout(Sortie()):
-                    fn(log)
+                sortie = Sortie()
+                try:
+                    with contextlib.redirect_stdout(sortie):
+                        fn(log)
+                finally:
+                    sortie.vider()
                 t["etat"] = "terminé"
                 if apres:
                     apres()
+            except Pause:
+                t["etat"] = "en pause"
+                t["journal"].append("En pause. « Reprendre » repart d'ici : ce qui est déjà fait n'est pas refait.")
+                if apres:
+                    apres()           # ce qui est déjà lu est visible dans l'outil de correction
             except SystemExit as e:
                 t["etat"] = "erreur"
                 log(str(e))
@@ -65,9 +108,56 @@ class Taches:
         threading.Thread(target=corps, daemon=True).start()
         return t
 
+    def pause(self):
+        t = self.courante
+        if not t or t["etat"] != "en cours" or not t["reprenable"]:
+            raise RuntimeError("aucune tâche à mettre en pause")
+        t["pause"] = True
+        t["journal"].append("Pause demandée : la tâche s'arrête à la fin de l'étape en cours…")
 
-def _vers(chemin, message):
-    return f"{chemin}?m={quote(str(message))}"
+    def reprendre(self):
+        t = self.courante
+        if not t or t["etat"] != "en pause":
+            raise RuntimeError("aucune tâche en pause")
+        fn, apres = t["relancer"]
+        return self.lancer(t["projet"], t["titre"], fn, apres, reprenable=True)
+
+
+def _vers(chemin, message, etape=None):
+    return f"{chemin}?m={quote(str(message))}" + (f"#etape-{etape}" if etape else "")
+
+
+# étape de la page d'examen où une tâche ramène (d'après son titre)
+ETAPE_DES_TACHES = (("Produire", 2), ("Lire les copies", 3), ("Lire les réponses courtes", 4), ("Sujet ", 4),
+                    ("Lecture approfondie", 4), ("Exporter", 6))
+
+
+def etapes_examen(e, tache, ouvert, notes, trocr):
+    """Assistant de la page d'examen : état de chaque étape et celle où ouvrir la page.
+    Une étape n'est grisée que si un VRAI prérequis manque (pas de dépôt sans PDF produits, pas de correction ni
+    d'export sans classe lue) ; une étape faite reste toujours accessible (le parcours n'est pas linéaire : une
+    classe se dépose pendant qu'une autre se corrige)."""
+    lues = e["lues"]
+    sans_classe = None if lues else "déposez et lisez d'abord une classe (étape 3)"
+    etapes = [
+        {"n": 1, "titre": "Source du sujet", "faite": not e["erreurs"], "bloque": None},
+        {"n": 2, "titre": "Sujets et corrigés", "faite": bool(e["produit"]),
+         "bloque": "corrigez d'abord la source (étape 1)" if e["erreurs"] else None},
+        {"n": 3, "titre": "Copies scannées", "faite": lues > 0,
+         "bloque": None if e["produit"] or e["classes"] else "produisez d'abord les PDF (étape 2)"},
+        {"n": 4, "titre": "Lectures automatiques", "facultatif": True,
+         "faite": bool(lues) and e["courtes"] == lues, "bloque": sans_classe},
+        {"n": 5, "titre": "Correction", "faite": bool(ouvert), "bloque": sans_classe},
+        {"n": 6, "titre": "Notes", "faite": bool(notes), "bloque": sans_classe},
+    ]
+    courante = None
+    if tache:
+        courante = next((n for debut, n in ETAPE_DES_TACHES if tache["titre"].startswith(debut)), None)
+    if courante is None:
+        # première étape à faire ; les lectures automatiques ne retiennent pas sans lecteur installé
+        courante = next((x["n"] for x in etapes if not x["faite"] and not x["bloque"]
+                         and not (x["n"] == 4 and not trocr)), 6)
+    return etapes, courante
 
 
 def enregistrer(app, racine: Path, charger, memoire=None):
@@ -120,8 +210,11 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         p = projet(nom)
         t = taches.courante if taches.courante and taches.courante["projet"] == nom else None
         notes = p.notes_xlsx
-        return render_template("examen.html", e=resume(p), pdfs=[f.name for f in p.pdfs()], tache=t,
-                               ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=outils(),
+        e, out = resume(p), outils()
+        etapes, courante = etapes_examen(e, t, etat["ouvert"] == nom, notes.exists(), out["trocr"])
+        return render_template("examen.html", e=e, pdfs=[f.name for f in p.pdfs()], tache=t, etapes=etapes,
+                               courante=courante,
+                               ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=out,
                                liste=p.liste(), reglages=p.reglages(), noms=p.controle_noms(), ollama=ollama_local.etat(), validation=p.mesure_lecture() if resume_lues(p) else {},
                                notes=time.strftime("%d/%m/%Y %H:%M", time.localtime(notes.stat().st_mtime))
                                if notes.exists() else None)
@@ -140,10 +233,10 @@ def enregistrer(app, racine: Path, charger, memoire=None):
                 (p.dir / f.filename).write_bytes(f.read())
         return redirect(f"/examens/{nom}")
 
-    def lancer(nom, titre, fn, apres=None, retour=None):
+    def lancer(nom, titre, fn, apres=None, retour=None, reprenable=False):
         retour = retour or f"/examens/{nom}"
         try:
-            taches.lancer(nom, titre, fn, apres)
+            taches.lancer(nom, titre, fn, apres, reprenable)
         except RuntimeError as e:
             return redirect(_vers(retour, e))
         return redirect(retour)
@@ -203,7 +296,8 @@ def enregistrer(app, racine: Path, charger, memoire=None):
     @app.post("/examens/<nom>/courtes")
     def courtes(nom):
         p = projet(nom)
-        return lancer(nom, "Lire les réponses courtes et les noms", lambda log: p.lire_courtes(log=log), apres_lecture(nom))
+        return lancer(nom, "Lire les réponses courtes et les noms", lambda log: p.lire_courtes(log=log), apres_lecture(nom),
+                      reprenable=True)
 
     @app.post("/examens/<nom>/valider/<langue>")
     def valider(nom, langue):
@@ -213,7 +307,7 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         except ValueError as e:
             return redirect(_vers(f"/examens/{nom}", e))
         return lancer(nom, f"Sujet {langue.upper()} validé ({m['justes']}/{m['n']} lectures justes) : relecture des "
-                           "réponses courtes", lambda log: p.lire_courtes(log=log), apres_lecture(nom))
+                           "réponses courtes", lambda log: p.lire_courtes(log=log), apres_lecture(nom), reprenable=True)
 
     # ---------------------------------------------------------------- réglages, extensions, aide
     REG = "__reglages__"
@@ -237,7 +331,7 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         ident, action = request.form.get("id", ""), request.form.get("action", "")
         noms = {"installer": "Installer", "demarrer": "Démarrer", "telecharger": "Télécharger", "supprimer": "Supprimer"}
         return lancer(REG, f"{noms.get(action, action)} : {ident}", lambda log: extensions.agir(ident, action, log),
-                      retour="/reglages")
+                      retour="/reglages", reprenable=action == "telecharger")
 
     # ---------------------------------------------------------------- apprentissage
     APP = "__apprentissage__"
@@ -260,7 +354,7 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         fn = {"affiner": lambda log: (A.affiner_chiffres if quoi == "chiffres" else A.affiner_ecriture)(racine, log=log),
               "adopter": lambda log: A.adopter(quoi, log), "revenir": lambda log: A.revenir(quoi, log),
               "ecarter": lambda log: A.ecarter(quoi, log)}[action]
-        return lancer(APP, titre, fn, retour="/apprentissage")
+        return lancer(APP, titre, fn, retour="/apprentissage", reprenable=quoi == "ecriture" and action == "affiner")
 
     # ---------------------------------------------------------------- contrôle des noms
     @app.post("/examens/<nom>/verif-noms")
@@ -277,7 +371,7 @@ def enregistrer(app, racine: Path, charger, memoire=None):
     @app.post("/examens/<nom>/noms-verifies")
     def noms_verifies(nom):
         projet(nom).noms_verifies()
-        return redirect(f"/examens/{nom}#notes")
+        return redirect(f"/examens/{nom}#etape-6")
 
     @app.route("/aide")
     def aide():
@@ -289,20 +383,20 @@ def enregistrer(app, racine: Path, charger, memoire=None):
     @app.post("/examens/<nom>/preparer")
     def preparer(nom):
         p = projet(nom)
-        return lancer(nom, "Préparer la correction (modèles locaux)", lambda log: p.preparer(log=log),
-                      apres_lecture(nom))
+        return lancer(nom, "Lecture approfondie (code, relecture)", lambda log: p.preparer(log=log),
+                      apres_lecture(nom), reprenable=True)
 
     @app.post("/examens/<nom>/liste")
     def deposer_liste(nom):
         p = projet(nom)
         f = request.files.get("liste")
         if not f or not f.filename:
-            return redirect(_vers(f"/examens/{nom}", "Choisissez la liste des élèves (.xlsx)."))
+            return redirect(_vers(f"/examens/{nom}", "Choisissez la liste des élèves (.xlsx).", 6))
         try:
             n = p.deposer_liste(f.read())
         except ValueError as e:
-            return redirect(_vers(f"/examens/{nom}", e))
-        return redirect(_vers(f"/examens/{nom}", f"Liste des élèves enregistrée : {n} élèves."))
+            return redirect(_vers(f"/examens/{nom}", e, 6))
+        return redirect(_vers(f"/examens/{nom}", f"Liste des élèves enregistrée : {n} élèves.", 6))
 
     @app.post("/examens/<nom>/notes")
     def exporter(nom):
@@ -320,4 +414,21 @@ def enregistrer(app, racine: Path, charger, memoire=None):
     @app.route("/tache")
     def tache():
         t = taches.courante
-        return jsonify(None if t is None else {k: t[k] for k in ("projet", "titre", "etat", "journal", "progression")})
+        return jsonify(None if t is None else {k: t[k] for k in ("projet", "titre", "etat", "journal", "progression",
+                                                                 "reprenable", "pause")})
+
+    @app.post("/tache/pause")
+    def tache_pause():
+        try:
+            taches.pause()
+        except RuntimeError:
+            pass
+        return redirect(request.referrer or "/examens")
+
+    @app.post("/tache/reprendre")
+    def tache_reprendre():
+        try:
+            taches.reprendre()
+        except RuntimeError as e:
+            return redirect(_vers(request.referrer or "/examens", e))
+        return redirect(request.referrer or "/examens")
