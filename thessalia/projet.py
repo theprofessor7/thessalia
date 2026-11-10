@@ -145,14 +145,19 @@ class Projet:
         """Réponses courtes de chaque classe lue, par TrOCR (local, gratuit), avec le vocabulaire de sa langue.
         Sujet nouveau : tant que son corrigé n'est pas validé par une mesure, tout part en revue avec la lecture
         proposée (cf. ocr_run.lecture_validee)."""
+        from .apprentissage import modele_ecriture
         from .ocr_run import run as ocr
         dossiers = self.dossiers_lus()
         if not dossiers:
             raise SystemExit("aucune classe lue")
+        modele = modele_ecriture()     # lecteur affiné et adopté (page Apprentissage), sinon le modèle d'origine
+        if modele:
+            log(f"lecteur d'écriture affiné : {modele}")
         for d in dossiers:
             info = json.loads((self.scans / f"{d.name}.json").read_text(encoding="utf-8"))
             log(f"=== {d.name} ({info['langue'].upper()})")
-            ocr(d, self.fichiers(info["langue"])["vocab"], "trocr", log=log)
+            ocr(d, self.fichiers(info["langue"])["vocab"], "trocr", log=log,
+                backend_kw={"model": modele} if modele else None)
         # noms écrits sur les copies : propositions pour « Identifier les copies »
         from .identite import run as noms
         log("=== noms des élèves")
@@ -262,6 +267,41 @@ class Projet:
             raise SystemExit("aucune classe lue")
         return run(dossiers, self.notes_xlsx, db=self.stockage()["db"], log=log,
                    arrondi=self.reglages()["arrondi_demi_point"])
+
+    def controle_noms(self):
+        """Avant l'export : copies attribuées, sans élève, à risque (cf. verif_noms.risques), et si l'enseignant a
+        vérifié CES risques-là (signature : une attribution changée redemande la vérification). None sans classe lue."""
+        import hashlib
+
+        from .identite import lire_attributions, lire_convoques, lire_liste
+        from .verif_noms import risques
+        dossiers = self.dossiers_lus()
+        if not dossiers:
+            return None
+        lists = self.stockage()["lists_dir"]
+        try:
+            liste = lire_liste(lists_dir=lists)
+        except (ValueError, OSError):
+            liste = {}
+        attributions, sans = [], 0
+        for d in dossiers:
+            att = lire_attributions(d.name, lists)
+            ids = [c["copy_id"] for c in json.loads((d / "results.json").read_text(encoding="utf-8"))["copies"]]
+            attributions += [(d.name, cid, e) for cid, e in sorted(att.items())]
+            sans += sum(cid not in att for cid in ids)
+        r = risques(attributions, liste, convoques={d.name: lire_convoques(d.name, lists) for d in dossiers}) if liste else {}
+        a_risque = sorted(f"{cl}/{cid}={e}={'|'.join(r[(cl, cid)])}" for cl, cid, e in attributions if r.get((cl, cid)))
+        signature = hashlib.sha256(chr(10).join(a_risque).encode()).hexdigest()[:16]
+        p = self.dir / "noms_verifies.json"
+        vu = json.loads(p.read_text(encoding="utf-8")).get("signature") if p.exists() else None
+        return {"attribuees": len(attributions), "sans": sans, "risques": len(a_risque), "signature": signature,
+                "verifie": bool(a_risque) and vu == signature}
+
+    def noms_verifies(self):
+        """L'enseignant a relu les copies à risque : l'export ne le redemande plus tant qu'elles ne changent pas."""
+        c = self.controle_noms()
+        if c:
+            (self.dir / "noms_verifies.json").write_text(json.dumps({"signature": c["signature"]}), encoding="utf-8")
 
     def liste(self):
         """Liste des élèves utilisée : {nom, propre} (propre = celle de l'examen), {erreur} ou None."""

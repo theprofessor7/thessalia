@@ -13,7 +13,7 @@ import json
 import webbrowser
 from pathlib import Path
 
-from .correction import Classe, Decisions, DB_PATH, Memory, group_of
+from .correction import Classe, Decisions, DB_PATH, Memory, group_of, resume_memoire, retenu
 from .notes import RATE
 
 
@@ -321,6 +321,28 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
                                prec=c.copy_ids[i - 1] if i else None,
                                suiv=c.copy_ids[i + 1] if i + 1 < len(c.copy_ids) else None)
 
+    @app.route("/verif-noms")
+    def verif_noms_page():
+        """Contrôle avant l'export : le nom écrit sur chaque copie à côté de l'élève attribué, copies à risque
+        en tête (nom proche d'un autre élève, voisin d'un absent, autre groupe ; cf. verif_noms)."""
+        from .identite import lire_attributions, lire_convoques, lire_liste
+        from .verif_noms import risques
+        attributions, sans = [], []
+        for c in classes.values():
+            att = lire_attributions(c.name, c.lists_dir)
+            attributions += [(c.name, cid, e) for cid, e in sorted(att.items())]
+            sans += [{"classe": c.name, "copie": cid, "groupe": c.group} for cid in c.copy_ids if cid not in att]
+        liste = lire_liste(lists_dir=next(iter(classes.values())).lists_dir) if classes else {}
+        r = risques(attributions, liste, convoques={c.name: lire_convoques(c.name, c.lists_dir) for c in classes.values()})
+        lignes = [{"classe": cl, "copie": cid, "num": int(cid.split("_")[-1]), "groupe": group_of(cl), "eleve": e,
+                   "raisons": r[(cl, cid)],
+                   "img": {z: f"{cid}/crops/identity.{z}.png" for z in ("nom", "prenom")
+                           if (classes[cl].dir / cid / "crops" / f"identity.{z}.png").exists()}}
+                  for cl, cid, e in attributions]
+        lignes.sort(key=lambda x: (not x["raisons"], x["classe"], x["num"]))
+        return render_template("verif_noms.html", lignes=lignes, sans=sans,
+                               n_risque=sum(bool(x["raisons"]) for x in lignes))
+
     @app.route("/img/<classe>/<path:p>")
     def image(classe, p):
         c = classes.get(classe) or abort(404)
@@ -343,7 +365,12 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
         note = next((r for r in c.notes() if r["copie"] == cid), None)
         if item:
             avec_banc(c, [item])
-        return jsonify({"item": item, "note": note})
+        rep = {"item": item, "note": note}
+        if item and not d.get("annuler") and not item.get("qcm") and not item.get("code"):
+            rep["retenu"] = retenu(list(classes.values()), c, d["cle"])
+            # lecture tapée par l'enseignant : exemple pour affiner le lecteur (page Apprentissage)
+            rep["exemple"] = bool(apprendre and d.get("texte") is not None)
+        return jsonify(rep)
 
     @app.post("/api/code-transcription")
     def api_code_transcription():
@@ -387,7 +414,11 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
         proteger(app, compte)
     if examens is not None:
         from .web_examens import enregistrer
-        enregistrer(app, Path(examens), charger)
+        def memoire():
+            if memory.dirty:
+                memory.rebuild(classes.values())
+            return resume_memoire(memory) if classes else None
+        enregistrer(app, Path(examens), charger, memoire)
     return app
 
 

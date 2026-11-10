@@ -56,9 +56,42 @@ details { margin-top:24px; } summary { cursor:pointer; color:var(--gris); margin
 .carte .lu { font-size:13px; } .carte .lu code { font-size:15px; }
 .carte .raison { font-size:12px; color:var(--forme); }
 .carte .manque { padding:14px 4px; color:var(--faux); font-size:13px; }
-.origine { font-size:11px; padding:0 5px; border-radius:8px; background:var(--fond); }
-.origine.proposé, .origine.vide, .origine.pageabsente { background:var(--doutef); color:var(--doute); }
-.origine.enseignant { background:var(--justef); color:var(--juste); }
+.origine { font-size:11px; padding:1px 7px; border-radius:99px; background:var(--fond); white-space:nowrap; cursor:help; font-weight:600; }
+.origine.o-doute { background:var(--doutef); color:var(--doute); }
+.origine.o-vous { background:var(--justef); color:var(--juste); }
+.origine.o-machine { background:#e6eefa; color:var(--accent); }
+.origine.o-memoire { background:var(--formef); color:var(--forme); }
+@media (prefers-color-scheme: dark) { .origine.o-machine { background:#1d2a3d; } }
+#retenu { position:fixed; right:18px; bottom:18px; max-width:440px; background:var(--carte); color:var(--encre);
+          border:1px solid var(--trait); border-left:5px solid var(--forme); border-radius:10px; padding:10px 14px;
+          box-shadow:0 8px 24px rgba(0,0,0,.14); font-size:13px; z-index:50; opacity:0; transform:translateY(8px);
+          transition:opacity .25s, transform .25s; pointer-events:none; }
+#retenu.visible { opacity:1; transform:none; }
+/* apprentissage, contrôle des noms */
+.tuiles { display:flex; gap:12px; flex-wrap:wrap; margin:6px 0 12px; }
+.tuile { background:var(--carte); border:1px solid var(--trait); border-radius:10px; padding:10px 16px; min-width:150px; }
+.tuile b { display:block; font-size:24px; } .tuile span { color:var(--gris); font-size:13px; }
+.tuile.ok-f b { color:var(--juste); } .tuile.doute-f b { color:var(--doute); } .tuile.faux-f b { color:var(--faux); }
+table.memoire { border-collapse:collapse; margin-top:8px; }
+table.memoire td, table.memoire th { padding:4px 10px; border-bottom:1px solid var(--trait); text-align:left; }
+.badge.doute { background:var(--doutef); color:var(--doute); }
+.lecteur .en-service { margin:6px 0; }
+.exemples { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:13px; }
+.jauge-fond.petite { height:8px; flex:1; max-width:220px; }
+.jauge-barre.gris-b { background:var(--gris); }
+.candidat { border:1px solid var(--trait); border-radius:8px; padding:8px 12px; margin:8px 0; background:var(--fond); }
+.candidat.mieux { border-color:var(--juste); }
+.comparaison { display:grid; grid-template-columns:auto 1fr auto; gap:4px 10px; align-items:center; margin:6px 0; font-size:13px; }
+.controle-noms { margin:10px 0; padding:8px 12px; border-radius:8px; border:1px solid var(--trait); background:var(--fond); }
+.controle-noms.a-voir { border-color:var(--doute); }
+.controle-noms form { margin-left:10px; }
+table.verif-noms { border-collapse:collapse; width:100%; max-width:980px; background:var(--carte); }
+table.verif-noms td { padding:6px 10px; border-bottom:1px solid var(--trait); vertical-align:middle; }
+table.verif-noms img { height:52px; margin-right:6px; border-radius:4px; background:#fff; }
+table.verif-noms tr.risque td:first-child { border-left:4px solid var(--doute); }
+.verif-noms .eleve { font-size:17px; font-weight:600; }
+.verif-noms .raison { color:var(--forme); font-size:13px; }
+.fin-verif { margin:14px 0; }
 .verdicts { display:flex; gap:4px; margin-top:4px; flex-wrap:wrap; align-items:center; }
 .verdict { padding:4px 9px; border:1px solid var(--trait); border-radius:5px; background:var(--carte); color:var(--encre); cursor:pointer; font:inherit; }
 .verdict.propose { border-style:dashed; border-width:2px; }

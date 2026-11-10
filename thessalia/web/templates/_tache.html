@@ -1,0 +1,13 @@
+{# Tâche longue en cours ou finie : titre, jauge (téléchargements, affinage), journal. Suivi : _tache_js.html #}
+{% if tache %}
+<section class="tache {{ tache.etat|replace(' ', '-') }}" id="tache">
+  <h2>{{ tache.titre }} — <span id="tache-etat">{{ tache.etat }}</span></h2>
+  {% set pg = tache.progression %}
+  <div class="jauge" id="jauge" {{ 'hidden' if not pg or tache.etat != 'en cours' }}>
+    <div class="jauge-fond"><div class="jauge-barre" id="jauge-barre" style="width:{{ pg.pc if pg else 0 }}%"></div></div>
+    <span class="jauge-pc" id="jauge-pc">{{ pg.pc if pg else 0 }} %</span>
+    <span class="gris" id="jauge-texte">{{ pg.texte if pg }}</span>
+  </div>
+  <pre id="journal">{{ tache.journal|join('\n') }}</pre>
+</section>
+{% endif %}

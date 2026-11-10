@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block titre %}Apprentissage{% endblock %}
+{% block nav %}Apprentissage{% endblock %}
+{% block contenu %}
+<h1>Apprentissage</h1>
+<p class="aide">Thessalia apprend de vos corrections, sur ce PC. Rien n'est adopté sans mesure sur des copies que
+  le lecteur n'a jamais vues, et l'ancien lecteur est toujours gardé.</p>
+{% if message %}<p class="message">{{ message }}</p>{% endif %}
+{% include "_tache.html" %}
+
+{# ------------------------------------------------------------- mémoire des verdicts #}
+<h2 class="section">Mémoire de vos verdicts</h2>
+{% if memoire %}
+<div class="tuiles">
+  <div class="tuile"><b>{{ memoire.lectures }}</b><span>lectures jugées par vous</span></div>
+  <div class="tuile ok-f"><b>{{ memoire.office }}</b><span>décidées d'office ailleurs</span></div>
+  <div class="tuile doute-f"><b>{{ memoire.proposees }}</b><span>proposées ailleurs</span></div>
+</div>
+<p class="aide">Quand vous jugez une réponse lue par la machine, Thessalia retient votre verdict pour cette lecture.
+  Dans les <em>autres</em> classes de l'examen, la même lecture reçoit votre verdict en proposition dès
+  {{ memoire.seuils.proposition }} jugements, et d'office dès {{ memoire.seuils.office }} jugements concordants à
+  {{ memoire.seuils.part }} %. Une classe ne se juge jamais avec ses propres décisions.</p>
+{% if memoire.lignes %}
+<details class="panneau-reglages" {{ 'open' if memoire.lignes|length <= 12 }}>
+  <summary>Les lectures retenues ({{ memoire.lignes|length }})</summary>
+  <table class="memoire">
+    <tr><th>Question</th><th>Lecture</th><th>Votre verdict</th><th>Jugements</th><th></th></tr>
+    {% for l in memoire.lignes[:60] %}
+    <tr><td>{{ l.champ }}</td><td><code>{{ l.lecture }}</code></td><td>{{ l.verdict }}</td>
+      <td>{{ l.n }}/{{ l.total }}{% if l.classes > 1 %} <span class="gris">· {{ l.classes }} classes</span>{% endif %}</td>
+      <td><span class="badge {{ 'ok' if l.statut == "d'office" else ('doute' if l.statut == 'proposé' else '') }}">{{ l.statut }}</span></td></tr>
+    {% endfor %}
+  </table>
+</details>
+{% endif %}
+<p><a href="/suivi">Suivi de la machine</a> : ses lectures justes et celles que vous avez corrigées, classe par classe.</p>
+{% else %}
+<p class="gris">Ouvrez un examen (« Corriger les copies lues ») pour voir ce que la mémoire a retenu.</p>
+{% endif %}
+
+{# ------------------------------------------------------------- lecteurs #}
+<h2 class="section">Affiner les lecteurs</h2>
+<p class="aide">Les lectures que vous avez vérifiées dans l'outil (texte tapé, ou réponse jugée juste lue
+  exactement) deviennent des exemples. Un lecteur affiné sur votre public lit mieux leur écriture.</p>
+<div class="extensions">
+{% for quoi, L, nom, ico, duree, desc in [
+    ('chiffres', A.chiffres, 'Lecteur de chiffres', '#', 'affinage : quelques minutes', 'Lit les réponses numériques.'),
+    ('ecriture', A.ecriture, "Lecteur d'écriture", '✎', 'affinage : une nuit, environ 6 Go de mémoire', 'Lit les réponses courtes et les noms.')] %}
+  <section class="extension lecteur {{ 'installee' if L.en_service }}">
+    <div class="ext-haut">
+      <span class="ext-ico">{{ ico }}</span>
+      <div><h3>{{ nom }}</h3><span class="gris">{{ duree }}</span></div>
+      <span class="badge {{ 'ok' if L.en_service }}">{{ 'affiné' if L.en_service else 'd’origine' }}</span>
+    </div>
+    <p>{{ desc }}</p>
+    <p class="en-service">En service :
+      {% if L.en_service and L.service %}affiné le {{ L.service.date }}, mesuré {{ L.service.affine }}/{{ L.service.n }}
+        (le précédent : {{ L.service.reference }}/{{ L.service.n }}).
+      {% elif L.en_service %}un modèle affiné (sans fiche de mesure).
+      {% else %}{{ L.fourni }}.{% endif %}</p>
+
+    <div class="exemples">
+      <span>{{ L.exemples }} exemple{{ 's' if L.exemples > 1 }} validé{{ 's' if L.exemples > 1 }}</span>
+      <div class="jauge-fond petite"><div class="jauge-barre" style="width:{{ [100, (L.exemples * 100 // L.minimum)]|min }}%"></div></div>
+      <span class="gris">minimum {{ L.minimum }}</span>
+    </div>
+    {% if quoi == 'ecriture' and L.test %}
+    <p class="gris">Mesure sur {{ L.test }} ({{ L.test_n }} lectures), mise de côté ; affinage sur les {{ L.entrainement }} autres.</p>
+    {% endif %}
+
+    {% set C = L.candidat %}
+    {% if C %}
+    <div class="candidat {{ 'mieux' if C.mieux else 'pas-mieux' }}">
+      <b>Nouveau lecteur, affiné le {{ C.date }}</b>
+      <div class="comparaison">
+        <span>en service</span><div class="jauge-fond petite"><div class="jauge-barre gris-b" style="width:{{ C.reference * 100 // C.n }}%"></div></div><span>{{ C.reference }}/{{ C.n }}</span>
+        <span>affiné</span><div class="jauge-fond petite"><div class="jauge-barre" style="width:{{ C.affine * 100 // C.n }}%"></div></div><span>{{ C.affine }}/{{ C.n }}</span>
+      </div>
+      <span class="gris">{{ 'lectures exactes sur ' ~ C.test ~ ', classe jamais vue' if C.test else 'nombres justes, chaque copie lue par un modèle qui ne l’a jamais vue' }}</span>
+      <div class="ext-actions">
+        {% if C.mieux %}<form method="post" action="/apprentissage/{{ quoi }}/adopter" class="enligne"><button class="bouton principal">Adopter</button></form>{% endif %}
+        <form method="post" action="/apprentissage/{{ quoi }}/ecarter" class="enligne"><button class="bouton">Écarter</button></form>
+        {% if not C.mieux %}<span class="gris">Il ne fait pas mieux : il n'est pas proposé.</span>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="ext-actions">
+      <form method="post" action="/apprentissage/{{ quoi }}/affiner" class="enligne"
+            {% if quoi == 'ecriture' %}onsubmit="return confirm('Affiner le lecteur d’écriture prend plusieurs heures et environ 6 Go de mémoire. Lancer maintenant ?')"{% endif %}>
+        <button class="bouton {{ 'principal' if L.pret and L.torch and not C }}" {{ 'disabled' if not (L.pret and L.torch) }}>
+          {{ 'Reprendre l’affinage' if L.interrompu else 'Affiner' }}</button>
+      </form>
+      {% if L.en_service or L.precedent %}
+      <form method="post" action="/apprentissage/{{ quoi }}/revenir" class="enligne"><button class="bouton discret">Revenir au précédent</button></form>
+      {% endif %}
+      {% if not L.torch %}<span class="gris">nécessite le lecteur d'écriture (<a href="/reglages">Réglages</a>)</span>
+      {% elif not L.pret %}<span class="gris">{{ 'il faut au moins deux classes corrigées' if quoi == 'ecriture' and not L.test else 'pas encore assez d’exemples' }}</span>{% endif %}
+    </div>
+  </section>
+{% endfor %}
+</div>
+
+{% if A.lots %}
+<details class="panneau-reglages">
+  <summary>Exemples par classe</summary>
+  <table class="memoire">
+    <tr><th>Examen</th><th>Classe</th><th>Lectures vérifiées</th><th>dont nombres</th></tr>
+    {% for l in A.lots %}<tr><td>{{ l.examen }}</td><td>{{ l.classe }}</td><td>{{ l.ecriture }}</td><td>{{ l.nombres }}</td></tr>{% endfor %}
+  </table>
+</details>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% include "_tache_js.html" %}{% endblock %}

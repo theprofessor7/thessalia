@@ -56,8 +56,10 @@ demandés ensuite à chaque ouverture (session de 12 heures). Le mot de passe n'
 compte est demandé, les examens ne sont pas touchés.
 
 Le **menu de gauche** mène partout : **Accueil** (la liste des examens), **Correction** (l'outil de correction
-de l'examen ouvert), **Réglages** (arrondi des notes ; extensions : lecteur d'écriture, Ollama et ses modèles,
-installés ou supprimés en un clic, comme des modules), **Aide** (le guide PDF). Déconnexion en bas du menu.
+de l'examen ouvert), **Apprentissage** (mémoire de vos verdicts ; affiner les lecteurs de chiffres et d'écriture
+sur vos corrections, mesurés sur des copies jamais vues, adoptés seulement s'ils font mieux, l'ancien gardé),
+**Réglages** (arrondi des notes ; extensions : lecteur d'écriture, Ollama et ses modèles, installés ou supprimés
+en un clic, comme des modules), **Aide** (le guide PDF). Déconnexion en bas du menu.
 
 ## 3. Mettre à jour
 
@@ -135,6 +137,10 @@ note n'est définitive que lorsqu'il ne reste rien à revoir.
 
 Déposer la **liste des élèves** de l'examen : un classeur `.xlsx` avec les colonnes `NOM`, `Prénom`, `Classe`.
 Sans liste, les copies ne peuvent pas être attribuées.
+
+**Contrôle des noms** : l'étape 6 compte les copies sans élève et les copies à risque (nom proche d'un autre élève,
+voisin d'un absent, autre groupe). « Vérifier les noms » montre le nom écrit à côté de l'élève attribué, copies à
+risque en tête ; « J'ai vérifié » évite que l'export le redemande tant que rien ne change.
 
 « Exporter les notes » produit `notes_<examen>.xlsx`, avec trois feuilles :
 

@@ -14,9 +14,10 @@
   <nav class="menu-liens">
     <a href="/examens" class="{{ 'actif' if ici.startswith('/examens') }}"><span class="ico">⌂</span>Accueil</a>
     {% if examen_ouvert %}
-    <a href="/" class="{{ 'actif' if not (ici.startswith('/examens') or ici.startswith('/reglages')) }}"><span class="ico">✎</span>Correction
+    <a href="/" class="{{ 'actif' if not (ici.startswith('/examens') or ici.startswith('/reglages') or ici.startswith('/apprentissage')) }}"><span class="ico">✎</span>Correction
       <small>{{ examen_ouvert }}</small></a>
     {% endif %}
+    <a href="/apprentissage" class="{{ 'actif' if ici.startswith('/apprentissage') }}"><span class="ico">✦</span>Apprentissage</a>
     <a href="/reglages" class="{{ 'actif' if ici.startswith('/reglages') }}"><span class="ico">⚙</span>Réglages</a>
     <a href="/aide" target="_blank"><span class="ico">?</span>Aide</a>
   </nav>

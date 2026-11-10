@@ -136,3 +136,39 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     assert _xlsx_rows(racine / "essai" / "notes" / "notes.xlsx")[0]["K"] == "Note finale (max 20)"
     c.post("/reglages/parametres", data={"arrondi": ["0", "1"]})           # interrupteur remis
     assert R.lire()["arrondi_demi_point"] is True
+
+    # ce que la machine retient d'une décision (message de l'outil) : une seule classe, rien à proposer ailleurs
+    r = c.post("/api/decision", json={"classe": "supA_1", "cle": "c01_q2", "verdict": "faux"}).get_json()
+    assert r["retenu"]["lecture"] == "Bonjour, Alice !" and r["retenu"]["verdict"] == "faux"
+    assert (r["retenu"]["n"], r["retenu"]["total"]) == (1, 2)                  # c02 : même lecture, jugée juste
+    assert r["retenu"]["autres_classes"] is False and r["exemple"] is False
+    r = c.post("/api/decision", json={"classe": "supA_1", "cle": "c01_q2", "verdict": "juste", "texte": "Bonjour, Alice !"})
+    assert r.get_json()["exemple"] is True and r.get_json()["retenu"]["n"] == 2
+    r = c.post("/api/decision", json={"classe": "supA_1", "cle": "c01_q1", "options": ["a"]}).get_json()
+    assert "retenu" not in r                                                   # QCM : pas de mémoire des verdicts
+
+    # page Apprentissage : mémoire des verdicts de l'examen ouvert, exemples validés, lecteurs pas encore affinables
+    page = c.get("/apprentissage").get_data(as_text=True)
+    assert "Mémoire de vos verdicts" in page and "<code>Bonjour, Alice !</code>" in page
+    assert "Lecteur de chiffres" in page and "<td>essai</td><td>supA_1</td><td>1</td>" in page
+    c.post("/apprentissage/chiffres/affiner")
+    t = _attendre(c)
+    assert t["etat"] == "erreur" and ("nombres validés" in t["journal"][-1] or "Réglages" in t["journal"][-1])
+
+    # contrôle des noms avant l'export : copies sans élève, puis une copie à risque (nom proche d'un absent)
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert "2 sans élève" in page and "Exporter quand même" in page
+    ecrire_xlsx(tmp_path / "liste.xlsx", [("Liste", [["NOM", "Prénom", "Classe"], ["MARTIN", "Alice", "supA_1"],
+                                                     ["MARTINS", "Léa", "supA_1"], ["DURAND", "Paul", "supA_1"]], [10, 10, 10])])
+    c.post("/examens/essai/liste", data={"liste": ((tmp_path / "liste.xlsx").open("rb"), "liste.xlsx")},
+           content_type="multipart/form-data")
+    for copie, eleve in (("copy_001", "MARTIN Alice"), ("copy_002", "DURAND Paul")):
+        assert c.post("/api/identite", json={"classe": "supA_1", "copie": copie, "etudiant": eleve}).status_code == 200
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert "2 à risque" in page and "sans élève</span>" not in page and "Exporter quand même" in page   # DURAND : voisin de l'absente
+    assert c.post("/examens/essai/verif-noms").headers["Location"] == "/verif-noms"
+    page = c.get("/verif-noms").get_data(as_text=True)
+    assert page.index("MARTIN Alice") < page.index("DURAND Paul") and "nom proche de MARTINS Léa" in page
+    c.post("/examens/essai/noms-verifies")
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert "2 à risque, vérifiées" in page and "Exporter quand même" not in page

@@ -22,6 +22,7 @@ data/correction.sqlite
 data/correction_essai.sqlite
 # compte de l'application (empreinte du mot de passe) et clé de session : propres à chaque PC
 data/compte.json
+data/reglages.json
 data/session.cle
 !data/truth/README.md
 

@@ -196,6 +196,7 @@ travaillez. La fermer arrête Thessalia ; vos données restent.
 Le *menu de gauche* est toujours là :
 - *Accueil* : la liste de vos examens ; « Nouvel examen » en crée un à partir de son fichier source ;
 - *Correction* : l'outil de correction de l'examen ouvert (le menu affiche son nom dessous) ;
+- *Apprentissage* : ce que Thessalia a appris de vos corrections, et l'affinage de ses lecteurs ;
 - *Réglages* : l'arrondi des notes et les extensions à installer (voir « Réglages », plus bas) ;
 - *Aide* : ce guide.
 
@@ -327,9 +328,27 @@ et le verdict proposé (cadre pointillé). Vous pouvez :
 #astuce[
   Les flèches #touche[↑] #touche[↓] passent d'une réponse à l'autre ; tout se fait au clavier. Vos décisions
   sont enregistrées *à chaque clic* : vous pouvez fermer et reprendre plus tard.
-  Thessalia retient aussi vos décisions : une réponse que vous avez déjà jugée plusieurs fois de la même façon
-  vous sera proposée avec ce verdict.
 ]
+
+*D'où vient la proposition ?* Chaque carte porte une étiquette ; survolez-la pour l'explication.
+
+#table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
+  [*✓ vous*], [décidé par vous ;],
+  [*⚙ lecteur sûr*], [lu par la machine et reconnu parmi les réponses prévues : accepté d'office ;],
+  [*⚙ deux lecteurs d'accord*], [les deux lecteurs (dont celui de la préparation de nuit) lisent la même chose ;],
+  [*⚙ tests exécutés*], [code : critères pré-cochés en exécutant le code transcrit ;],
+  [*↺ mémoire*], [votre verdict habituel pour cette lecture, dans les autres classes ;],
+  [*? lecture proposée*], [la machine hésite : à vous de décider.],
+)
+
+Thessalia n'affiche pas de « pourcentage de confiance » : celui du lecteur d'écriture ne sépare pas le juste du
+faux, il donnerait une fausse assurance.
+
+*Ce que Thessalia retient.* Après une décision sur une réponse lue par la machine, un message en bas à droite dit
+ce qu'elle en garde : « Retenu : « 2.5 » → faux (vous : 4 fois sur 4). 6 réponses identiques d'autres classes
+recevront ce verdict en proposition. » Dès 3 jugements, votre verdict est *proposé* dans les autres classes ;
+dès 10 jugements concordants à 95 %, il est *appliqué d'office*. Une lecture que vous corrigez au clavier
+devient un exemple pour affiner le lecteur (page Apprentissage).
 
 Les autres vues, en haut de l'écran :
 - *Copies et notes* : une copie entière, page scannée à gauche, réponses à droite ;
@@ -340,6 +359,13 @@ Les autres vues, en haut de l'écran :
 == Étape 6 — Les notes
 
 Déposer la *liste des élèves* de l'examen : un fichier Excel avec trois colonnes `NOM`, `Prénom`, `Classe`.
+
+*Contrôle des noms.* Avant l'export, l'étape 6 compte les copies sans élève et les copies *à risque* : élève au
+nom très proche d'un autre, voisin d'un absent dans la liste (une erreur de clic d'une ligne), ou d'un autre
+groupe. #bouton-clair[Vérifier les noms] affiche chaque copie avec le nom écrit par l'élève à côté de l'élève
+attribué, les copies à risque en tête. Une fois relues, #bouton[J'ai vérifié les copies à risque] : l'export ne
+vous le redemande plus, tant que ces attributions ne changent pas.
+
 Puis #bouton[Exporter les notes] : un classeur `notes_<examen>.xlsx` à télécharger, avec trois feuilles :
 
 #table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
@@ -349,6 +375,36 @@ Puis #bouton[Exporter les notes] : un classeur `notes_<examen>.xlsx` à téléch
 )
 
 #astuce[Chaque export garde l'ancien classeur à côté, daté. Vous ne perdez jamais une version.]
+
+// ================================================================== apprentissage
+= Apprentissage
+
+Thessalia apprend de vos corrections, sur votre PC. La page *Apprentissage* (menu de gauche) montre ce qu'elle a
+retenu et permet d'affiner ses lecteurs.
+
+#capture("img/apprentissage.png", legende: [La page Apprentissage : la mémoire de vos verdicts, puis les deux lecteurs.])
+
+== La mémoire de vos verdicts
+
+Pour l'examen ouvert : combien de lectures vous avez jugées, combien sont déjà appliquées d'office ou proposées
+dans les autres classes, et la liste des lectures retenues avec votre verdict.
+
+== Affiner les lecteurs
+
+Les lectures que vous avez vérifiées (texte tapé, ou réponse jugée juste et lue exactement) deviennent des
+*exemples*. Jamais une lecture acceptée par la machine sans vous : elle n'apprend pas de ses propres décisions.
+
+#table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
+  [*Lecteur de chiffres*], [réponses numériques ; 20 nombres validés au moins ; quelques minutes ;],
+  [*Lecteur d'écriture*], [réponses courtes ; deux classes corrigées au moins, 100 lectures validées ; plusieurs heures et environ 6 Go de mémoire : à lancer le soir.],
+)
+
+#bouton-clair[Affiner] entraîne un nouveau lecteur puis le *mesure sur des copies qu'il n'a jamais vues* :
+chaque copie lue par un modèle entraîné sans elle (chiffres), ou une classe entière mise de côté (écriture). La
+carte compare alors le lecteur en service et le nouveau. #bouton[Adopter] n'apparaît que si le nouveau fait
+mieux ; l'ancien est gardé, et #bouton-clair[Revenir au précédent] le remet en service.
+
+#astuce[Si Thessalia est fermé pendant l'affinage du lecteur d'écriture, relancer reprend où il s'était arrêté.]
 
 // ================================================================== réglages
 = Réglages

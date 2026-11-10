@@ -1,0 +1,18 @@
+{% if tache and tache.etat == 'en cours' %}
+<script>
+const suivre = async () => {
+  const t = await (await fetch('/tache')).json();
+  if (!t) return;
+  document.getElementById('journal').textContent = t.journal.join('\n');
+  document.getElementById('tache-etat').textContent = t.etat;
+  if (t.progression) {
+    document.getElementById('jauge').hidden = false;
+    document.getElementById('jauge-barre').style.width = t.progression.pc + '%';
+    document.getElementById('jauge-pc').textContent = t.progression.pc + ' %';
+    document.getElementById('jauge-texte').textContent = t.progression.texte;
+  }
+  if (t.etat === 'en cours') setTimeout(suivre, 1000); else location.reload();
+};
+setTimeout(suivre, 1000);
+</script>
+{% endif %}

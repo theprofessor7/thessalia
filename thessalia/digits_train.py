@@ -154,15 +154,19 @@ def numeric_items(results_dir, truth, vocab):
                 yield key, num, cv2.imread(str(results_dir / info["clean"]), cv2.IMREAD_GRAYSCALE)
 
 
-def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, log=print, also=()):
-    """`also` : autres lots validés [(results_dir, vocab, vérité)], affinés et mesurés avec le premier."""
+def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, log=print, also=(), reference=None):
+    """`also` : autres lots validés [(results_dir, vocab, vérité)], affinés et mesurés avec le premier.
+    Vérité : chemin d'un fichier JSON ou dictionnaire {cNN_qX.Y: texte}. `reference` : modèle en service, mesuré
+    sur les mêmes nombres (il ne doit pas avoir vu ces copies). Renvoie {n, base, reference, affine} (nombres
+    justes ; affine = validation croisée par copie, None s'il y a moins de `folds` copies)."""
     torch = _torch()
     torch.set_num_threads(max(1, min(8, torch.get_num_threads())))
     lots = [(results_dir, vocab_path, truth_path), *also]
     items = []  # clés préfixées par le numéro du lot (« 0:c01_q3.1 ») : la copie c01 diffère d'un lot à l'autre
     for i, (rd, vp, tp) in enumerate(lots):
         items += [(f"{i}:{k}", t, img)
-                  for k, t, img in numeric_items(rd, load_json(tp), load_json(vp)["fields"])]
+                  for k, t, img in numeric_items(rd, tp if isinstance(tp, dict) else load_json(tp),
+                                                 load_json(vp)["fields"])]
     if not items:
         raise SystemExit("Aucune réponse numérique avec vérité dans ce lot.")
 
@@ -195,10 +199,16 @@ def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, 
 
     copies = sorted({copy_of(k) for k, _, _ in items})
     all_keys = {k for k, _, _ in items}
-    log(f"modèle de base (MNIST) : {score(DigitReader(base).read, all_keys)}/{len(items)} nombres justes")
+    mesure = {"n": len(items), "base": score(DigitReader(base).read, all_keys), "reference": None, "affine": None}
+    log(f"modèle de base (MNIST) : {mesure['base']}/{len(items)} nombres justes")
+    if reference is not None:
+        mesure["reference"] = score(DigitReader(reference).read, all_keys)
+        log(f"modèle en service ({Path(reference).name}) : {mesure['reference']}/{len(items)} nombres justes")
     if len(copies) >= folds:
         good = [0] * len(lots)
         for f in range(folds):
+            if getattr(log, "progression", None):
+                log.progression(100 * f // (folds + 1), f"validation croisée : pli {f + 1}/{folds}")
             test = set(copies[f::folds])
             net = _finetune(torch, base, *tensors([c for c in copies if c not in test]), xm, ym, seed=f)
             tmp = CACHE / "digits_fold.npz"
@@ -206,9 +216,11 @@ def run(results_dir, vocab_path, truth_path, out=LOCAL, folds=3, base=PACKAGED, 
             for i in range(len(lots)):
                 good[i] += score(DigitReader(tmp).read,
                                  {k for k in all_keys if copy_of(k) in test and k.startswith(f"{i}:")})
+        mesure["affine"] = sum(good)
         log(f"modèle affiné, validation croisée par copie ({folds} plis) : {sum(good)}/{len(items)} nombres justes")
         if len(lots) > 1:
             for i, (rd, _, _) in enumerate(lots):
                 log(f"  {Path(rd).name} : {good[i]}/{sum(k.startswith(f'{i}:') for k in all_keys)}")
     _save(_finetune(torch, base, *tensors(copies), xm, ym, seed=0), out)
     log(f"-> {out} (affiné sur {'tout le lot' if len(lots) == 1 else f'les {len(lots)} lots'} ; hors dépôt)")
+    return mesure

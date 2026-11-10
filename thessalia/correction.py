@@ -844,3 +844,66 @@ class Classe:
         else:
             data[cle] = r
         p.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+# ce que la machine retient d'une décision (message de l'outil, page Apprentissage) ---------------------------
+def retenu(classes, c, cle):
+    """Après une décision de l'enseignant sur une réponse courte en revue : ce que la mémoire des verdicts en tire.
+    Même règle que `Memory` (une classe ne consulte que les autres) : pour chaque autre classe, ses réponses
+    identiques en attente seront décidées d'office (MEMORY_MIN jugements, MEMORY_SHARE concordants), proposées
+    (SUGGEST_MIN) ou pas encore. None si la décision n'alimente pas la mémoire (QCM, code, lecture acceptée,
+    illisible)."""
+    from collections import Counter
+    it = next((i for i in c.short_items(use_memory=False) if i["cle"] == cle), None)
+    if (not it or it["origine"] != "enseignant" or it["lecture"] != "review" or not it["proposition"]
+            or it["verdict"] in (None, ILLISIBLE)):
+        return None
+    fid, mid = it["champ"], c.memory_id(it["champ"])
+    lecture = c.exam.clean(it["proposition"], fid)
+    juges, attente = {}, Counter()
+    for o in classes:
+        if fid not in o.exam.points or o.memory_id(fid) != mid:
+            continue
+        for i in o.short_items(use_memory=False):
+            if i["champ"] != fid or not i["proposition"] or o.exam.clean(i["proposition"], fid) != lecture:
+                continue
+            if i["lecture"] == "review" and i["origine"] in ("enseignant", "vérité") and i["verdict"] != ILLISIBLE:
+                juges.setdefault(o.name, Counter())[i["verdict"]] += 1
+            elif not i["decide"] and o.name != c.name:
+                attente[o.name] += 1
+    tous = sum(juges.values(), Counter())
+    out = {"lecture": it["proposition"], "champ": fid, "verdict": it["verdict"], "n": tous[it["verdict"]],
+           "total": sum(tous.values()), "office": 0, "proposees": 0, "pas_encore": 0,
+           "manque": None, "autres_classes": len(classes) > 1}
+    for nom, k in attente.items():
+        ailleurs = sum((cnt for n, cnt in juges.items() if n != nom), Counter())
+        total = sum(ailleurs.values())
+        v, n = ailleurs.most_common(1)[0] if ailleurs else (None, 0)
+        if total >= MEMORY_MIN and n / total >= MEMORY_SHARE:
+            out["office"] += k
+        elif total >= SUGGEST_MIN:
+            out["proposees"] += k
+        else:
+            out["pas_encore"] += k
+            m = SUGGEST_MIN - total       # jugements qui manquent encore pour la classe la plus avancée
+            out["manque"] = m if out["manque"] is None else min(out["manque"], m)
+    return out
+
+
+def resume_memoire(memory):
+    """Ce que la mémoire des verdicts a retenu (classes ouvertes) : lectures jugées, combien décident seules,
+    combien sont proposées, et les lectures les plus jugées."""
+    from collections import Counter
+    lignes = []
+    for (mid, fid, lecture), par_classe in memory.table.items():
+        tot = sum(par_classe.values(), Counter())
+        total = sum(tot.values())
+        v, n = tot.most_common(1)[0]
+        statut = ("d'office" if total >= MEMORY_MIN and n / total >= MEMORY_SHARE
+                  else "proposé" if total >= SUGGEST_MIN else "en cours")
+        lignes.append({"sujet": mid, "champ": fid, "lecture": lecture, "verdict": v, "n": n, "total": total,
+                       "classes": len(par_classe), "statut": statut})
+    lignes.sort(key=lambda l: (-l["total"], l["champ"]))
+    return {"lectures": len(lignes), "office": sum(l["statut"] == "d'office" for l in lignes),
+            "proposees": sum(l["statut"] == "proposé" for l in lignes), "lignes": lignes,
+            "seuils": {"office": MEMORY_MIN, "part": round(MEMORY_SHARE * 100), "proposition": SUGGEST_MIN}}

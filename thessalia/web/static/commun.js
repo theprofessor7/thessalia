@@ -48,6 +48,63 @@ function marquesBanc(it, id) {
   return s;
 }
 
+// D'où vient la proposition (ou la décision) affichée sur une carte : étiquette, famille (couleur), explication.
+// Pas de pourcentage de confiance : celle du lecteur d'écriture ne sépare pas le juste du faux (erreurs à 1,00).
+function provenance(it) {
+  const h = it.historique;
+  const fam = {
+    "enseignant": ["✓ vous", "vous", "décidé par vous"],
+    "vérité": ["✓ vérité", "vous", "lecture validée auparavant par l'enseignant"],
+    "acceptée": ["⚙ lecteur sûr", "machine", "lu par le lecteur d'écriture et reconnu parmi les réponses prévues du sujet : accepté d'office"],
+    "deux lecteurs": ["⚙ deux lecteurs d'accord", "machine", "le lecteur d'écriture et le second lecteur (préparation de nuit) lisent la même réponse : accepté d'office"],
+    "mémoire": ["↺ mémoire" + (h ? " " + h.n + "/" + h.total : ""), "memoire",
+                h ? "dans les autres classes, vous avez jugé cette lecture « " + h.verdict + " » " + h.n + " fois sur " + h.total + " : appliqué d'office" : "votre verdict habituel pour cette lecture"],
+    "tests": ["⚙ tests exécutés", "machine", "critères pré-cochés en exécutant le code transcrit avec les tests du barème : à confirmer"],
+    "vide ?": ["? vide", "doute", "zone jugée vide par la machine : à confirmer"],
+    "page absente": ["? page absente", "doute", "page absente du scan : décider d'après la copie papier"],
+    "à noter": ["à noter", "doute", "aucune proposition de la machine : à noter au barème"],
+  }[it.origine];
+  if (fam) return fam;
+  if (it.origine === "proposé") {
+    if (it.qcm) return ["? cases lues", "doute", "cases lues sur le scan, avec un doute (rature, case noircie…) : à confirmer"];
+    if (it.code) return ["? relecture du code", "doute", "critères proposés par la lecture du code : à confirmer"];
+    if (h) return ["↺ vos verdicts ailleurs : " + h.verdict + " " + h.n + "/" + h.total, "memoire",
+                   "dans les autres classes, vous avez jugé cette lecture « " + h.verdict + " » " + h.n + " fois sur " + h.total
+                   + " : proposé, pas encore assez sûr pour être appliqué d'office"];
+    return ["? lecture proposée", "doute", "lu par la machine sans certitude : à décider"];
+  }
+  return [it.origine || "", "doute", ""];
+}
+
+function badgeProvenance(it) {
+  const [texte, fam, explication] = provenance(it);
+  const plus = [explication, it.raison && !it.code ? "doute : " + it.raison : null,
+                it.second != null ? "second lecteur : « " + it.second + " »" : null].filter(Boolean).join("\n");
+  return el("span", {className: "origine o-" + fam, textContent: texte, title: plus});
+}
+
+// Après une décision : ce que Thessalia en retient (mémoire des verdicts, exemple pour affiner le lecteur).
+function annoncerRetenu(rep) {
+  const r = rep.retenu, morceaux = [];
+  const s = n => n > 1 ? "s" : "";
+  if (r) {
+    morceaux.push("Retenu : « " + r.lecture + " » → " + r.verdict + (r.total > 1 ? " (vous : " + r.n + " fois sur " + r.total + ")" : "") + ".");
+    if (r.office) morceaux.push(r.office + " réponse" + s(r.office) + " identique" + s(r.office) + " d'autres classes ser" + (r.office > 1 ? "ont" : "a") + " décidée" + s(r.office) + " d'office.");
+    if (r.proposees) morceaux.push(r.proposees + " autre" + s(r.proposees) + " recevr" + (r.proposees > 1 ? "ont" : "a") + " ce verdict en proposition.");
+    if (r.pas_encore) morceaux.push(r.pas_encore + " en attente ailleurs : encore " + r.manque + " jugement" + s(r.manque) + " avant de le leur proposer.");
+    if (!r.office && !r.proposees && !r.pas_encore)
+      morceaux.push(r.autres_classes ? "Aucune réponse identique en attente dans les autres classes." : "Servira aux autres classes de cet examen.");
+  }
+  if (rep.exemple) morceaux.push("Lecture gardée comme exemple pour affiner le lecteur (Apprentissage).");
+  if (!morceaux.length) return;
+  let b = document.getElementById("retenu");
+  if (!b) { b = el("div", {id: "retenu", role: "status"}); document.body.append(b); }
+  b.textContent = morceaux.join(" ");
+  b.classList.add("visible");
+  clearTimeout(annoncerRetenu.minuterie);
+  annoncerRetenu.minuterie = setTimeout(() => b.classList.remove("visible"), 7000);
+}
+
 // Carte d'une réponse : vignette, lecture, boutons de verdict (ou cases d'un QCM).
 // surDecision(reponse_du_serveur) est appelé après chaque enregistrement.
 function carte(it, surDecision, opts = {}) {
@@ -62,6 +119,7 @@ function carte(it, surDecision, opts = {}) {
     const rep = await decider(Object.assign({classe: it.classe, cle: it.cle}, corps));
     if (rep.item) Object.assign(it, rep.item);
     redessiner();
+    annoncerRetenu(rep);
     surDecision(rep, c, clavier);
   };
   const redessiner = () => {
@@ -69,12 +127,7 @@ function carte(it, surDecision, opts = {}) {
     const titre = el("div", {className: "haut"},
       opts.lienCopie === false ? el("span", {textContent: it.champ}) :
         el("a", {href: "/c/" + it.classe + "/" + it.copie, textContent: it.classe + " · copie " + it.num, tabIndex: -1}),
-      el("span", {className: "origine " + (it.origine || "").replace(/\s|\?/g, ""),
-                  textContent: it.origine + (it.historique && (it.origine === "mémoire" || it.origine === "proposé")
-                    ? (it.origine === "mémoire" ? " (" : " · vous : " + it.historique.verdict + " ") + it.historique.n + "/" + it.historique.total + (it.origine === "mémoire" ? ")" : "")
-                    : ""),
-                  title: it.historique ? "dans les autres classes, vous avez jugé cette lecture « " + it.historique.verdict + " » "
-                    + it.historique.n + " fois sur " + it.historique.total : ""}));
+      badgeProvenance(it));
     c.append(titre);
     if (it.img) c.append(el("img", {src: "/img/" + it.classe + "/" + it.img, loading: "lazy", alt: it.cle}));
     else c.append(el("div", {className: "manque", textContent: "pas d'image (page absente du scan ?) : voir la copie papier"}));

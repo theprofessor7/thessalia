@@ -90,7 +90,7 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
         raise SystemExit("Le modèle de départ (--from) et la destination (-o) doivent être différents.")
     train, old = [], []
     for k, (rd, vp, tp) in enumerate(lots):
-        its = list(labelled_items(rd, load_json(vp)["fields"], load_json(tp)))
+        its = list(labelled_items(rd, load_json(vp)["fields"], tp if isinstance(tp, dict) else load_json(tp)))
         log(f"{Path(rd).name} : {len(its)} vignettes étiquetées")
         (train if k < new or replay is None else old).extend(its)
     if replay is not None:
@@ -170,6 +170,10 @@ def run(lots, out=OUT, passes=3, limit=None, base=BASE, lr=2e-5, seed=0, log=pri
                 opt.step()
                 opt.zero_grad()
             done += 1
+            if getattr(log, "progression", None) and n % 5 == 0:   # jauge de l'application
+                left = ((passes - ep - 1) * n_lots + n_lots - n) * (time.time() - t0) / done / 60
+                log.progression(100 * (ep * n_lots + n) // (passes * n_lots),
+                                f"passe {ep + 1}/{passes} · reste environ {left:.0f} min")
             if n % 40 == 0:
                 dt = (time.time() - t0) / done
                 left = ((passes - ep - 1) * n_lots + n_lots - n) * dt / 60

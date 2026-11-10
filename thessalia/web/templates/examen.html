@@ -132,7 +132,18 @@
     </details>
     <p class="aide">Note finale : {{ 'arrondie au demi-point supérieur' if reglages.arrondi_demi_point else 'exacte, sans arrondi' }},
       plafonnée à 20 (<a href="/reglages">modifier dans Réglages</a>).</p>
-    <form class="enligne" method="post" action="/examens/{{ e.nom }}/notes">
+    {% if noms %}
+    <div class="controle-noms {{ 'a-voir' if (noms.risques and not noms.verifie) or noms.sans else 'ok-noms' }}">
+      <b>Contrôle des noms :</b> {{ noms.attribuees }} copie{{ 's' if noms.attribuees > 1 }} attribuée{{ 's' if noms.attribuees > 1 }}
+      {%- if noms.sans %} · <span class="attente">{{ noms.sans }} sans élève</span>{% endif %}
+      {%- if noms.risques %} · <span class="{{ 'ok' if noms.verifie else 'attente' }}">{{ noms.risques }} à risque{{ ', vérifiées' if noms.verifie }}</span>{% endif %}
+      {%- if not noms.sans and not noms.risques %} · <span class="ok">aucune à risque</span>{% endif %}
+      <form class="enligne" method="post" action="/examens/{{ e.nom }}/verif-noms"><button class="bouton {{ 'principal' if (noms.risques and not noms.verifie) or noms.sans }}">Vérifier les noms</button></form>
+    </div>
+    {% endif %}
+    {% set alerte = noms and ((noms.risques and not noms.verifie) or noms.sans) %}
+    <form class="enligne" method="post" action="/examens/{{ e.nom }}/notes"
+          {% if alerte %}{% set manques = ([noms.sans ~ ' copie(s) sans élève'] if noms.sans else []) + ([noms.risques ~ ' copie(s) à risque non vérifiée(s)'] if noms.risques and not noms.verifie else []) %}onsubmit="return confirm('{{ manques|join(' et ') }}. Exporter quand même ?')"{% endif %}>
       <button class="bouton {{ 'principal' if e.lues }}" {{ 'disabled' if not e.lues }}>Exporter les notes</button>
     </form>
     {% if notes %}<a href="/examens/{{ e.nom }}/notes.xlsx">notes_{{ e.nom }}.xlsx</a> <span class="gris">({{ notes }})</span>{% endif %}

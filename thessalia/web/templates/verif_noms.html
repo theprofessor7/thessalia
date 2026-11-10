@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block titre %}Contrôle des noms{% endblock %}
+{% block nav %}<a href="/">Tableau de bord</a> › Contrôle des noms{% endblock %}
+{% block contenu %}
+<h1>Contrôle des noms avant l'export</h1>
+<p class="aide">Pour chaque copie, le nom écrit par l'élève à côté de l'élève à qui la copie est attribuée. Les
+  copies <b>à risque</b> passent en tête : nom très proche d'un autre élève, voisin d'un absent dans la liste,
+  ou élève d'un autre groupe. Une erreur se corrige dans « Identifier » du groupe.</p>
+<div class="tuiles">
+  <div class="tuile"><b>{{ lignes|length }}</b><span>copies attribuées</span></div>
+  <div class="tuile {{ 'doute-f' if n_risque }}"><b>{{ n_risque }}</b><span>à risque</span></div>
+  <div class="tuile {{ 'faux-f' if sans }}"><b>{{ sans|length }}</b><span>sans élève</span></div>
+</div>
+{% if sans %}
+<p class="attente">Copies sans élève :
+  {% for s in sans %}<a href="/g/{{ s.groupe }}/noms">{{ s.classe }} · copie {{ s.copie.split('_')[-1]|int }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>
+{% endif %}
+<table class="verif-noms">
+  {% for l in lignes %}
+  <tr class="{{ 'risque' if l.raisons }}">
+    <td class="gris">{{ l.classe }}<br>copie {{ l.num }}<br><a href="/c/{{ l.classe }}/{{ l.copie }}">ouvrir</a></td>
+    <td>{% for z, src in l.img.items() %}<img loading="lazy" src="/img/{{ l.classe }}/{{ src }}" alt="{{ z }}">{% else %}<span class="gris">pas de vignette : voir la copie</span>{% endfor %}</td>
+    <td><div class="eleve">{{ l.eleve }}</div>
+      {% for r in l.raisons %}<div class="raison">⚠ {{ r }}</div>{% endfor %}</td>
+    <td><a class="bouton discret" href="/g/{{ l.groupe }}/noms">Corriger</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% if examen_ouvert and n_risque %}
+<form method="post" action="/examens/{{ examen_ouvert }}/noms-verifies" class="fin-verif">
+  <button class="bouton principal">J'ai vérifié les copies à risque</button>
+  <span class="gris">l'export des notes ne vous le redemandera plus, tant que ces attributions ne changent pas</span>
+</form>
+{% endif %}
+{% endblock %}

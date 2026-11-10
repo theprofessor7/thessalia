@@ -70,7 +70,8 @@ def _vers(chemin, message):
     return f"{chemin}?m={quote(str(message))}"
 
 
-def enregistrer(app, racine: Path, charger):
+def enregistrer(app, racine: Path, charger, memoire=None):
+    """memoire : fonction qui résume la mémoire des verdicts des classes ouvertes (page Apprentissage)."""
     from flask import abort, jsonify, redirect, render_template, request, send_from_directory
 
     taches = Taches()
@@ -121,7 +122,7 @@ def enregistrer(app, racine: Path, charger):
         notes = p.notes_xlsx
         return render_template("examen.html", e=resume(p), pdfs=[f.name for f in p.pdfs()], tache=t,
                                ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=outils(),
-                               liste=p.liste(), reglages=p.reglages(), ollama=ollama_local.etat(), validation=p.mesure_lecture() if resume_lues(p) else {},
+                               liste=p.liste(), reglages=p.reglages(), noms=p.controle_noms(), ollama=ollama_local.etat(), validation=p.mesure_lecture() if resume_lues(p) else {},
                                notes=time.strftime("%d/%m/%Y %H:%M", time.localtime(notes.stat().st_mtime))
                                if notes.exists() else None)
 
@@ -237,6 +238,46 @@ def enregistrer(app, racine: Path, charger):
         noms = {"installer": "Installer", "demarrer": "Démarrer", "telecharger": "Télécharger", "supprimer": "Supprimer"}
         return lancer(REG, f"{noms.get(action, action)} : {ident}", lambda log: extensions.agir(ident, action, log),
                       retour="/reglages")
+
+    # ---------------------------------------------------------------- apprentissage
+    APP = "__apprentissage__"
+
+    @app.route("/apprentissage")
+    def apprentissage_page():
+        from . import apprentissage
+        t = taches.courante if taches.courante and taches.courante["projet"] == APP else None
+        return render_template("apprentissage.html", A=apprentissage.etat(racine), memoire=memoire() if memoire else None,
+                               tache=t, message=request.args.get("m"))
+
+    @app.post("/apprentissage/<quoi>/<action>")
+    def apprentissage_action(quoi, action):
+        from . import apprentissage as A
+        if quoi not in ("chiffres", "ecriture") or action not in ("affiner", "adopter", "revenir", "ecarter"):
+            abort(404)
+        lecteur = {"chiffres": "lecteur de chiffres", "ecriture": "lecteur d'écriture"}[quoi]
+        titre = {"affiner": "Affiner le", "adopter": "Adopter le nouveau", "revenir": "Revenir au précédent",
+                 "ecarter": "Écarter le nouveau"}[action] + " " + lecteur
+        fn = {"affiner": lambda log: (A.affiner_chiffres if quoi == "chiffres" else A.affiner_ecriture)(racine, log=log),
+              "adopter": lambda log: A.adopter(quoi, log), "revenir": lambda log: A.revenir(quoi, log),
+              "ecarter": lambda log: A.ecarter(quoi, log)}[action]
+        return lancer(APP, titre, fn, retour="/apprentissage")
+
+    # ---------------------------------------------------------------- contrôle des noms
+    @app.post("/examens/<nom>/verif-noms")
+    def verif_noms(nom):
+        """Ouvre l'examen dans l'outil de correction, sur la page de contrôle des noms."""
+        p = projet(nom)
+        try:
+            charger(p.dossiers_lus(), p.stockage())
+        except SystemExit as e:
+            return redirect(_vers(f"/examens/{nom}", e))
+        etat["ouvert"] = nom
+        return redirect("/verif-noms")
+
+    @app.post("/examens/<nom>/noms-verifies")
+    def noms_verifies(nom):
+        projet(nom).noms_verifies()
+        return redirect(f"/examens/{nom}#notes")
 
     @app.route("/aide")
     def aide():
