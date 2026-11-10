@@ -26,12 +26,17 @@ class Taches:
         with self._verrou:
             if self.courante and self.courante["etat"] == "en cours":
                 raise RuntimeError(f"une tâche tourne déjà : {self.courante['titre']}")
-            t = {"projet": projet, "titre": titre, "etat": "en cours", "journal": [], "debut": time.time(), "fin": None}
+            t = {"projet": projet, "titre": titre, "etat": "en cours", "journal": [], "debut": time.time(), "fin": None,
+                 "progression": None}
             self.courante = t
 
         def log(*a):
             t["journal"].append(" ".join(str(x) for x in a))
             del t["journal"][:-400]
+
+        def progression(pc, texte=""):    # jauge affichée au-dessus du journal (téléchargements)
+            t["progression"] = {"pc": max(0, min(100, int(pc))), "texte": texte}
+        log.progression = progression
 
         class Sortie:                     # print des modules (preparer, excel…) → journal
             def write(self, s):
@@ -274,4 +279,4 @@ def enregistrer(app, racine: Path, charger):
     @app.route("/tache")
     def tache():
         t = taches.courante
-        return jsonify(None if t is None else {k: t[k] for k in ("projet", "titre", "etat", "journal")})
+        return jsonify(None if t is None else {k: t[k] for k in ("projet", "titre", "etat", "journal", "progression")})

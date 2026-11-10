@@ -213,6 +213,11 @@ body.voir-local .banc-cache { display:revert !important; }
 .enligne { display:inline; margin-left:8px; }
 .bouton[disabled] { opacity:.45; cursor:not-allowed; }
 .tache { background:var(--carte); border:1px solid var(--trait); border-left:5px solid var(--doute); border-radius:8px; padding:4px 14px 10px; margin-bottom:12px; max-width:980px; }
+.jauge { display:flex; align-items:center; gap:12px; margin:4px 0 10px; }
+.jauge[hidden] { display:none; }
+.jauge-fond { flex:1; max-width:520px; height:12px; background:var(--fond); border:1px solid var(--trait); border-radius:99px; overflow:hidden; }
+.jauge-barre { height:100%; background:linear-gradient(90deg, var(--accent), #5b8ad6); border-radius:99px; transition:width .8s ease; }
+.jauge-pc { font-weight:700; font-variant-numeric:tabular-nums; min-width:3.2em; text-align:right; }
 .tache.terminé { border-left-color:var(--juste); } .tache.erreur { border-left-color:var(--faux); }
 .tache pre { max-height:260px; overflow:auto; background:var(--fond); padding:8px; border-radius:6px; font-size:12px; white-space:pre-wrap; }
 

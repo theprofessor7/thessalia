@@ -115,18 +115,36 @@ def installer(log=print):
     log("Ollama est installé et démarré. Reste à télécharger les modèles.")
 
 
+class _Progres:
+    """Avancement d'un téléchargement : jauge de la page si elle existe (log.progression), sinon une ligne
+    du journal tous les 10 %."""
+
+    def __init__(self, log):
+        self.log, self.jauge, self.dernier = log, getattr(log, "progression", None), -10
+
+    def __call__(self, fait, total, unite=1e9, nom="Go"):
+        if not total:
+            return
+        pc = int(fait * 100 / total)
+        texte = f"{fait / unite:.1f} / {total / unite:.1f} {nom}"
+        if self.jauge:
+            self.jauge(pc, texte)
+        elif pc >= self.dernier + 10:
+            self.log(f"  {pc} % ({texte})")
+            self.dernier = pc
+
+
 def _telecharger(url, dest, log):
+    progres = _Progres(log)
     with urllib.request.urlopen(url, timeout=60) as r, open(dest, "wb") as f:
-        total, fait, dernier = int(r.headers.get("Content-Length") or 0), 0, 0
+        total, fait = int(r.headers.get("Content-Length") or 0), 0
         while True:
             bloc = r.read(1 << 20)
             if not bloc:
                 break
             f.write(bloc)
             fait += len(bloc)
-            if total and fait * 100 // total >= dernier + 10:
-                dernier = fait * 100 // total
-                log(f"  {dernier} % ({fait / 1e6:.0f} / {total / 1e6:.0f} Mo)")
+            progres(fait, total, 1e6, "Mo")
 
 
 def telecharger_modele(nom, log=print):
@@ -137,7 +155,7 @@ def telecharger_modele(nom, log=print):
     log(f"Téléchargement de {nom} (une fois ; plusieurs Go, cela peut prendre longtemps)…")
     req = urllib.request.Request(OLLAMA + "/api/pull", data=json.dumps({"model": nom, "stream": True}).encode(),
                                  headers={"Content-Type": "application/json"})
-    dernier = (None, -10)
+    progres, couches, dernier = _Progres(log), {}, None
     with urllib.request.urlopen(req, timeout=600) as r:
         for ligne in r:
             if not ligne.strip():
@@ -145,15 +163,14 @@ def telecharger_modele(nom, log=print):
             m = json.loads(ligne)
             if m.get("error"):
                 raise SystemExit(f"Ollama : {m['error']}")
+            if m.get("total") and m.get("digest"):     # un modèle = plusieurs fichiers : avancement global
+                couches[m["digest"]] = (m.get("completed", 0), m["total"])
+                progres(sum(c for c, _ in couches.values()), sum(t for _, t in couches.values()))
+                continue
             st = m.get("status", "")
-            if m.get("total"):
-                pc = int(m.get("completed", 0) * 100 / m["total"])
-                if st != dernier[0] or pc >= dernier[1] + 5:
-                    log(f"  {st[:40]} : {pc} % ({m.get('completed', 0) / 1e9:.1f} / {m['total'] / 1e9:.1f} Go)")
-                    dernier = (st, pc)
-            elif st != dernier[0]:
+            if st != dernier and not st.startswith("pulling "):
                 log(f"  {st}")
-                dernier = (st, -10)
+                dernier = st
     if nom not in (modeles_installes() or []):
         raise SystemExit(f"{nom} : téléchargement terminé mais modèle absent d'Ollama")
     log(f"{nom} est prêt.")

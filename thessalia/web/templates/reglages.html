@@ -8,6 +8,12 @@
 {% if tache %}
 <section class="tache {{ tache.etat|replace(' ', '-') }}" id="tache">
   <h2>{{ tache.titre }} — <span id="tache-etat">{{ tache.etat }}</span></h2>
+  {% set pg = tache.progression %}
+  <div class="jauge" id="jauge" {{ 'hidden' if not pg or tache.etat != 'en cours' }}>
+    <div class="jauge-fond"><div class="jauge-barre" id="jauge-barre" style="width:{{ pg.pc if pg else 0 }}%"></div></div>
+    <span class="jauge-pc" id="jauge-pc">{{ pg.pc if pg else 0 }} %</span>
+    <span class="gris" id="jauge-texte">{{ pg.texte if pg }}</span>
+  </div>
   <pre id="journal">{{ tache.journal|join('\n') }}</pre>
 </section>
 {% endif %}
@@ -58,9 +64,15 @@ const suivre = async () => {
   if (!t) return;
   document.getElementById('journal').textContent = t.journal.join('\n');
   document.getElementById('tache-etat').textContent = t.etat;
-  if (t.etat === 'en cours') setTimeout(suivre, 1500); else location.reload();
+  if (t.progression) {
+    document.getElementById('jauge').hidden = false;
+    document.getElementById('jauge-barre').style.width = t.progression.pc + '%';
+    document.getElementById('jauge-pc').textContent = t.progression.pc + ' %';
+    document.getElementById('jauge-texte').textContent = t.progression.texte;
+  }
+  if (t.etat === 'en cours') setTimeout(suivre, 1000); else location.reload();
 };
-setTimeout(suivre, 1500);
+setTimeout(suivre, 1000);
 </script>
 {% endif %}
 {% endblock %}

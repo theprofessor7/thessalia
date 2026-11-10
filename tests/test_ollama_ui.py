@@ -46,3 +46,53 @@ def test_modele_inconnu_refuse():
         ollama_local.telecharger_modele("n_importe_quoi", log=lambda *a: None)
     with pytest.raises(SystemExit, match="inconnu"):
         ollama_local.supprimer_modele("n_importe_quoi", log=lambda *a: None)
+
+
+def test_progression_telechargement(monkeypatch):
+    """Plusieurs fichiers dans un modèle : une jauge globale, le journal ne garde que les étapes."""
+    import io
+    import json
+    flux = [{"status": "pulling manifest"},
+            {"status": "pulling a", "digest": "a", "total": 3_000_000_000, "completed": 0},
+            {"status": "pulling a", "digest": "a", "total": 3_000_000_000, "completed": 1_500_000_000},
+            {"status": "pulling b", "digest": "b", "total": 1_000_000_000, "completed": 1_000_000_000},
+            {"status": "pulling a", "digest": "a", "total": 3_000_000_000, "completed": 3_000_000_000},
+            {"status": "verifying sha256 digest"}, {"status": "success"}]
+    corps = b"".join(json.dumps(m).encode() + b"\n" for m in flux)
+    monkeypatch.setattr(ollama_local.urllib.request, "urlopen", lambda *a, **k: io.BytesIO(corps))
+    monkeypatch.setattr(ollama_local, "demarrer", lambda log: True)
+    monkeypatch.setattr(ollama_local, "modeles_installes", lambda: ["qwen3-vl:4b-instruct"])
+    journal, jauge = [], []
+    log = lambda *a: journal.append(" ".join(map(str, a)))            # noqa: E731
+    log.progression = lambda pc, texte: jauge.append((pc, texte))
+    ollama_local.telecharger_modele("qwen3-vl:4b-instruct", log)
+    assert [pc for pc, _ in jauge] == [0, 50, 62, 100] and jauge[-1][1] == "4.0 / 4.0 Go"
+    assert not any("%" in l for l in journal) and "  verifying sha256 digest" in journal
+    journal.clear()                                                   # sans jauge (ligne de commande) : tous les 10 %
+    ollama_local.telecharger_modele("qwen3-vl:4b-instruct", journal.append)
+    assert [l for l in journal if "%" in l] == ["  0 % (0.0 / 3.0 Go)", "  50 % (1.5 / 3.0 Go)",
+                                               "  62 % (2.5 / 4.0 Go)", "  100 % (4.0 / 4.0 Go)"]
+
+
+def test_jauge_sur_la_page(tmp_path, monkeypatch):
+    monkeypatch.setattr(ollama_local, "etat", lambda: {"installe": True, "lance": True, "windows": True, "modeles": []})
+    monkeypatch.setattr(extensions, "trocr_etat", lambda: {"biblio": True, "poids": True, "installe": True})
+    import threading
+    fin = threading.Event()
+
+    def lent(nom, log):
+        log.progression(42, "1.3 / 3.0 Go")
+        fin.wait(5)
+    monkeypatch.setattr(ollama_local, "telecharger_modele", lent)
+    (tmp_path / "examens").mkdir()
+    c = create_app([], tmp_path / "d.sqlite", examens=tmp_path / "examens").test_client()
+    c.post("/reglages/extension", data={"id": "qwen3-vl:4b-instruct", "action": "telecharger"})
+    for _ in range(50):
+        if (c.get("/tache").get_json() or {}).get("progression"):
+            break
+        time.sleep(0.05)
+    assert c.get("/tache").get_json()["progression"] == {"pc": 42, "texte": "1.3 / 3.0 Go"}
+    page = c.get("/reglages").get_data(as_text=True)
+    assert 'style="width:42%"' in page and "42 %" in page
+    fin.set()
+    _attendre(c)
