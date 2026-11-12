@@ -149,12 +149,18 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None, log=print, arrondi
         for r in c.notes():
             eleve = r["etudiant"] if r["copie"] in attrib else None
             g = groupe_de.get(eleve) or group_of(c.name)
-            ligne = [g, eleve or "", c.name, int(r["copie"].split("_")[-1]), r["qcm"], r["courtes"], r["code"],
-                     r["total"], r["max"], r["en_attente"], note_finale(r["total"], arrondi)]
+            hf = r.get("hors_format")
+            ligne = [g, eleve or "", c.name, int(r["copie"].split("_")[-1])] \
+                + (["", "", ""] if hf else [r["qcm"], r["courtes"], r["code"]]) \
+                + [r["total"], r["max"], r["en_attente"], note_finale(r["total"], arrondi)]
             notes.append(ligne)
             if not eleve or r["en_attente"]:
-                verifier.append([g, eleve or "(non identifiée)", c.name, ligne[3], r["en_attente"],
-                                 "copie sans élève" if not eleve else "réponses en attente : note provisoire"])
+                raison = ("copie sans élève" if not eleve else
+                          "copie hors format : note à saisir dans l'outil (0 en attendant)" if hf else
+                          "réponses en attente : note provisoire")
+                verifier.append([g, eleve or "(non identifiée)", c.name, ligne[3], r["en_attente"], raison])
+            elif hf:      # notée à la main : signalée pour mémoire, la note compte
+                verifier.append([g, eleve, c.name, ligne[3], 0, "copie hors format, notée à la main"])
     rang = lambda g: GROUP_ORDER.index(g) if g in GROUP_ORDER else len(GROUP_ORDER)
     notes.sort(key=lambda l: (rang(l[0]), l[1]))
     pris = {l[1] for l in notes if l[1]}

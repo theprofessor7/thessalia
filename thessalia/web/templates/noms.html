@@ -82,7 +82,9 @@ D.copies.forEach((c, i) => {
     props.append(b);
   }
   ligne.append(el("span", {className: "num", textContent: c.classe + " · copie " + c.num}),
-    c.nom ? el("img", {src: "/img/" + c.classe + "/" + c.nom, alt: "nom", loading: "lazy"}) : el("span", {className: "gris", textContent: "pas de zone Nom"}),
+    c.hors_format ? el("a", {href: "/c/" + c.classe + "/" + c.copie, target: "_blank", className: "hors-format",
+                             textContent: "copie hors format : lire le nom sur la feuille ↗"})
+      : c.nom ? el("img", {src: "/img/" + c.classe + "/" + c.nom, alt: "nom", loading: "lazy"}) : el("span", {className: "gris", textContent: "pas de zone Nom"}),
     c.prenom ? el("img", {src: "/img/" + c.classe + "/" + c.prenom, alt: "prénom", loading: "lazy"}) : el("span", {className: "gris", textContent: "pas de zone Prénom"}),
     el("div", {className: "choix"}, champ, etat, props));
   const peindre = () => {

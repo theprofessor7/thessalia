@@ -43,6 +43,7 @@ from .notes import ATTENTE, FAUX, FORME, ILLISIBLE, JUSTE, PARTIEL, RATE, VIDE, 
 TRUTH_DIR = Path("data/truth")
 LISTS_DIR = Path("data/listes")
 DB_PATH = Path("data/correction.sqlite")
+HORS_FORMAT = "hors_format"   # clé de décision de la note saisie à la main : cNN_hors_format
 SECOND = "lectures_secondaires.json"
 
 
@@ -327,6 +328,9 @@ class Classe:
             self.partage = {f for f, v in self.exam.key.get("short_answers", {}).items() if autre.get(f) == v}
             self.source = src
         self.copy_ids = [c["copy_id"] for c in res["copies"]]
+        # copies hors format (cf. pipeline) : aucune réponse lue, une note saisie à la main (clé HORS_FORMAT)
+        self.hors_format = [c["copy_id"] for c in res["copies"] if c.get("hors_format")]
+        self.lues = [cid for cid in self.copy_ids if cid not in self.hors_format]
         self.decisions = decisions
         self.truth_dir, self.lists_dir = Path(truth_dir), Path(lists_dir)
         self._docs = {}
@@ -360,7 +364,7 @@ class Classe:
         sep = self._json(self.dir / SEPARATEUR)
         dec = self.decisions.of(self.name)
         items = []
-        for cid in self.copy_ids:
+        for cid in self.lues:
             n, doc = _num(cid), self.doc(cid)
             for fid, pts in self.exam.points.items():
                 key = f"c{n:02d}_{fid}"
@@ -494,7 +498,7 @@ class Classe:
         truth = self._json(self.truth_dir / f"{self.name}.qcm_truth.json")
         dec = self.decisions.of(self.name)
         items = []
-        for cid in self.copy_ids:
+        for cid in self.lues:
             n, doc = _num(cid), self.doc(cid)
             reasons = {r["item"]: r for r in doc.get("review", [])}
             answers = doc.get("answers", {})
@@ -540,7 +544,7 @@ class Classe:
         if getattr(self, "_encre_cache", None) is None:
             p = self.dir / CODE_ENCRE
             data = self._json(p)
-            manque = [(cid, fid) for cid in self.copy_ids for fid in self.exam.bareme.get("champs", {})
+            manque = [(cid, fid) for cid in self.lues for fid in self.exam.bareme.get("champs", {})
                       if fid not in data.get(cid, {}) and (self.doc(cid).get("fields", {}).get(fid) or {}).get("crop")]
             if manque:
                 import cv2
@@ -565,7 +569,7 @@ class Classe:
         # page de chaque cadre : l'élève écrit souvent sous le cadre imprimé, la page entière le montre
         page_de = {f["id"]: pg["page"] for pg in self.exam.template["pages"] for f in pg["fields"]}
         items = []
-        for cid in self.copy_ids:
+        for cid in self.lues:
             n, doc = _num(cid), self.doc(cid)
             for fid, bar in b.items():
                 key = f"c{n:02d}_{fid}"
@@ -644,7 +648,19 @@ class Classe:
             q_by_copy.setdefault(it["copie"], []).append(it)
         key = self.exam.key
         rows = []
+        dec = self.decisions.of(self.name)
+        mx_examen = None
         for cid in self.copy_ids:
+            if cid in self.hors_format:
+                if mx_examen is None:
+                    mx_examen = self.max_examen()
+                saisie = (dec.get(self.cle_hors_format(cid)) or {}).get("texte")
+                note = float(saisie) if saisie not in (None, "") else None
+                rows.append({"classe": self.name, "copie": cid, "etudiant": students.get(cid, f"{self.name}_{cid}"),
+                             "qcm": 0, "courtes": 0, "code": 0, "total": note or 0, "provisoire": note or 0,
+                             "max": mx_examen, "en_attente": 0 if note is not None else 1, "hors_format": True,
+                             "etat": "notée à la main" if note is not None else "hors format : note à saisir"})
+                continue
             answers = json.loads(json.dumps(self.doc(cid).get("answers", {})))
             wait_q = 0
             for it in q_by_copy.get(cid, []):
@@ -671,12 +687,33 @@ class Classe:
                          "en_attente": attente, "etat": "complète" if attente == 0 else "incomplète"})
         return rows
 
+    def cle_hors_format(self, cid):
+        return f"c{_num(cid):02d}_{HORS_FORMAT}"
+
+    def max_examen(self):
+        """Points de l'examen (QCM + réponses courtes + code) : le maximum d'une copie lue."""
+        qcm = grade_copy({}, self.exam.template, self.exam.key).get("max", 0) if self.exam.key.get("answers") else 0
+        return round(qcm + sum(p or 0 for p in self.exam.points.values())
+                     + sum(b["points"] for b in self.exam.bareme.get("champs", {}).values()), 3)
+
+    def noter_hors_format(self, cid, note):
+        """Note d'une copie hors format, en points de l'examen ; None l'efface. Refusée hors de [0, maximum]."""
+        if cid not in self.hors_format:
+            raise ValueError(f"{cid} n'est pas une copie hors format")
+        if note is None:
+            self.decisions.clear(self.name, self.cle_hors_format(cid))
+            return
+        mx = self.max_examen()
+        if not 0 <= note <= mx:
+            raise ValueError(f"note hors de l'échelle de l'examen (0 à {mx:g} points)")
+        self.decisions.set(self.name, self.cle_hors_format(cid), texte=f"{note:g}")
+
     # copies à reprendre sur le papier ---------------------------------------------------
     def a_la_main(self):
         """Copies dont une page manque au scan ou est illisible, avec les réponses touchées encore à décider
         et les points en jeu (cf. `report.copies_a_la_main`)."""
         from .report import copies_a_la_main
-        docs = [self.doc(cid) | {"copy_id": cid} for cid in self.copy_ids]
+        docs = [self.doc(cid) | {"copy_id": cid} for cid in self.lues]
         liste = copies_a_la_main(docs, self.exam.template)
         if not liste:
             return []
@@ -706,7 +743,7 @@ class Classe:
         dec = self.decisions.of(self.name)
         out = {k: v for k, v in truth.items() if not v.endswith("?")}
         expected = self.exam.key.get("short_answers", {})
-        for cid in self.copy_ids:
+        for cid in self.lues:
             n, doc = _num(cid), self.doc(cid)
             for fid in self.exam.points:
                 key = f"c{n:02d}_{fid}"

@@ -92,6 +92,8 @@ def copies_a_la_main(copies, template):
         par_page[p["page"]] = [f["id"] for f in p["fields"] if f["type"] in ("mcq", "truefalse", "short_text", "text_box", "code_grid")]
     out = []
     for c in copies:
+        if c.get("hors_format"):     # rien n'y est lu : vue en entier et notée à la main dans l'outil
+            continue
         manq, ill = c.get("missing_pages") or [], c.get("unreadable") or []
         if not manq and not ill:
             continue

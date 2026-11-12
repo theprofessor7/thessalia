@@ -452,3 +452,9 @@ a.etape-point:hover .rond { border-color:var(--accent); }
 .dossier-examen { font-size:12px; margin:2px 0 0; }
 .corbeille { margin:18px 0; max-width:980px; }
 .corbeille summary { cursor:pointer; color:var(--gris); }
+.bandeau-hors-format { background:var(--doutef); border:1px solid var(--trait); border-radius:6px; padding:8px 12px; margin-bottom:12px; }
+.feuille-hors-format { margin:0 0 16px; }
+.feuille-hors-format img { width:100%; max-width:900px; border:1px solid var(--trait); background:#fff; }
+.note-hors-format { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; }
+.note-hors-format input { width:7em; font-size:18px; }
+a.hors-format { font-size:13px; }

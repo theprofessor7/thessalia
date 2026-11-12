@@ -46,7 +46,7 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
     question pour comparer H à Claude (`<classe>/code_lectures_claude.json`, critères proposés en session) et à la
     chaîne locale (tests sur la transcription locale). Idée de l'enseignant, 27 octobre : sur le Booster, les
     anciennes décisions du code sont surtout des propositions de Claude validées en lot, pas une référence."""
-    from flask import Flask, abort, jsonify, render_template, request, send_from_directory, Response
+    from flask import Flask, abort, jsonify, render_template, request, send_from_directory, Response, redirect, url_for
 
     web = Path(__file__).parent / "web"
     app = Flask(__name__, template_folder=str(web / "templates"), static_folder=str(web / "static"))
@@ -95,7 +95,7 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
             s, q, n = c.short_items(), c.qcm_items(), c.notes()
             rows.append({"classe": c.name, "copies": len(c.copy_ids),
                          "a_decider": sum(not i["decide"] for i in s + q), "total": len(s) + len(q),
-                         "completes": sum(r["etat"] == "complète" for r in n)})
+                         "completes": sum(r["en_attente"] == 0 for r in n)})
         return rows
 
     def avec_banc(c, items):
@@ -235,6 +235,7 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
                 vig = {z: f"{cid}/crops/identity.{z}.png" for z in ("nom", "prenom")}
                 vig = {z: p if (c.dir / p).exists() else None for z, p in vig.items()}
                 rows.append({"classe": c.name, "copie": cid, "num": int(cid.split("_")[-1]), **vig,
+                             "hors_format": cid in c.hors_format,
                              "confirme": att[c.name].get(cid),
                              "propositions": [{"eleve": e, "score": sc} for e, sc in rang[:3]]})
         # proposition pré-remplie : répartition d'ensemble sur les copies non confirmées et les élèves libres
@@ -301,6 +302,13 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
             abort(404)
         i = c.copy_ids.index(cid)
         doc = c.doc(cid)
+        nav = {"prec": c.copy_ids[i - 1] if i else None,
+               "suiv": c.copy_ids[i + 1] if i + 1 < len(c.copy_ids) else None}
+        if cid in c.hors_format:
+            note = next(r for r in c.notes() if r["copie"] == cid)
+            return render_template("copie_hors_format.html", classe=classe, copie=cid, groupe=c.group, note=note,
+                                   annexes=doc.get("annexes", []), etudiant=c.students().get(cid),
+                                   message=request.args.get("m"), **nav)
         pages = []
         for num, p in sorted(doc.get("pages", {}).items(), key=lambda kv: int(kv[0])):
             if p.get("overlay"):
@@ -320,6 +328,22 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
         return render_template("copie.html", data=payload, classe=classe, copie=cid, groupe=c.group, a_la_main=main,
                                prec=c.copy_ids[i - 1] if i else None,
                                suiv=c.copy_ids[i + 1] if i + 1 < len(c.copy_ids) else None)
+
+    @app.post("/c/<classe>/<cid>/note-hors-format")
+    def note_hors_format(classe, cid):
+        """Note saisie à la main d'une copie hors format (points de l'examen, virgule acceptée ; vide = effacer)."""
+        c = classes.get(classe) or abort(404)
+        brut = (request.form.get("note") or "").strip()
+        vers = lambda m: redirect(url_for("copy_page", classe=classe, cid=cid, m=m))
+        try:
+            note = float(brut.replace(",", ".")) if brut else None
+        except ValueError:
+            return vers(f"Note refusée : « {brut} » n'est pas un nombre.")
+        try:
+            c.noter_hors_format(cid, note)
+        except ValueError as e:
+            return vers(f"Note refusée : {e}.")
+        return vers("Note enregistrée." if brut else "Note effacée.")
 
     @app.route("/verif-noms")
     def verif_noms_page():

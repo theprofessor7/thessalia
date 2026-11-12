@@ -9,11 +9,17 @@
 <table class="notes">
   <tr><th>Classe</th><th>Copie</th><th>Étudiant</th><th>QCM</th><th>Réponses courtes</th><th>Code</th><th>Total</th><th>État</th></tr>
   {% for r in notes %}
-  <tr class="{{ 'fini' if r.etat == 'complète' }}">
+  <tr class="{{ 'fini' if r.en_attente == 0 }}">
     <td>{{ r.classe }}</td><td><a href="/c/{{ r.classe }}/{{ r.copie }}">{{ r.copie }}</a></td><td>{{ r.etudiant }}</td>
+    {% if r.hors_format %}
+    <td class="n gris" colspan="3">copie hors format</td>
+    <td class="n">{% if r.en_attente %}—{% else %}<b>{{ '%.2f' | format(r.total) }}</b>{% endif %}</td>
+    <td>{% if r.en_attente %}<a href="/c/{{ r.classe }}/{{ r.copie }}">note à saisir</a>{% else %}<span class="ok">notée à la main</span>{% endif %}</td></tr>
+    {% else %}
     <td class="n">{{ '%.2f' | format(r.qcm) }}</td><td class="n">{{ '%.2f' | format(r.courtes) }}</td><td class="n">{{ '%.2f' | format(r.code) }}</td>
     <td class="n"><b>{{ '%.2f' | format(r.total) }}</b>{% if r.etat != 'complète' %} <span class="gris">({{ '%.2f' | format(r.provisoire) }})</span>{% endif %}</td>
     <td>{% if r.etat == 'complète' %}<span class="ok">complète</span>{% else %}{{ r.en_attente }} à décider{% endif %}</td></tr>
+    {% endif %}
   {% endfor %}
 </table>
 {% endblock %}

@@ -5,6 +5,11 @@ sujet vierge ; une nouvelle copie commence quand le numéro de page identifié
 ne progresse pas (ex. ... p16, p17, p1 -> nouvelle copie). Les pages
 manquantes sont signalées. Une page illisible (fiducials non trouvés) est
 rattachée à la copie en cours et signalée.
+
+Copie hors format : des pages non reconnues mais écrites, qui ne peuvent appartenir ni à la copie qui précède
+(déjà complète) ni à celle qui suit (elle commence à sa page 1), forment une copie à part (feuille tapée d'un
+élève avec aménagement, autre format…). Rien n'y est lu : l'enseignant la voit en entier et la note à la main.
+Ces copies sont numérotées après les autres, pour ne pas décaler les numéros (et les décisions) des copies lues.
 """
 from __future__ import annotations
 
@@ -85,12 +90,60 @@ class Processor:
         return {"schema": RESULT_SCHEMA, "exam_id": self.template["exam_id"], "copy_id": f"copy_{n:03d}",
                 "pages": {}, "unreadable": [], "answers": {}, "fields": {}, "review": []}
 
+    def _illisible(self, c, label, err):
+        c["unreadable"].append({"source": label, "error": err})
+        c["review"].append({"item": label, "reason": f"page illisible : {err}"})
+
+    def _orphelines(self, cur, last, nouvelle_page, orph, hors_format):
+        """Pages non reconnues (écrites) entre deux pages reconnues ; nouvelle_page : page reconnue qui suit (None
+        en fin de lot). Suite de la même copie : ce sont ses pages illisibles. Sinon : la fin de la copie en cours
+        (s'il lui manque des pages), le début de la suivante (si elle ne commence pas à 1), le reste hors format.
+        Retourne les pages du début de la copie suivante."""
+        if not orph:
+            return []
+        if nouvelle_page is not None and nouvelle_page > last:
+            for sp, err in orph:
+                self._illisible(cur, sp.label, err)
+            return []
+        fin = min(self.template["page_count"] - last, len(orph))
+        for sp, err in orph[:fin]:
+            self._illisible(cur, sp.label, err)
+            self.log(f"  {sp.label}: rattachée à {cur['copy_id']} (page illisible)")
+        reste = orph[fin:]
+        debut = min((nouvelle_page or 1) - 1, len(reste))
+        suivante = reste[len(reste) - debut:] if debut else []
+        reste = reste[:len(reste) - debut]
+        if reste:
+            hors_format.append(reste)
+            self.log(f"  {', '.join(sp.label for sp, _ in reste)}: écrites mais sans repères, entre deux copies "
+                     f"complètes → copie hors format, à noter à la main")
+        return suivante
+
+    def _hors_format(self, n, pages, out_dir):
+        c = self._new_copy(n)
+        c.update(hors_format=True, annexes=[], missing_pages=[], flat={})
+        d = out_dir / c["copy_id"] / "pages"
+        d.mkdir(parents=True, exist_ok=True)
+        for i, (sp, err) in enumerate(pages, 1):
+            p = d / f"hors_format_{i:02d}.jpg"
+            g = sp.gray
+            s = min(1.0, 1400 / max(g.shape))
+            cv2.imwrite(str(p), cv2.resize(g, None, fx=s, fy=s, interpolation=cv2.INTER_AREA) if s < 1 else g,
+                        [cv2.IMWRITE_JPEG_QUALITY, 85])
+            c["annexes"].append({"source": sp.label, "img": str(p.relative_to(out_dir)).replace("\\", "/")})
+            c["unreadable"].append({"source": sp.label, "error": err})
+        c["review"].append({"item": "copie", "reason": f"copie hors format ({len(pages)} page(s) sans repères : "
+                            f"{', '.join(sp.label for sp, _ in pages)}) : rien n'est lu, à noter à la main"})
+        save_json(c, out_dir / c["copy_id"] / "result.json")
+        return c
+
     def run(self, scan_paths, out_dir):
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         t0 = time.time()
         copies, cur, last = [], None, 0
         self.blank_pages, self.other_pages, pending = [], [], []
+        orph, hors_format = [], []
         N = self.template["page_count"]
         from .loader import count_pages
         jauge = getattr(self.log, "progression", None)
@@ -115,36 +168,48 @@ class Processor:
                     self.log(f"  {sp.label}: page hors copie avant la première copie "
                              f"(feuille de présence ?), ignorée")
                     continue
-                cur["unreadable"].append({"source": sp.label, "error": str(e)})
-                cur["review"].append({"item": sp.label, "reason": f"page illisible : {e}"})
+                orph.append((sp, str(e)))      # rattachée plus loin, selon la page reconnue qui suit
                 self.log(f"  {sp.label}: ÉCHEC alignement — {e}")
                 continue
             first = cur is None
+            suivante = [] if first else self._orphelines(cur, last, al.page, orph, hors_format)
+            orph = []
             if cur is None or al.page <= last:
                 cur = self._new_copy(len(copies) + 1)
                 copies.append(cur)
+                for o, err in suivante:
+                    self._illisible(cur, o.label, err)
+                    self.log(f"  {o.label}: rattachée à {cur['copy_id']} (page illisible)")
             if first:
                 # la première copie ne commence pas à la page 1 : les pages non reconnues juste avant
                 # sont sans doute ses premières pages, pas une feuille de présence
                 k = min(al.page - 1, len(pending))
                 for label, err in pending[len(pending) - k:]:
-                    cur["unreadable"].append({"source": label, "error": err})
-                    cur["review"].append({"item": label, "reason": f"page illisible : {err}"})
+                    self._illisible(cur, label, err)
                     self.log(f"  {label}: finalement rattachée à {cur['copy_id']} (page illisible)")
                 self.other_pages = [label for label, _ in pending[:len(pending) - k]]
             last = al.page
             self._process_page(cur, sp, al, out_dir)
         if cur is None:  # aucune copie reconnue dans le lot
             self.other_pages = [label for label, _ in pending]
+        else:
+            self._orphelines(cur, last, None, orph, hors_format)
         self._check_template(copies)
         for c in copies:
             self._finalize(c, out_dir)
+        n_lues = len(copies)
+        for pages in hors_format:
+            copies.append(self._hors_format(len(copies) + 1, pages, out_dir))
+        if hors_format:
+            self.log(f"  {len(hors_format)} copie(s) hors format (numéros {n_lues + 1} et suivants) : à noter à la main "
+                     "dans l'outil de correction")
         for ligne in texte_a_la_main(copies_a_la_main(copies, self.template)):
             self.log(ligne)
         save_json({"schema": RESULT_SCHEMA + "/batch", "exam_id": self.template["exam_id"],
                    "n_copies": len(copies), "blank_pages": self.blank_pages, "other_pages": self.other_pages, "elapsed_s": round(time.time() - t0, 1),
                    "copies": [{k: c[k] for k in ("copy_id", "missing_pages", "unreadable", "flat")}
-                              | {"n_review": len(c["review"]), "grade": c.get("grade")} for c in copies]},
+                              | {"n_review": len(c["review"]), "grade": c.get("grade")}
+                              | ({"hors_format": True} if c.get("hors_format") else {}) for c in copies]},
                   out_dir / "results.json")
         write_batch_csv(copies, self.template, out_dir / "results.csv")
         write_review_csv(copies, out_dir / "review.csv")

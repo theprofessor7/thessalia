@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titre %}{{ classe }} · {{ copie }} (hors format){% endblock %}
+{% block nav %}<a href="/">Tableau de bord</a> › <a href="/g/{{ groupe }}">Groupe {{ groupe }}</a> ›
+<a href="/g/{{ groupe }}/copies">Copies</a> › {{ classe }} · {{ copie }}{% endblock %}
+{% block outils %}
+{% if prec %}<a class="bouton" id="prec" href="/c/{{ classe }}/{{ prec }}">← copie précédente</a>{% endif %}
+{% if suiv %}<a class="bouton" id="suiv" href="/c/{{ classe }}/{{ suiv }}">copie suivante →</a>{% endif %}
+{% endblock %}
+{% block contenu %}
+<div class="bandeau-hors-format"><b>Copie hors format</b> : {{ annexes|length }} page{{ 's' if annexes|length > 1 }}
+  sans les repères du sujet (feuille tapée, autre format…), séparée{{ 's' if annexes|length > 1 }} des copies voisines.
+  Rien n'y est lu automatiquement : lisez-la ici et saisissez sa note.</div>
+{% if message %}<p class="message">{{ message }}</p>{% endif %}
+<div class="vue-copie">
+  <div class="pages">
+    {% for a in annexes %}
+    <figure class="feuille-hors-format">
+      <img src="/img/{{ classe }}/{{ a.img }}" alt="page {{ loop.index }} de la copie hors format">
+      <figcaption class="gris">page {{ loop.index }} · {{ a.source }}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+  <aside class="panneau">
+    <h2>Note</h2>
+    <form method="post" action="/c/{{ classe }}/{{ copie }}/note-hors-format" class="note-hors-format">
+      <label>Points obtenus sur {{ '%g' | format(note.max) }}
+        <input name="note" inputmode="decimal" autocomplete="off" autofocus
+               value="{{ '%g' | format(note.total) if not note.en_attente }}" placeholder="ex. 7,5"></label>
+      <button class="bouton principal">Enregistrer</button>
+    </form>
+    <p class="aide">Même échelle que les copies lues (QCM, réponses courtes et code compris) : l'export la reprend
+      comme les autres notes. Champ vide puis « Enregistrer » : la note est effacée.</p>
+    <p>{% if note.en_attente %}<span class="attente">Note à saisir</span> : en attendant, l'export compte 0 et la signale
+      dans « À vérifier ».{% else %}<span class="ok">Notée à la main</span> : {{ '%g' | format(note.total) }} / {{ '%g' | format(note.max) }}.{% endif %}</p>
+    <h2>Élève</h2>
+    <p>{% if etudiant and not etudiant.startswith(classe ~ '_') %}<b>{{ etudiant }}</b>{% else %}<span class="attente">pas encore attribuée</span>{% endif %}
+      · <a href="/g/{{ groupe }}/noms">identifier les copies du groupe</a></p>
+  </aside>
+</div>
+{% endblock %}
