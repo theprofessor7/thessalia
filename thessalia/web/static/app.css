@@ -447,3 +447,4 @@ a.etape-point:hover .rond { border-color:var(--accent); }
 .tache.en-pause { border-left-color:var(--forme); }
 .jauge.figee .jauge-barre { background:var(--gris); }
 .bouton.lecture-en-cours { color:var(--forme); border-color:var(--forme); background:var(--formef); font-weight:600; }
+.interrompue { background:var(--formef); color:var(--forme); padding:6px 10px; border-radius:6px; margin:6px 0; }

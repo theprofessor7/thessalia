@@ -187,3 +187,12 @@ def test_assistant_etapes():
     e.update(produit=False)                                              # source changée : la classe reste visible
     assert etapes_examen(e, None, True, False, True)[0][2]["bloque"] is None
     assert etapes_examen(e, {"titre": "Exporter les notes"}, True, True, True)[1] == 6   # tâche : son étape
+
+
+def test_assistant_lecture_approfondie_interrompue():
+    """Thessalia fermé pendant la lecture approfondie : l'examen rouvre sur l'étape 4, pas sur la correction."""
+    from thessalia.web_examens import etapes_examen
+    e = {"erreurs": [], "produit": True, "classes": [{"classe": "A"}], "lues": 1, "courtes": 1}
+    assert etapes_examen(e, None, False, False, True)[1] == 5
+    assert etapes_examen(e, None, False, False, True, {"etat": "en cours", "interrompue": True})[1] == 4
+    assert etapes_examen(e, None, False, False, True, {"etat": "terminée", "interrompue": False})[1] == 5

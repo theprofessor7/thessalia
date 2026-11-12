@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 
 from .sujet.modele import examen
@@ -171,13 +172,42 @@ class Projet:
             log(f"noms non lus : {e}")
 
     def preparer(self, log=print):
-        """Routine de la veille (code transcrit et pré-coché, réponses courtes relues) avec les modèles Ollama
-        présents ; ses messages (print) arrivent dans le journal de la tâche."""
+        """Lecture approfondie (code transcrit et pré-coché, réponses courtes relues) avec les modèles Ollama
+        présents ; ses messages (print) arrivent dans le journal de la tâche. Son début et sa fin sont notés : une
+        lecture interrompue (pause, Thessalia fermé) se voit à la page de l'examen, qui propose de la reprendre."""
         from .preparer import run
         dossiers = self.dossiers_lus()
         if not dossiers:
             raise SystemExit("aucune classe lue")
+        self._noter_approfondie(etat="en cours", debut=time.strftime("%Y-%m-%d %H:%M"))
         run(dossiers)
+        self._noter_approfondie(etat="terminée", fin=time.strftime("%Y-%m-%d %H:%M"))
+
+    def _noter_approfondie(self, **valeurs):
+        p = self.dir / "lecture_approfondie.json"
+        d = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        d.update(valeurs)
+        p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+
+    def approfondie(self):
+        """Où en est la lecture approfondie : None si jamais lancée, sinon {etat, cadres, relues} (cadres de code
+        transcrits, réponses courtes relues, toutes classes) ; etat « en cours » sans tâche qui tourne = interrompue."""
+        p = self.dir / "lecture_approfondie.json"
+        if not p.exists():
+            return None
+        d = json.loads(p.read_text(encoding="utf-8"))
+
+        def compte(nom):
+            n = 0
+            for c in self.dossiers_lus():
+                f = c / nom
+                if f.exists():
+                    try:
+                        n += len(json.loads(f.read_text(encoding="utf-8")))
+                    except ValueError:
+                        pass
+            return n
+        return dict(d, cadres=compte("code_lectures.json"), relues=compte("lectures_secondaires.json"))
 
     # ---------------------------------------------------------------- validation de la lecture
     def mesure_lecture(self):

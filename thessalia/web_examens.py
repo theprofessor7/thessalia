@@ -132,7 +132,7 @@ ETAPE_DES_TACHES = (("Produire", 2), ("Lire les copies", 3), ("Lire les réponse
                     ("Lecture approfondie", 4), ("Exporter", 6))
 
 
-def etapes_examen(e, tache, ouvert, notes, trocr):
+def etapes_examen(e, tache, ouvert, notes, trocr, approfondie=None):
     """Assistant de la page d'examen : état de chaque étape et celle où ouvrir la page.
     Une étape n'est grisée que si un VRAI prérequis manque (pas de dépôt sans PDF produits, pas de correction ni
     d'export sans classe lue) ; une étape faite reste toujours accessible (le parcours n'est pas linéaire : une
@@ -146,7 +146,9 @@ def etapes_examen(e, tache, ouvert, notes, trocr):
         {"n": 3, "titre": "Copies scannées", "faite": lues > 0,
          "bloque": None if e["produit"] or e["classes"] else "produisez d'abord les PDF (étape 2)"},
         {"n": 4, "titre": "Lectures automatiques", "facultatif": True,
-         "faite": bool(lues) and e["courtes"] == lues, "bloque": sans_classe},
+         # une lecture approfondie interrompue (Thessalia fermé, pause) garde l'étape « à faire » : on y revient
+         "faite": bool(lues) and e["courtes"] == lues and not (approfondie or {}).get("interrompue"),
+         "bloque": sans_classe},
         {"n": 5, "titre": "Correction", "faite": bool(ouvert), "bloque": sans_classe},
         {"n": 6, "titre": "Notes", "faite": bool(notes), "bloque": sans_classe},
     ]
@@ -211,8 +213,12 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         t = taches.courante if taches.courante and taches.courante["projet"] == nom else None
         notes = p.notes_xlsx
         e, out = resume(p), outils()
-        etapes, courante = etapes_examen(e, t, etat["ouvert"] == nom, notes.exists(), out["trocr"])
-        return render_template("examen.html", e=e, pdfs=[f.name for f in p.pdfs()], tache=t, etapes=etapes,
+        appr = p.approfondie()
+        if appr:
+            appr["en_tache"] = bool(t and t["titre"].startswith("Lecture approfondie") and t["etat"] in ("en cours", "en pause"))
+            appr["interrompue"] = appr["etat"] == "en cours" and not appr["en_tache"]
+        etapes, courante = etapes_examen(e, t, etat["ouvert"] == nom, notes.exists(), out["trocr"], appr)
+        return render_template("examen.html", e=e, approfondie=appr, pdfs=[f.name for f in p.pdfs()], tache=t, etapes=etapes,
                                courante=courante,
                                ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=out,
                                liste=p.liste(), reglages=p.reglages(), noms=p.controle_noms(), ollama=ollama_local.etat(), validation=p.mesure_lecture() if resume_lues(p) else {},

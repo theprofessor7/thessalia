@@ -140,9 +140,18 @@
     <form class="enligne" method="post" action="/tache/pause"><button class="bouton lecture-en-cours" {{ 'disabled' if profonde.pause }}>⏸ {{ 'Pause demandée…' if profonde.pause else 'Mettre en pause la lecture approfondie' }}</button></form>
     {% elif profonde and profonde.etat == 'en pause' %}
     <form class="enligne" method="post" action="/tache/reprendre"><button class="bouton principal">▶ Reprendre la lecture approfondie</button></form>
+    {% elif approfondie and approfondie.interrompue %}
+    <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer">
+      <button class="bouton principal" {{ 'disabled' if not (e.lues and outils.ollama) }}>▶ Reprendre la lecture approfondie</button>
+    </form>
+    <p class="interrompue">Lecture approfondie interrompue (Thessalia fermé ou PC éteint) : {{ approfondie.cadres }}
+      cadre(s) de code transcrit(s), {{ approfondie.relues }} réponse(s) relue(s). Elle reprend où elle s'était
+      arrêtée.</p>
     {% else %}
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer">
-      <button class="bouton" {{ 'disabled' if not (e.lues and outils.ollama) }}>▶ Lancer la lecture approfondie</button>
+      {% set appr_faite = approfondie and approfondie.etat == 'terminée' %}
+      <button class="bouton {{ 'fait' if appr_faite }}" {{ 'disabled' if not (e.lues and outils.ollama) }}>
+        {{ 'Lecture approfondie faite · relancer' if appr_faite else '▶ Lancer la lecture approfondie' }}</button>
     </form>
     {% endif %}
     <span class="aide">Le code écrit à la main est transcrit et pré-coché, les réponses courtes relues par un
