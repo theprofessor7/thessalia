@@ -1,227 +1,130 @@
 # Thessalia — mode d'emploi
 
-Thessalia prépare un examen papier (sujet et corrigé en PDF, en français et en anglais), lit les copies scannées
-et aide à les corriger : QCM et vrai/faux lus automatiquement, réponses courtes et code proposés à la relecture,
-notes sur 20 dans un classeur Excel.
+Thessalia lit les copies papier scannées d'un examen et aide à les corriger : cases lues automatiquement,
+réponses écrites proposées à la relecture, notes sur 20 dans un classeur Excel. Tout se passe **sur votre
+ordinateur**, dans votre navigateur : rien n'est envoyé sur internet.
 
-Tout se passe **sur votre ordinateur**, dans votre navigateur. Rien n'est envoyé sur internet : ni les copies,
-ni les noms, ni les notes. Aucun abonnement, aucune clé.
+Guide illustré : [`Thessalia_mode_emploi.pdf`](Thessalia_mode_emploi.pdf) (aussi dans le menu **Aide**).
+
+**Thessalia ne décide jamais en silence** : ce qui est douteux (case à moitié cochée, écriture difficile, page
+illisible…) est marqué « à décider », avec la raison.
 
 ---
 
-## 1. Installer (une fois, ~10 minutes)
+## 1. Ouvrir Thessalia
 
-Il faut **Python 3.10 ou plus récent** et **git**.
-
-- Python : https://www.python.org/downloads/ (sous Windows, cocher **« Add python.exe to PATH »**).
-- git : https://git-scm.com/downloads (options par défaut).
-
-Récupérer Thessalia, dans un dossier dont le chemin ne contient pas « $ » (par exemple `C:\Thessalia`) :
+**Installer, une fois.** Installer [Python](https://www.python.org/downloads/) (Windows : cocher **« Add
+python.exe to PATH »**) et [git](https://git-scm.com/downloads), puis dans PowerShell :
 
 ```
 git clone https://github.com/theprofessor7/thessalia.git C:\Thessalia
 ```
 
-Puis :
+et double-cliquer sur `installer.bat` (Mac / Linux : `./installer.sh`). Le lecteur d'écriture (~2 Go) est
+facultatif ; il s'ajoute plus tard depuis **Réglages**.
 
-- **Windows** : double-cliquer sur `installer.bat`.
-- **macOS / Linux** : dans un terminal, `./installer.sh`.
+**Lancer, à chaque fois.** Double-cliquer sur `Thessalia.bat` (Mac : `Thessalia.command`). **Laisser la fenêtre
+noire ouverte.** Au premier lancement, choisir un identifiant et un mot de passe.
 
-L'installeur est un simple programme Python (`installer.py`), lisible par tous. Si Windows bloque le
-double-clic, voir « Si Windows bloque » (§ 6).
+**Mettre à jour.** Thessalia fermé : `git pull` dans le dossier, relancer l'installeur, puis relancer Thessalia.
 
-L'installeur demande s'il faut ajouter le **lecteur d'écriture** (~2 Go). Il lit automatiquement les réponses
-courtes. Sans lui, tout fonctionne : les réponses courtes se corrigent à la main dans l'outil. On peut l'ajouter
-plus tard en un clic, page **Réglages** de l'application.
+**L'accueil** montre une carte par examen :
 
-### Facultatif : la lecture approfondie (code manuscrit)
+- **Ouvrir** : la page de l'examen, un assistant en six étapes ; une étape grisée dit ce qui lui manque ;
+- **Supprimer** : l'examen part dans la **corbeille** (en bas de l'accueil) avec tout son contenu ;
+  **Restaurer** le remet d'un clic. Rien n'est effacé du disque.
 
-Elle utilise **Ollama**, logiciel gratuit qui fait tourner les modèles sur ce PC. Rien à taper : dans
-l'application, page **Réglages** (menu de gauche), la carte Ollama l'installe en un clic (Windows ; sur Mac,
-la page de téléchargement s'ouvre), puis chaque modèle avec son bouton « Télécharger » (8B : lecture du code ;
-4B : second lecteur des réponses courtes ; 14B, facultatif : réparateur). Il faut environ 20 Go de disque et
-16 Go de mémoire. Sans réseau, le dossier des modèles d'Ollama peut être copié depuis le PC d'un collègue.
+## 2. Charger les copies d'une classe (étape 3)
 
-## 2. Lancer
+Scanner **toutes les copies d'une classe en un seul PDF** (A4 ou A3, 100 dpi ou plus ; pages tournées, blanches
+ou sujet imprimé en A3 : gérés). Puis : nom de la classe, **langue du sujet distribué**, PDF, **Déposer et lire**.
 
-- **Windows** : double-cliquer sur `Thessalia.bat`.
-- **macOS** : double-cliquer sur `Thessalia.command` (Linux : `./Thessalia.command`).
+- Le nom range la classe dans son groupe : `supA_1`, `supA_2` → groupe A. Une copie scannée à part se charge
+  comme une classe de plus (`supA_2`).
+- Une jauge suit la lecture ; une fenêtre résume la fin. **Lue · relire** relit une classe, décisions gardées.
 
-Le navigateur s'ouvre sur http://127.0.0.1:8765/examens. **Laisser la fenêtre noire ouverte** : la fermer
-arrête Thessalia.
+## 3. Corriger (étape 5)
 
-Au premier lancement, choisir un **identifiant** et un **mot de passe** (8 caractères au moins) ; ils sont
-demandés ensuite à chaque ouverture (session de 12 heures). Le mot de passe n'est jamais enregistré en clair.
-**Oubli** : fermer Thessalia, supprimer `data/compte.json` dans le dossier de Thessalia, relancer ; un nouveau
-compte est demandé, les examens ne sont pas touchés.
+**Corriger les copies lues** ouvre l'outil : tableau de bord par groupe, une carte par question. Corriger **par
+question** : chaque réponse montre l'image, la lecture de la machine, l'attendu et le verdict proposé. Chaque clic
+est enregistré.
 
-Le **menu de gauche** mène partout : **Accueil** (la liste des examens), **Correction** (l'outil de correction
-de l'examen ouvert), **Apprentissage** (mémoire de vos verdicts ; affiner les lecteurs de chiffres et d'écriture
-sur vos corrections, mesurés sur des copies jamais vues, adoptés seulement s'ils font mieux, l'ancien gardé),
-**Réglages** (arrondi des notes ; extensions : lecteur d'écriture, Ollama et ses modèles, installés ou supprimés
-en un clic, comme des modules), **Aide** (le guide PDF). Déconnexion en bas du menu.
+Autres vues : **Copies et notes** (une copie entière), **Identifier les copies** (attribuer chaque copie à un
+élève), **Suivi de la machine**.
 
-## 3. Mettre à jour
+Étape 4, facultative : lecture des réponses courtes (lecteur d'écriture) et **lecture approfondie** du code
+manuscrit (Ollama, en arrière-plan, quelques heures ; pause ⏸ et reprise ▶). À installer depuis **Réglages**.
 
-Thessalia lancé fermé, dans le dossier de Thessalia :
+## 4. Les outils des cartes
 
-```
-git pull
-```
+| Bouton | Touche | Effet |
+|---|---|---|
+| ✓ valider | Entrée | accepter le verdict proposé |
+| juste / forme / faux | 1 / 2 / 3 | tous les points / la moitié / zéro |
+| vide / illisible | 4 / 5 | rien d'écrit / impossible à lire |
+| bien lu | L | lecture exacte : exemple pour l'apprentissage |
+| = attendu | A | l'élève a écrit l'attendu, la machine a mal lu |
+| autre lecture | 6 7 8 | choisir une autre lecture proposée |
+| corriger la lecture | T | taper ce qui est écrit ; le verdict se recalcule |
+| annuler | Suppr | effacer la décision |
 
-puis relancer l'installeur (il ne refait que ce qui manque). Vos examens ne sont pas touchés.
+Code : 1…5 cochent les critères, J tout juste, 0 rien de juste, V vide, M entorse grave.
 
----
+L'étiquette de la carte dit d'où vient la proposition (vous, lecteur sûr, deux lecteurs d'accord, tests
+exécutés, mémoire, lecture proposée). Dès 3 jugements identiques, votre verdict est proposé dans les autres
+classes ; dès 10 à 95 %, il est appliqué d'office.
 
-## 4. Un examen, du sujet aux notes
+## 5. Les outils des blocs
 
-La page d'un examen est un assistant : une étape à la fois, pastilles en haut, « Précédent / Suivant » en bas
-(ou flèches du clavier). Une étape faite est cochée en vert ; une étape grisée dit ce qui lui manque.
+Les réponses identiques d'une question forment un bloc :
 
-### Étape 1 — Source du sujet
+- **Confirmer le bloc** : le verdict proposé pour tout le bloc ;
+- **bien lu pour le bloc** : lecture exacte partout ;
+- **= attendu pour le bloc** : la machine a mal lu la même chose, tous ont écrit l'attendu ;
+- **vide pour le bloc** : zones sans lecture où rien n'est écrit.
 
-Le sujet s'écrit **une seule fois** dans un fichier texte `examen.yaml` : énoncés en français et en anglais,
-bonnes réponses, barème. Le format est décrit dans [`FORMAT_SUJET.md`](FORMAT_SUJET.md). Le plus simple est de
-partir du fichier d'un collègue.
+**Valider toutes les propositions** (en haut) accepte tout ce qui reste sur la question.
 
-« Nouvel examen » : choisir le fichier (et les images, comme le logo). Thessalia **contrôle** tout de suite le
-fichier. En cas d'erreur, il affiche la ligne et la raison (« ligne 42 : bonne réponse « e » absente des
-choix »). Corriger dans un éditeur de texte, puis « Remplacer la source ». L'ancienne version est gardée.
+## 6. Exporter les notes (étape 6)
 
-### Étape 2 — Sujets et corrigés
-
-« Produire les PDF » fabrique le sujet et le corrigé de chaque langue. Thessalia relit ensuite le PDF produit
-et **refuse** de continuer si une zone de réponse n'est pas exactement là où elle est dessinée.
-
-Imprimer les `sujet_….pdf`. **Ne pas modifier le PDF** (ni le redimensionner à l'impression : choisir « taille
-réelle »). Les carrés noirs dans les coins servent à repérer la feuille.
-
-Si la source change, il faut produire à nouveau. La page le signale.
-
-### Étape 3 — Copies scannées
-
-Scanner les copies d'une classe en un seul PDF : A4 ou A3, recto, 100 dpi ou plus. Les pages tournées ou
-blanches sont gérées.
-
-Indiquer le nom de la classe (ex. `supA_1`) et **la langue du sujet distribué**, puis « Déposer et lire ». La
-lecture prend une à quelques minutes. Si la langue est fausse, le journal affiche **« GABARIT DOUTEUX »** :
-redéposer avec la bonne langue.
-
-### Étape 4 — Lectures automatiques (facultatif)
-
-- **Lire les réponses courtes** (lecteur d'écriture) : quelques minutes par classe. Pour un sujet nouveau,
-  **toutes** les réponses partent en revue, avec la lecture proposée. C'est voulu : un sujet n'est validé
-  qu'après une mesure sur des copies corrigées.
-- **Sujet validé** : à mesure que vous corrigez les réponses courtes, la page compte les lectures que la machine
-  aurait acceptées d'office et combien sont justes d'après vous. Le bouton s'active à partir de 30 lectures
-  vérifiées **sans aucun écart**. Ensuite, les réponses sûres de ce sujet sont acceptées d'office ; les autres
-  restent en revue. Produire à nouveau le sujet annule la validation.
-- **Lecture approfondie** (Ollama) : transcrit le code manuscrit, pré-coche les critères du barème en exécutant le
-  code, et fait relire les réponses courtes par un second modèle. Elle tourne en arrière-plan pendant que vous
-  travaillez (quelques heures selon le nombre de copies) ; Thessalia prévient à la fin, et la relancer reprend où
-  elle s'était arrêtée.
-
-Une seule tâche longue tourne à la fois. Son journal s'affiche en haut de la page.
-
-### Étape 5 — Correction
-
-« Corriger les copies lues » ouvre l'outil de correction :
-
-- **par question** : toutes les réponses d'une même question, regroupées ; une décision s'applique aux
-  réponses identiques ;
-- **par copie** : une copie entière ;
-- **identification** : attribuer chaque copie à un élève de la liste.
-
-Thessalia ne décide jamais en silence. Tout ce qui est douteux est marqué **« à revoir »**, avec la raison. Une
-note n'est définitive que lorsqu'il ne reste rien à revoir.
-
-### Étape 6 — Notes
-
-Déposer la **liste des élèves** de l'examen : un classeur `.xlsx` avec les colonnes `NOM`, `Prénom`, `Classe`.
-Sans liste, les copies ne peuvent pas être attribuées.
-
-**Contrôle des noms** : l'étape 6 compte les copies sans élève et les copies à risque (nom proche d'un autre élève,
-voisin d'un absent, autre groupe). « Vérifier les noms » montre le nom écrit à côté de l'élève attribué, copies à
-risque en tête ; « J'ai vérifié » évite que l'export le redemande tant que rien ne change.
-
-« Exporter les notes » produit `notes_<examen>.xlsx`, avec trois feuilles :
-
-- **Notes** : une ligne par copie, note sur 20 arrondie au demi-point supérieur (13,1 → 13,5) et plafonnée
-  à 20 ; l'arrondi se désactive dans **Réglages** (pour tous les examens) ;
-- **Absents** : élèves de la liste sans copie ;
-- **À vérifier** : copies sans élève ou avec des réponses encore en attente (note provisoire).
-
-Chaque export garde l'ancien classeur, daté.
+1. Déposer la **liste des élèves** (`.xlsx`, colonnes `NOM`, `Prénom`, `Classe`).
+2. Attribuer les copies (**Identifier les copies**).
+3. **Vérifier les noms** : copies sans élève et copies à risque en tête.
+4. **Exporter les notes** : feuilles **Notes** (note sur 20, arrondie au demi-point supérieur, réglable),
+   **Absents**, **À vérifier**. L'ancien classeur est gardé, daté.
 
 ---
 
-## 5. Où sont mes fichiers ? Confidentialité
+## Si ça bloque
 
-Tout un examen est rangé dans `examens/<nom de l'examen>/` dans le dossier de Thessalia :
+**Page illisible.** Une page sans les carrés noirs des coins est signalée avec sa place dans le PDF
+(`supH.pdf#73` = page 73). Une page du sujet abîmée reste dans sa copie (réponses à décider). Une **feuille d'un
+autre format** (réponses tapées, feuille libre) entre deux copies complètes devient une **copie hors format**,
+numérotée après les autres : la lire dans l'outil, saisir sa note (même échelle que les autres copies),
+l'attribuer à l'élève. L'export la reprend ; en attendant, elle compte 0 et figure dans « À vérifier ».
 
-| Dossier ou fichier | Contenu |
+| Ce que vous voyez | Que faire |
 |---|---|
-| `examen.yaml` | la source du sujet |
-| `produit/` | PDF des sujets et corrigés, fichiers de correction |
-| `scans/` | copies scannées |
-| `classes/` | lectures des copies |
-| `decisions.sqlite` | vos décisions de correction |
-| `listes/` | liste des élèves, attributions des copies |
-| `notes/` | classeurs de notes |
+| GABARIT DOUTEUX | Mauvaise langue au dépôt : redéposer le PDF avec l'autre langue. |
+| Une nouveauté n'apparaît pas | Relancer Thessalia, puis « Lue · relire » si elle concerne la lecture. |
+| « une tâche tourne encore » | Mettre la tâche en pause (⏸) ou attendre la fin. |
+| « n'a pas pu être déplacé » | Fermer les fichiers ouverts de l'examen (PDF, Excel), recommencer. |
+| La page ne s'ouvre pas | Fenêtre noire ouverte ? Aller sur http://127.0.0.1:8765/examens. |
+| « Address already in use » | Thessalia tourne déjà : utiliser l'onglet ouvert. |
+| Boutons de l'étape 4 grisés | Installer ce qui manque depuis **Réglages**. |
+| « Source refusée » | Lire la ligne indiquée, corriger le fichier, « Remplacer la source ». |
+| Mot de passe oublié | Supprimer `data/compte.json`, relancer. |
+| « Python introuvable » | Réinstaller Python avec « Add python.exe to PATH ». |
+| Windows bloque les `.bat` | SmartScreen : « Informations complémentaires » → « Exécuter quand même ». PC verrouillé : `py installer.py` puis `.venv\Scripts\python -m thessalia app` dans PowerShell. |
+| Autre | Envoyer le journal (« Détail ») à l'auteur, **sans** copie ni nom d'élève. |
 
-Ce dossier contient des **copies et des noms d'élèves** :
+## Pour aller plus loin
 
-- ne pas le partager ni le déposer sur un espace partagé ;
-- il n'est jamais envoyé avec `git` (il est exclu du dépôt).
+- **Écrire un sujet** : fichier `examen.yaml`, décrit dans [`FORMAT_SUJET.md`](FORMAT_SUJET.md) ; « Produire
+  les PDF » fabrique sujet et corrigé ; imprimer en taille réelle, sans modifier le PDF.
+- **Sujet validé** : après 30 lectures vérifiées sans erreur, la machine accepte seule ses lectures sûres.
+- **Apprentissage** : mémoire des verdicts, affinage des lecteurs (adopté seulement s'il fait mieux).
+- **Réglages** : arrondi de la note, extensions (lecteur d'écriture, Ollama et ses modèles).
 
-Pour sauvegarder un examen, copier son dossier sur un support personnel.
-
-Le sujet lui-même (`examen.yaml`) se partage avec les collègues. Il est **confidentiel jusqu'à l'examen**.
-
-## 6. Si Windows bloque
-
-Les fichiers `.bat` ne font que lancer Python. Ils sont parfois bloqués quand même, de deux façons.
-
-**Écran bleu « Windows a protégé votre ordinateur » (SmartScreen).** Cela arrive quand Thessalia a été
-téléchargé en **ZIP** depuis GitHub au lieu de `git clone` : Windows marque alors les fichiers comme venant
-d'internet. Deux solutions :
-
-- cliquer **« Informations complémentaires »**, puis **« Exécuter quand même »** ;
-- ou, mieux, avant de décompresser : clic droit sur le ZIP → **Propriétés** → cocher **« Débloquer »** → OK,
-  puis décompresser.
-
-Avec `git clone`, cet écran n'apparaît pas.
-
-**Rien ne se passe, ou un message de l'antivirus ou de l'administrateur.** Sur un PC géré par la DSI, les
-scripts peuvent être interdits. Taper alors les commandes à la main, dans une fenêtre PowerShell ouverte dans
-le dossier de Thessalia (Explorateur → dossier de Thessalia → taper `powershell` dans la barre d'adresse →
-Entrée).
-
-Installer (une fois) :
-
-```
-py installer.py
-```
-
-Lancer (à chaque fois) :
-
-```
-.venv\Scripts\python -m thessalia app
-```
-
-Si `py` n'est pas reconnu, remplacer `py` par `python`. Si même `python installer.py` est refusé, demander à
-la DSI d'autoriser Python : Thessalia n'a besoin de rien d'autre.
-
-## 7. En cas de problème
-
-| Problème | Que faire |
-|---|---|
-| `installer.bat` : « Python introuvable » ou « py n'est pas reconnu » | Installer Python en cochant « Add python.exe to PATH », puis relancer. |
-| Écran bleu SmartScreen, ou double-clic sans effet | Voir « Si Windows bloque » (§ 6). |
-| « le chemin du dossier contient $ » | Cloner Thessalia ailleurs, par exemple `C:\Thessalia`. |
-| La page ne s'ouvre pas | Vérifier que la fenêtre noire est ouverte, puis aller sur http://127.0.0.1:8765/examens. |
-| « Address already in use » | Thessalia tourne déjà : utiliser la fenêtre ouverte. |
-| « Source refusée » | Lire la ligne indiquée ; les pièges courants (« : » dans une phrase, `#`) sont expliqués dans le message. |
-| GABARIT DOUTEUX | Mauvaise langue choisie au dépôt : redéposer le PDF avec l'autre langue. |
-| Boutons de l'étape 4 grisés | Le message à côté indique ce qui manque (lecteur d'écriture, Ollama, modèle) : l'installer depuis **Réglages**. |
-| Autre | Copier le journal de la tâche (en haut de la page) et l'envoyer à l'auteur, **sans** copie d'élève. |
+Le dossier `examens/` contient des **copies et des noms d'élèves** : ne pas le partager (il n'est jamais envoyé
+sur GitHub). Le sujet `examen.yaml` se partage entre collègues, confidentiel jusqu'à l'examen.
