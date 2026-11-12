@@ -21,6 +21,7 @@ import json
 import re
 import time
 
+from . import avancement
 from .correction import SECOND, mise_en_forme
 
 MODELE = "qwen3-vl:4b-instruct"
@@ -58,7 +59,9 @@ def run(dossiers, modele=MODELE, refaire=False, limite=None, essai=False):
             todo = [it for it in c.short_items(use_memory=False)
                     if it["lecture"] == "review" and it["origine"] not in ("enseignant", "vérité")
                     and it["img"] and it["cle"] not in deja]
-            print(f"{d.name} : {len(todo)} réponses en revue à relire avec {modele} (local)", flush=True)
+            avant = len(deja)
+            print(f"{d.name} : {len(todo)} réponses en revue à relire avec {modele} (local)"
+                  + (f", {avant} déjà relues" if avant else ""), flush=True)
             n_sur = 0
             for n, it in enumerate(todo, 1):
                 if limite is not None and faits >= limite:
@@ -81,6 +84,9 @@ def run(dossiers, modele=MODELE, refaire=False, limite=None, essai=False):
                                    "lecteur": modele, "trocr": brut}
                 p.write_text(json.dumps(deja, ensure_ascii=False, indent=1), encoding="utf-8")
                 faits += 1
+                v = (time.time() - t0) / faits
+                avancement.signaler(avant + n, avant + len(todo), f"{d.name} · relecture des réponses courtes : "
+                                    f"{avant + n}/{avant + len(todo)} · reste environ {max(1, round(v * (len(todo) - n) / 60))} min")
                 if n % 5 == 0 or n == len(todo):
                     v = (time.time() - t0) / faits
                     print(f"  {n}/{len(todo)} ({v:.0f} s par réponse, {n_sur} confirmées ; "

@@ -51,8 +51,10 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
             etapes.append(("second lecteur des réponses courtes", lambda: relire(dossiers, second, essai=essai)))
         else:
             print("  → second lecteur sauté")
+    from . import avancement
     for i, (nom, f) in enumerate(etapes, 1):
         print(f"\n=== {i}/{len(etapes)} {nom} ({(time.time() - t0) / 60:.0f} min écoulées)", flush=True)
+        avancement.signaler(0, 1, f"étape {i}/{len(etapes)} : {nom}…")
         try:
             f()
         except SystemExit as e:          # une étape impossible n'empêche pas les suivantes

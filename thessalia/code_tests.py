@@ -536,7 +536,10 @@ def run(dossiers, modele=None, force=False):
         p = d / FICHIER
         old = json.loads(p.read_text(encoding="utf-8")) if p.exists() and not force else {}
         out, n, coches = {}, 0, 0
-        for it in c.code_items():
+        cadres = c.code_items()
+        for k_it, it in enumerate(cadres, 1):
+            from . import avancement
+            avancement.signaler(k_it, len(cadres), f"{c.name} · pré-cochage par les tests : {k_it}/{len(cadres)} cadres")
             code = it.get("transcription")
             if not code:
                 continue

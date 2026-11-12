@@ -84,11 +84,14 @@ class Taches:
 
         def corps():
             try:
+                from . import avancement
                 sortie = Sortie()
+                avancement.brancher(progression)       # jauge des modules de calcul (lecture approfondie…)
                 try:
                     with contextlib.redirect_stdout(sortie):
                         fn(log)
                 finally:
+                    avancement.brancher(None)
                     sortie.vider()
                 t["etat"] = "terminé"
                 if apres:

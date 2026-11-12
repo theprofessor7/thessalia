@@ -147,3 +147,22 @@ def test_pause_puis_reprise():
     assert t2["etat"] == "terminé" and fait == [0, 1, 2, 3, 4]
     with pytest.raises(RuntimeError):
         T.pause()                                            # plus rien à mettre en pause
+
+
+def test_avancement_des_modules_vers_la_jauge():
+    """Un module de calcul (second lecteur…) signale son avancement : la jauge de la tâche le montre, sans rien en
+    ligne de commande."""
+    from thessalia import avancement
+    from thessalia.web_examens import Taches
+    avancement.signaler(3, 10, "rien de branché : sans effet")
+    T = Taches()
+
+    def relire(log):
+        avancement.signaler(52, 249, "relecture : 52/249")
+    t = T.lancer("x", "Lecture approfondie", relire)
+    for _ in range(50):
+        if t["etat"] != "en cours":
+            break
+        time.sleep(0.02)
+    assert t["etat"] == "terminé" and t["progression"] == {"pc": 20, "texte": "relecture : 52/249"}
+    assert avancement._jauge is None                                   # débranchée à la fin de la tâche

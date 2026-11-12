@@ -254,7 +254,9 @@ def run_local(dossiers, champs, limite, modele, refaire=False):
                     if cle in deja and not refaire:
                         continue
                     a_faire.append((fid, cle, info))
-            print(f"{d.name} : {len(a_faire)} cadres à lire avec {modele} (local)", flush=True)
+            avant = sum(1 for k in deja if k.startswith("c"))
+            print(f"{d.name} : {len(a_faire)} cadres à lire avec {modele} (local)"
+                  + (f", {avant} déjà transcrits" if avant else ""), flush=True)
             for n, (fid, cle, info) in enumerate(a_faire, 1):
                 if limite is not None and faits >= limite:
                     print(f"Limite atteinte ({limite} cadres).")
@@ -274,6 +276,10 @@ def run_local(dossiers, champs, limite, modele, refaire=False):
                 sortie.write_text(json.dumps(deja, indent=1, ensure_ascii=False), encoding="utf-8")
                 faits += 1
                 v = (time.time() - t0) / faits
+                from . import avancement
+                avancement.signaler(avant + n, avant + len(a_faire), f"{d.name} · transcription du code : "
+                                    f"{avant + n}/{avant + len(a_faire)} cadres · reste environ "
+                                    f"{max(1, round(v * (len(a_faire) - n) / 60))} min")
                 print(f"  {n}/{len(a_faire)} {cle} ({time.time() - t1:.0f} s ; "
                       f"reste ~{v * (len(a_faire) - n) / 60:.0f} min)", flush=True)
     finally:
