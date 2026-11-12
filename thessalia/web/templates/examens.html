@@ -20,12 +20,35 @@ les PDF produits, les copies scannées et leur lecture. Tout reste sur cette mac
         · {{ e.classes|length }} classe{{ 's' if e.classes|length > 1 }} déposée{{ 's' if e.classes|length > 1 }}
         · {{ e.copies }} copies lues</p>
     {% endif %}
-    <p class="liens"><a href="/examens/{{ e.nom }}">Ouvrir</a></p>
+    <p class="gris dossier-examen">dossier {{ e.nom }}</p>
+    <div class="carte-actions">
+      <a class="bouton principal" href="/examens/{{ e.nom }}">Ouvrir</a>
+      <form method="post" action="/examens/{{ e.nom }}/supprimer" class="enligne"
+            data-titre="{{ e.titre or e.nom }}" data-nom="{{ e.nom }}" data-classes="{{ e.classes|length }}" data-copies="{{ e.copies }}"
+            onsubmit="const d = this.dataset; return confirm('Supprimer l’examen « ' + d.titre + ' » (dossier ' + d.nom + ') ?\n\n' + d.classes + ' classe(s), ' + d.copies + ' copie(s) lue(s), décisions et notes compris.\nIl part dans la corbeille, en bas de la page : il se restaure d’un clic.')">
+        <button class="bouton danger discret">Supprimer</button>
+      </form>
+    </div>
   </section>
 {% endfor %}
 </div>
 {% else %}
 <p>Aucun examen pour l'instant.</p>
+{% endif %}
+
+{% if corbeille %}
+<details class="corbeille">
+  <summary>Corbeille ({{ corbeille|length }} examen{{ 's' if corbeille|length > 1 }})</summary>
+  <p class="aide">Les examens supprimés restent ici, avec tout leur contenu. Pour les effacer pour de bon, supprimer
+    le dossier <code>{{ racine }}/.corbeille</code> à la main.</p>
+  <table class="tableau">
+    {% for c in corbeille %}
+    <tr><td>{{ c.nom }}</td><td class="gris">supprimé le {{ c.date }}</td>
+      <td><form method="post" action="/examens/corbeille/restaurer" class="enligne">
+        <input type="hidden" name="dossier" value="{{ c.dossier }}"><button class="bouton">Restaurer</button></form></td></tr>
+    {% endfor %}
+  </table>
+</details>
 {% endif %}
 
 <h2>Nouvel examen</h2>

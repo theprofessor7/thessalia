@@ -25,6 +25,15 @@
       {% if x.faite %}<span class="badge ok">fait</span>{% endif %}</h2>
     {% if x.bloque %}<p class="bloque">Pas encore : {{ x.bloque }}.</p>{% endif %}
 
+    {% if e.importe %}
+      {% if e.erreurs %}<p class="erreur">Fichiers du sujet importé manquants :</p>
+        <ul class="erreurs">{% for m in e.erreurs %}<li>{{ m }}</li>{% endfor %}</ul>
+      {% else %}<p>Sujet <b>importé</b> (PDF produit par un autre générateur, déjà imprimé) · {{ e.questions }} questions ·
+        {{ e.points|round(2) }} points · langues {{ e.langues|join(', ')|upper }} :
+        <span class="ok">gabarit et corrigé présents</span>.</p>
+        <p class="aide">Le gabarit a été lu dans ce PDF exact (vérifié à l'import) : les copies imprimées depuis lui
+          se lisent comme celles d'un sujet produit ici.</p>{% endif %}
+    {% else %}
     {% if e.erreurs %}
       <p class="erreur">Source refusée. Corrigez le fichier puis déposez-le à nouveau :</p>
       <ul class="erreurs">{% for m in e.erreurs %}<li>{{ m }}</li>{% endfor %}</ul>
@@ -40,6 +49,7 @@
       </form>
       <p class="aide">L'ancienne source est gardée à côté, datée.</p>
     </details>
+    {% endif %}
     {% include "_pas_nav.html" %}
   </section>
   {% set x = etapes[1] %}
@@ -49,6 +59,10 @@
       {% if x.faite %}<span class="badge ok">fait</span>{% endif %}</h2>
     {% if x.bloque %}<p class="bloque">Pas encore : {{ x.bloque }}.</p>{% endif %}
 
+    {% if e.importe %}
+      <p><span class="ok">Fournis.</span> Sujets imprimés : {% for f in pdfs if f.startswith('sujet_') %}<a href="/examens/{{ e.nom }}/pdf/{{ f }}" target="_blank">{{ f }}</a>{{ ', ' if not loop.last }}{% endfor %}.</p>
+      <p class="aide">Sujet importé : rien à produire ici (ses PDF viennent du générateur qui les a créés).</p>
+    {% else %}
     {% if e.produit %}
       <p><span class="ok">À jour.</span> À imprimer : {% for f in pdfs if f.startswith('sujet_') %}<a href="/examens/{{ e.nom }}/pdf/{{ f }}" target="_blank">{{ f }}</a>{{ ', ' if not loop.last }}{% endfor %}.
         Corrigés : {% for f in pdfs if f.startswith('corrige_') %}<a href="/examens/{{ e.nom }}/pdf/{{ f }}" target="_blank">{{ f }}</a>{{ ', ' if not loop.last }}{% endfor %}.</p>
@@ -62,6 +76,7 @@
     </form>
     <p class="aide">Mise en page, gabarit relu dans le PDF et corrigés, contrôlés : refusé si une zone de réponse
       n'est pas exactement là où le PDF la dessine.</p>
+    {% endif %}
     {% include "_pas_nav.html" %}
   </section>
   {% set x = etapes[2] %}

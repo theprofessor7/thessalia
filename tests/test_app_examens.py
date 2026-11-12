@@ -173,6 +173,23 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     page = c.get("/examens/essai").get_data(as_text=True)
     assert "2 à risque, vérifiées" in page and "Exporter quand même" not in page
 
+    # sujet importé (générateur d'un collègue) : PDF, gabarit et corrigé fournis ; rien à produire ; un gabarit
+    # construit sur un autre PDF est refusé (il lirait les cases au mauvais endroit, sans erreur visible)
+    from thessalia.projet import Projet, importer
+    corr = prod / "corriges"
+    fr = {"pdf": prod / "sujet_ESSAI_FR.pdf", "gabarit": prod / "gabarits" / "gabarit_ESSAI_FR.json",
+          "key": corr / "ESSAI_FR.key.json", "vocab": corr / "ESSAI_FR.vocab.json"}
+    with pytest.raises(ValueError, match="pas été construit sur"):
+        importer("mauvais", "Essai", {"fr": dict(fr, pdf=prod / "sujet_ESSAI_EN.pdf")}, racine)
+    imp = importer("importe", "Essai importé", {"fr": fr}, racine)
+    ex, err = imp.controle()
+    assert err is None and ex.langues == ["fr"] and imp.produit_a_jour()
+    assert imp.fichiers("fr")["gabarit"].exists()
+    page = c.get("/examens/importe").get_data(as_text=True)
+    assert "Sujet <b>importé</b>" in page and "Remplacer la source" not in page and "Produire les PDF" not in page
+    with pytest.raises(SystemExit, match="rien à produire"):
+        Projet(racine / "importe").produire()
+
 
 def test_assistant_etapes():
     """Assistant de la page d'examen : grisé seulement par un vrai prérequis ; ouvert sur la première étape à faire."""
@@ -196,3 +213,21 @@ def test_assistant_lecture_approfondie_interrompue():
     assert etapes_examen(e, None, False, False, True)[1] == 5
     assert etapes_examen(e, None, False, False, True, {"etat": "en cours", "interrompue": True})[1] == 4
     assert etapes_examen(e, None, False, False, True, {"etat": "terminée", "interrompue": False})[1] == 5
+
+
+def test_corbeille(tmp_path):
+    """Supprimer un examen le met à la corbeille (rien d'effacé) ; il se restaure ; la corbeille n'est pas un examen."""
+    from thessalia.serve import create_app
+    racine = tmp_path / "examens"
+    (racine / "essai" / "classes").mkdir(parents=True)
+    (racine / "essai" / "examen.yaml").write_text("x: 1", encoding="utf-8")
+    c = create_app([], tmp_path / "d.sqlite", examens=racine).test_client()
+    r = c.post("/examens/essai/supprimer")
+    assert "corbeille" in r.headers["Location"] and not (racine / "essai").exists()
+    (dossier,) = [d.name for d in (racine / ".corbeille").iterdir()]
+    page = c.get("/examens").get_data(as_text=True)
+    assert "Corbeille (1 examen)" in page and 'href="/examens/.corbeille"' not in page
+    assert (racine / ".corbeille" / dossier / "examen.yaml").exists()            # tout le contenu est gardé
+    c.post("/examens/corbeille/restaurer", data={"dossier": dossier})
+    assert (racine / "essai" / "examen.yaml").exists() and not any((racine / ".corbeille").iterdir())
+    assert c.post("/examens/corbeille/restaurer", data={"dossier": "../../x"}).status_code == 302   # refusé, sans dégât

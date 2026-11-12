@@ -448,3 +448,7 @@ a.etape-point:hover .rond { border-color:var(--accent); }
 .jauge.figee .jauge-barre { background:var(--gris); }
 .bouton.lecture-en-cours { color:var(--forme); border-color:var(--forme); background:var(--formef); font-weight:600; }
 .interrompue { background:var(--formef); color:var(--forme); padding:6px 10px; border-radius:6px; margin:6px 0; }
+.carte-actions { display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+.dossier-examen { font-size:12px; margin:2px 0 0; }
+.corbeille { margin:18px 0; max-width:980px; }
+.corbeille summary { cursor:pointer; color:var(--gris); }

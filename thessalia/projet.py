@@ -30,6 +30,26 @@ VALIDATION_MIN = 30     # lectures vérifiées par l'enseignant, sans aucun éca
 RE_NOM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,60}$")
 
 
+IMPORT = "importe.json"   # examen dont le sujet vient d'ailleurs (générateur d'un collègue) : voir `importer`
+
+
+class ExamenImporte:
+    """Ce que l'application lit d'un examen importé (à la place de la source YAML) : identifiant, langues, titre,
+    questions et points, d'après le gabarit de la première langue."""
+
+    def __init__(self, info, gabarits):
+        self.langues = list(info["langues"])
+        self.id = info["langues"][self.langues[0]]["exam_id"]
+        self.entete = {"titre": {l: info.get("titre", self.id) for l in self.langues}}
+        g = json.loads((gabarits / info["langues"][self.langues[0]]["gabarit"]).read_text(encoding="utf-8"))
+        self._questions = g["questions"]
+        self.points = sum(q.get("points") or 0 for q in self._questions)
+        self.importe = True
+
+    def questions(self):
+        return self._questions
+
+
 def nom_valide(nom: str) -> bool:
     return bool(RE_NOM.match(nom or "")) and ".." not in nom
 
@@ -50,8 +70,23 @@ class Projet:
         cands = sorted(self.dir.glob("*.yaml")) + sorted(self.dir.glob("*.yml"))
         return cands[0] if cands else None
 
+    @property
+    def importe(self):
+        """Description d'un examen importé (importe.json), sinon None."""
+        p = self.dir / IMPORT
+        return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+
     def controle(self):
-        """(examen, None) si la source passe le contrôle strict, sinon (None, [erreurs])."""
+        """(examen, None) si la source passe le contrôle strict, sinon (None, [erreurs]). Examen importé : ses
+        fichiers fournis (PDF, gabarit, corrigé) tiennent lieu de source."""
+        imp = self.importe
+        if imp is not None:
+            manque = [f"{l} : {n} absent" for l, d in imp["langues"].items()
+                      for k, n in (("sujet", d["sujet"]), ) if not (self.produit / n).exists()]
+            manque += [f"{l} : {d[k]} absent" for l, d in imp["langues"].items()
+                       for k, dossier in (("gabarit", self.gabarits), ("key", self.corriges), ("vocab", self.corriges))
+                       if not (dossier / d[k]).exists()]
+            return (None, manque) if manque else (ExamenImporte(imp, self.gabarits), None)
         if self.source is None:
             return None, ["pas de fichier .yaml dans le dossier de l'examen"]
         try:
@@ -61,6 +96,8 @@ class Projet:
 
     def produit_a_jour(self) -> bool:
         """Les PDF et corrigés produits sont-ils plus récents que la source (et ses images) ?"""
+        if self.importe is not None:
+            return True                  # sujet importé : ses PDF sont fournis, jamais reproduits
         if self.source is None or not self.corriges.is_dir():
             return False
         faits = [p.stat().st_mtime for p in self.corriges.glob("*.key.json")]
@@ -72,6 +109,8 @@ class Projet:
     def produire(self, log=print):
         from .sujet import produire_tout
 
+        if self.importe is not None:
+            raise SystemExit("Sujet importé : ses PDF, gabarit et corrigé sont fournis, rien à produire.")
         ex, err = self.controle()
         if err:
             raise SystemExit("Source refusée :\n" + "\n".join("  - " + m for m in err))
@@ -83,6 +122,12 @@ class Projet:
         ex, err = self.controle()
         if err:
             raise SystemExit("Source refusée")
+        imp = self.importe
+        if imp is not None:
+            d = imp["langues"][langue]
+            return {"base": d["exam_id"], "sujet": self.produit / d["sujet"], "corrige_pdf": self.produit / "-",
+                    "gabarit": self.gabarits / d["gabarit"], "key": self.corriges / d["key"],
+                    "vocab": self.corriges / d["vocab"]}
         base = f"{ex.id}_{langue.upper()}"
         return {"base": base, "sujet": self.produit / f"sujet_{base}.pdf", "corrige_pdf": self.produit / f"corrige_{base}.pdf",
                 "gabarit": self.gabarits / f"gabarit_{base}.json", "key": self.corriges / f"{base}.key.json",
@@ -381,7 +426,90 @@ def outils():
 
 def projets(racine=RACINE):
     racine = Path(racine)
-    return [Projet(d) for d in sorted(racine.iterdir()) if d.is_dir()] if racine.is_dir() else []
+    return ([Projet(d) for d in sorted(racine.iterdir()) if d.is_dir() and not d.name.startswith(".")]
+            if racine.is_dir() else [])
+
+
+CORBEILLE = ".corbeille"
+
+
+def mettre_a_la_corbeille(nom: str, racine=RACINE) -> Path:
+    """« Supprimer » un examen : il part dans examens/.corbeille/<nom>-<date>, avec tout son contenu (copies lues,
+    décisions, notes), et se restaure d'un clic. Rien n'est effacé du disque par l'application."""
+    import time
+    d = Path(racine) / nom
+    if not nom_valide(nom) or not d.is_dir():
+        raise ValueError(f"examen introuvable : {nom}")
+    dest = Path(racine) / CORBEILLE / f"{nom}-{time.strftime('%Y%m%d-%H%M%S')}"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    d.rename(dest)
+    return dest
+
+
+def corbeille(racine=RACINE):
+    """Examens supprimés, du plus récent au plus ancien : [{dossier, nom, date}]."""
+    c = Path(racine) / CORBEILLE
+    out = []
+    for d in sorted(c.iterdir(), reverse=True) if c.is_dir() else []:
+        nom, quand = d.name[:-16], d.name[-15:]          # <nom>-AAAAMMJJ-HHMMSS
+        out.append({"dossier": d.name, "nom": nom,
+                    "date": f"{quand[6:8]}/{quand[4:6]}/{quand[:4]} {quand[9:11]}h{quand[11:13]}"})
+    return out
+
+
+def restaurer(dossier: str, racine=RACINE) -> Projet:
+    src = Path(racine) / CORBEILLE / dossier
+    if not src.is_dir() or "/" in dossier or "\\" in dossier or ".." in dossier:
+        raise ValueError("examen introuvable dans la corbeille")
+    nom = dossier[:-16]
+    dest = Path(racine) / nom
+    if dest.exists():
+        raise ValueError(f"un examen « {nom} » existe déjà : renommez-le ou supprimez-le d'abord")
+    src.rename(dest)
+    return Projet(dest)
+
+
+def importer(nom: str, titre: str, langues: dict, racine=RACINE, autres=()) -> Projet:
+    """Examen dont le sujet a été produit ailleurs (générateur d'un collègue) et déjà imprimé.
+
+    langues : {langue: {"pdf": PDF imprimé, "gabarit": gabarit Thessalia lu dans CE PDF (`thessalia template`),
+    "key": corrigé .key.json, "vocab": .vocab.json}} ; autres : fichiers du corrigé en plus (barème du code
+    .bareme.json, tests .tests.py). Refusé si un gabarit n'a pas été construit sur le PDF donné (empreinte
+    SHA-256) : un gabarit d'une autre version lirait les cases au mauvais endroit, sans erreur visible."""
+    import hashlib
+    import shutil
+    if not nom_valide(nom):
+        raise ValueError("nom de l'examen : lettres, chiffres, _ - . (ex. midterm_2026)")
+    d = Path(racine) / nom
+    if d.exists():
+        raise ValueError(f"l'examen « {nom} » existe déjà")
+    desc = {"titre": titre, "langues": {}}
+    for langue, f in langues.items():
+        g = json.loads(Path(f["gabarit"]).read_text(encoding="utf-8"))
+        empreinte = hashlib.sha256(Path(f["pdf"]).read_bytes()).hexdigest()
+        if g.get("source_sha256") and g["source_sha256"] != empreinte:
+            raise ValueError(f"{langue} : le gabarit {Path(f['gabarit']).name} n'a pas été construit sur "
+                             f"{Path(f['pdf']).name} (autre version du PDF ?)")
+        for k in ("key", "vocab"):
+            eid = json.loads(Path(f[k]).read_text(encoding="utf-8")).get("exam_id")
+            if eid != g["exam_id"]:
+                raise ValueError(f"{langue} : {Path(f[k]).name} est pour « {eid} », pas « {g['exam_id']} »")
+        desc["langues"][langue] = {"exam_id": g["exam_id"], "sujet": f"sujet_{g['exam_id']}.pdf",
+                                   "gabarit": f"gabarit_{g['exam_id']}.json", "key": f"{g['exam_id']}.key.json",
+                                   "vocab": f"{g['exam_id']}.vocab.json"}
+    p = Projet(d)
+    for dossier in (p.produit, p.gabarits, p.corriges):
+        dossier.mkdir(parents=True, exist_ok=True)
+    for langue, f in langues.items():
+        n = desc["langues"][langue]
+        shutil.copy2(f["pdf"], p.produit / n["sujet"])
+        shutil.copy2(f["gabarit"], p.gabarits / n["gabarit"])
+        shutil.copy2(f["key"], p.corriges / n["key"])
+        shutil.copy2(f["vocab"], p.corriges / n["vocab"])
+    for a in autres:
+        shutil.copy2(a, p.corriges / Path(a).name)
+    (d / IMPORT).write_text(json.dumps(desc, ensure_ascii=False, indent=1), encoding="utf-8")
+    return p
 
 
 def creer(nom: str, source_yaml: bytes, racine=RACINE, fichiers=None) -> Projet:

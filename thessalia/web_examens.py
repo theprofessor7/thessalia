@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from . import ollama_local
-from .projet import Projet, creer, nom_valide, outils, projets
+from .projet import Projet, corbeille, creer, mettre_a_la_corbeille, nom_valide, outils, projets, restaurer
 
 
 class Pause(BaseException):
@@ -181,6 +181,7 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         ex, err = p.controle()
         cl = p.classes()
         return {"nom": p.nom, "titre": (ex.entete["titre"][ex.langues[0]] if ex else None), "id": ex.id if ex else None,
+                "importe": p.importe is not None,
                 "erreurs": err, "langues": ex.langues if ex else [], "questions": len(ex.questions()) if ex else 0,
                 "points": ex.points if ex else None, "produit": p.produit_a_jour(), "classes": cl,
                 "lues": sum(c["lue"] for c in cl), "courtes": sum(c["lue"] and c["courtes"] for c in cl), "copies": sum(c["copies"] or 0 for c in cl)}
@@ -195,7 +196,33 @@ def enregistrer(app, racine: Path, charger, memoire=None):
     @app.route("/examens")
     def examens_page():
         return render_template("examens.html", examens=[resume(p) for p in projets(racine)], racine=str(racine),
-                               message=request.args.get("m"))
+                               message=request.args.get("m"), corbeille=corbeille(racine))
+
+    @app.post("/examens/<nom>/supprimer")
+    def supprimer_examen(nom):
+        projet(nom)
+        t = taches.courante
+        if t and t["projet"] == nom and t["etat"] == "en cours":
+            return redirect(_vers("/examens", f"« {nom} » : une tâche tourne encore (mettez-la en pause ou attendez la fin)."))
+        if etat["ouvert"] == nom:          # l'outil de correction lâche ses classes avant le déplacement
+            charger([], None)
+            etat["ouvert"] = None
+        if t and t["projet"] == nom:
+            taches.courante = None
+        try:
+            mettre_a_la_corbeille(nom, racine)
+        except OSError as e:               # Windows : un fichier encore ouvert (PDF affiché, Excel…)
+            return redirect(_vers("/examens", f"« {nom} » n'a pas pu être déplacé ({e.strerror}) : fermez ses fichiers "
+                                              "ouverts (PDF, Excel), puis réessayez."))
+        return redirect(_vers("/examens", f"« {nom} » est dans la corbeille (en bas de la page) : il se restaure d'un clic."))
+
+    @app.post("/examens/corbeille/restaurer")
+    def restaurer_examen():
+        try:
+            p = restaurer(request.form.get("dossier", ""), racine)
+        except (ValueError, OSError) as e:
+            return redirect(_vers("/examens", e))
+        return redirect(_vers("/examens", f"« {p.nom} » est restauré."))
 
     @app.post("/examens/nouveau")
     def nouvel_examen():
