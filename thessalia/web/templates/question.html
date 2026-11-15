@@ -6,10 +6,18 @@
 {% if suiv %}<a class="bouton" href="/g/{{ groupe }}/q/{{ suiv }}">{{ suiv }} →</a>{% endif %}
 {% endblock %}
 {% block contenu %}
+<details class="enonce-carte" id="enonce" open>
+  <summary>
+    <span class="enonce-exo">{% if tete.exercice %}{{ tete.exercice }}{% else %}Énoncé{% endif %}</span>
+    <span class="enonce-q"><b>{{ champ }}</b>{% if tete.points %} · {{ tete.points }} pt{% endif %}</span>
+  </summary>
+  <img class="enonce-img" src="/g/{{ groupe }}/q/{{ champ }}/enonce.png" alt="énoncé de la question {{ tete.question or champ }}"
+       onerror="this.remove(); document.getElementById('consigne').hidden = false;">
+  <p id="consigne" class="consigne" hidden></p>
+</details>
 <div class="entete-question">
   <h1>{{ champ }}</h1>
-  <span id="consigne" class="consigne"></span>
-  <span class="attendu">attendu : <code id="attendu"></code></span>
+  <span class="attendu">attendu <code id="attendu"></code></span>
   <span id="progres" class="progres"></span>
   <button id="tout-valider" class="bouton principal">Valider toutes les propositions</button>
   <a id="suivante" class="bouton" href="#" hidden></a>

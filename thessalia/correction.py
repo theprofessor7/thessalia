@@ -883,6 +883,21 @@ class Classe:
         p.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
+# lectures tapées par l'enseignant (« corriger la lecture ») ------------------------------------------------
+def lectures_tapees(classes, fid):
+    """Ce que l'enseignant a tapé (ou confirmé « bien lu ») pour ce champ, dans les classes données : Counter
+    texte -> nombre de copies. Une erreur fréquente des élèves ({prix} pour {prix:.2f}) saisie une fois devient un
+    choix en un clic sur les autres cartes, et entre dans les mauvaises réponses plausibles à la lecture suivante."""
+    from collections import Counter
+    cnt = Counter()
+    for o in classes:
+        for k, d in o.decisions.of(o.name).items():
+            t = (d.get("texte") or "").strip()
+            if k.split("_", 1)[-1] == fid and t and not t.startswith("auto:"):
+                cnt[t] += 1
+    return cnt
+
+
 # ce que la machine retient d'une décision (message de l'outil, page Apprentissage) ---------------------------
 def retenu(classes, c, cle):
     """Après une décision de l'enseignant sur une réponse courte en revue : ce que la mémoire des verdicts en tire.

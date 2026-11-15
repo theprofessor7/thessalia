@@ -186,6 +186,42 @@ class Projet:
     def dossiers_lus(self):
         return [self.classes_dir / c["classe"] for c in self.classes() if c["lue"]]
 
+    APPRIS_MIN = 2      # une lecture tapée sur au moins 2 copies : erreur d'élève, pas une écriture isolée
+
+    def vocab_appris(self, langue, log=print):
+        """Vocabulaire de la langue, enrichi des lectures tapées par l'enseignant (« corriger la lecture ») dans
+        les classes de cette langue : une erreur fréquente ({prix} pour {prix:.2f}) devient une mauvaise réponse
+        plausible, que le lecteur propose ensuite d'emblée au lieu d'une lecture fantaisiste. Écrit à côté du
+        vocabulaire d'origine (`<sujet>.vocab.appris.json`), qui n'est jamais modifié. Champs numériques exclus."""
+        from types import SimpleNamespace
+
+        from .correction import Decisions, lectures_tapees
+        base = self.fichiers(langue)["vocab"]
+        doc = json.loads(base.read_text(encoding="utf-8"))
+        noms = []
+        for c in self.classes():
+            meta = self.scans / f"{c['classe']}.json"
+            if c["lue"] and meta.exists() and json.loads(meta.read_text(encoding="utf-8")).get("langue") == langue:
+                noms.append(c["classe"])
+        dec = Decisions(self.stockage()["db"])
+        classes = [SimpleNamespace(name=n, decisions=dec) for n in noms]
+        ajouts = []
+        for fid, spec in doc.get("fields", {}).items():
+            if spec.get("kind") == "number" or "values" not in spec:
+                continue
+            for t, n in lectures_tapees(classes, fid).most_common():
+                if n >= self.APPRIS_MIN and t not in spec["values"]:
+                    spec["values"].append(t)
+                    ajouts.append(f"{fid} « {t} » ({n})")
+            if spec.get("kind") == "enum":
+                spec["values"].sort()
+        if not ajouts:
+            return base
+        out = base.with_name(base.name[:-len(".json")] + ".appris.json")
+        out.write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding="utf-8")
+        log(f"lectures apprises ajoutées au vocabulaire ({langue.upper()}) : " + ", ".join(ajouts))
+        return out
+
     # ---------------------------------------------------------------- étapes lourdes
     def lire_courtes(self, log=print):
         """Réponses courtes de chaque classe lue, par TrOCR (local, gratuit), avec le vocabulaire de sa langue.
@@ -204,7 +240,7 @@ class Projet:
             log(f"=== {d.name} ({info['langue'].upper()})")
             if getattr(log, "progression", None):
                 log.progression(None)
-            ocr(d, self.fichiers(info["langue"])["vocab"], "trocr", log=log,
+            ocr(d, self.vocab_appris(info["langue"], log), "trocr", log=log,
                 backend_kw={"model": modele} if modele else None)
         # noms écrits sur les copies : propositions pour « Identifier les copies »
         from .identite import run as noms

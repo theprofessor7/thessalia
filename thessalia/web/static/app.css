@@ -39,7 +39,20 @@ kbd { border:1px solid var(--trait); border-radius:3px; padding:0 4px; font-size
 
 .entete-question { display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
 .consigne { color:var(--gris); font-family:ui-monospace, Consolas, monospace; }
-.attendu code { font-size:16px; font-weight:700; } .progres { margin-left:auto; color:var(--gris); }
+/* énoncé : la question telle que l'élève l'a vue (découpée dans le PDF du sujet), repliable */
+.enonce-carte { background:var(--carte); border:1px solid var(--trait); border-left:5px solid var(--accent); border-radius:10px;
+                margin:4px 0 10px; box-shadow:0 2px 8px rgba(0,0,0,.05); max-width:980px; }
+.enonce-carte > summary { display:flex; gap:12px; align-items:baseline; padding:8px 14px; cursor:pointer; list-style:none; }
+.enonce-carte > summary::-webkit-details-marker { display:none; }
+.enonce-carte > summary::before { content:"▸"; color:var(--accent); transition:transform .15s; }
+.enonce-carte[open] > summary::before { transform:rotate(90deg); }
+.enonce-exo { font-weight:600; color:var(--accent); } .enonce-q { margin-left:auto; color:var(--gris); }
+.enonce-q b { color:var(--encre); }
+.enonce-img { display:block; width:100%; max-width:820px; max-height:340px; object-fit:contain; object-position:left top;
+              margin:0 14px 12px; background:#fff; border-radius:6px; }
+.enonce-carte .consigne { margin:0 14px 12px; }
+.attendu { padding:3px 10px; border-radius:999px; background:var(--justef); color:var(--juste); font-weight:600; }
+.attendu code { font-size:16px; font-weight:700; color:var(--encre); } .progres { margin-left:auto; color:var(--gris); }
 .bloc { display:flex; gap:12px; align-items:center; margin:16px 0 6px; padding-bottom:3px; border-bottom:1px solid var(--trait);
         font-family:ui-monospace, Consolas, monospace; color:var(--gris); }
 .grille { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px; }
@@ -171,6 +184,11 @@ table.notes tr.fini td:first-child { box-shadow:inset 4px 0 var(--juste); }
 .ligne-nom input { width:100%; max-width:320px; font:inherit; padding:4px 6px; }
 .ligne-nom .etat { margin-left:8px; font-size:12px; color:var(--gris); } .ligne-nom.confirme .etat { color:var(--juste); }
 .ligne-nom .props button { margin:3px 4px 0 0; font-size:12px; }
+/* nom pré-rempli par la machine : une proposition, pas une saisie (enregistré seulement avec Entrée) */
+.ligne-nom input.propose { color:var(--gris); font-style:italic; border:1px dashed var(--forme); background:var(--formef); }
+.ligne-nom .etat.a-confirmer { color:var(--forme); font-weight:600; }
+.ligne-nom.confirme { background:var(--justef); } .ligne-nom.confirme input { font-weight:600; }
+.ligne-nom.confirme .etat { font-weight:600; }
 @media (prefers-color-scheme: dark) { .ligne-nom img { filter: invert(.88) hue-rotate(180deg); } }
 @media (max-width: 800px) { .ligne-nom { grid-template-columns:1fr; } }
 .ligne-nom.maj input { animation: maj 1.2s ease-out; }

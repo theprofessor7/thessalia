@@ -3,6 +3,13 @@
 const D = JSON.parse(document.getElementById("donnees").textContent);
 document.getElementById("attendu").textContent = D.attendu || "—";
 document.getElementById("consigne").textContent = D.consigne || "";
+if (D.saisies) SAISIES[D.champ] = D.saisies.slice();
+// énoncé replié ou ouvert : retenu d'une question à l'autre (préférence de ce navigateur)
+(() => {
+  const e = document.getElementById("enonce");
+  try { if (localStorage.getItem("enonce-replie") === "1") e.open = false; } catch (err) {}
+  e.addEventListener("toggle", () => { try { localStorage.setItem("enonce-replie", e.open ? "0" : "1"); } catch (err) {} });
+})();
 
 const toutValider = document.getElementById("tout-valider");
 toutValider.onclick = async () => {

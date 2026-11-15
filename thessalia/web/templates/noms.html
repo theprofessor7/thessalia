@@ -12,11 +12,15 @@
   {% elif not data.lus %}<br><span class="attente">Pas encore de proposition de nom :
     {% if mode_examens %}sur la page de l'examen, « Lire les réponses courtes » lit aussi les noms (lecteur d'écriture installé).
     {% else %}lancer <code>python -m thessalia identite &lt;dossier de la classe&gt;</code>.{% endif %}</span>{% endif %}</p>
+{% set suite %}{% if examen_ouvert %}<a class="bouton principal" href="/examens/{{ examen_ouvert }}#etape-6">Vérifier les noms et exporter les notes →</a>
+  <span class="gris">page de l'examen, étape 6</span>{% else %}<a class="bouton principal" href="/g/{{ groupe }}/copies">Copies et notes →</a>{% endif %}{% endset %}
+<div class="message suite-noms" hidden><b>Toutes les copies du groupe sont identifiées ✓</b> {{ suite }}</div>
 <datalist id="eleves">{% for e in data.eleves %}<option value="{{ e }}">{% endfor %}</datalist>
 <p><button class="bouton principal" id="tout1">✓ Confirmer toute la page</button>
   <span class="gris">après avoir vérifié chaque image et corrigé les noms faux</span></p>
 <div id="lignes" class="noms"></div>
 <p><button class="bouton principal" id="tout2">✓ Confirmer toute la page</button></p>
+<div class="message suite-noms" hidden><b>Toutes les copies du groupe sont identifiées ✓</b> {{ suite }}</div>
 <h2>Élèves de la liste sans copie ({{ absents|length }})</h2>
 <p class="aide">Absents, ou copies pas encore identifiées. À la fin, il ne doit rester que les absents.</p>
 <p id="absents">{{ absents|join(' · ') }}</p>
@@ -39,11 +43,18 @@ async function recalculer() {
     const c = l.copie, e = j.repartition[c.classe + "/" + c.copie];
     if (c.confirme || c.touche || !e || l.champ.value === e) continue;
     l.champ.value = e;
+    l.peindre();
     l.classList.remove("maj"); void l.offsetWidth; l.classList.add("maj");   // signale le changement
   }
   document.getElementById("absents").textContent = j.absents.join(" · ");
 }
-function compter() { document.getElementById("nconf").textContent = D.copies.filter(c => c.confirme).length; }
+// compteur, et l'étape suivante dès que toutes les copies du groupe ont un élève confirmé
+function compter() {
+  const n = D.copies.filter(c => c.confirme).length;
+  document.getElementById("nconf").textContent = n;
+  const fini = D.copies.length > 0 && n === D.copies.length;
+  document.querySelectorAll(".suite-noms").forEach(b => { b.hidden = !fini; });
+}
 D.copies.forEach((c, i) => {
   // proposition : répartition d'ensemble du serveur, sinon le plus ressemblant parmi les élèves libres
   const prop = c.repartition ? {eleve: c.repartition} : c.propositions.find(p => !pris.has(p.eleve));
@@ -87,10 +98,17 @@ D.copies.forEach((c, i) => {
       : c.nom ? el("img", {src: "/img/" + c.classe + "/" + c.nom, alt: "nom", loading: "lazy"}) : el("span", {className: "gris", textContent: "pas de zone Nom"}),
     c.prenom ? el("img", {src: "/img/" + c.classe + "/" + c.prenom, alt: "prénom", loading: "lazy"}) : el("span", {className: "gris", textContent: "pas de zone Prénom"}),
     el("div", {className: "choix"}, champ, etat, props));
+  // confirmé (vert) ou simple proposition (gris italique, « Entrée pour confirmer ») : jamais confondus
   const peindre = () => {
-    ligne.classList.toggle("confirme", !!c.confirme);
-    etat.textContent = c.confirme ? "✓ confirmé" : (champ.value ? "proposé" : "");
+    const enAttente = !!champ.value.trim() && champ.value.trim() !== (c.confirme || "");
+    ligne.classList.toggle("confirme", !!c.confirme && !enAttente);
+    champ.classList.toggle("propose", enAttente);
+    etat.classList.toggle("a-confirmer", enAttente);
+    etat.textContent = enAttente ? (c.touche ? "tapé · Entrée pour confirmer" : "proposé · Entrée pour confirmer")
+      : c.confirme ? "✓ confirmé" : "";
   };
+  champ.addEventListener("input", () => peindre());
+  ligne.peindre = peindre;
   champ.onkeydown = async ev => {
     if (ev.key !== "Enter") return;
     ev.preventDefault();
@@ -124,6 +142,13 @@ async function toutConfirmer() {
         + rates.map(l => l.copie.classe + " · copie " + l.copie.num + " : " + l.erreur).join("\n") : ""));
 }
 for (const id of ["tout1", "tout2"]) document.getElementById(id).onclick = toutConfirmer;
+compter();
+// quitter la page avec des noms tapés ou changés mais pas confirmés : le navigateur demande d'abord
+window.addEventListener("beforeunload", ev => {
+  const n = [...lignes.querySelectorAll(".ligne-nom")]
+    .filter(l => l.copie.touche && l.champ.value.trim() !== (l.copie.confirme || "")).length;
+  if (n) { ev.preventDefault(); ev.returnValue = n + " nom(s) tapé(s) non confirmé(s)"; }
+});
 const premier = [...lignes.querySelectorAll(".ligne-nom")].find(l => !l.classList.contains("confirme"));
 if (premier) { const x = premier.querySelector("input"); x.focus(); x.select(); }
 </script>

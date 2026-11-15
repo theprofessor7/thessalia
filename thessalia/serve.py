@@ -13,7 +13,7 @@ import json
 import webbrowser
 from pathlib import Path
 
-from .correction import Classe, Decisions, DB_PATH, Memory, group_of, resume_memoire, retenu
+from .correction import Classe, Decisions, DB_PATH, Memory, group_of, lectures_tapees, resume_memoire, retenu
 from .notes import RATE
 
 
@@ -133,6 +133,18 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
             out += avec_banc(c, [i for i in pool if i["champ"] == fid])
         return out
 
+    def saisies(c, fid, n=6):
+        """Lectures tapées pour ce champ dans toutes les classes ouvertes du même sujet (pas seulement le
+        groupe) : proposées en un clic sur les cartes. Le corrigé a déjà son bouton « = attendu »."""
+        if fid not in c.exam.points:
+            return []
+        mid = c.memory_id(fid)
+        meme = [o for o in classes.values() if fid in o.exam.points and o.memory_id(fid) == mid]
+        att = c.exam.key.get("short_answers", {}).get(fid)
+        cnt = lectures_tapees(meme, fid)
+        return [{"texte": t, "n": k} for t, k in cnt.most_common()
+                if att is None or c.exam.clean(t, fid) != c.exam.clean(att, fid)][:n]
+
     def _qcm_fids(c):
         return {f["id"] for f in c.exam.fields.values() if f["type"] in ("mcq", "truefalse")}
 
@@ -187,10 +199,33 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
         payload = {"groupe": g, "champ": fid, "items": items_of(cs, fid), "code": code, "banc": banc,
                    "attendu": "barème ci-dessous" if code else
                    ex.key.get("short_answers", {}).get(fid) or ", ".join(ex.key.get("answers", {}).get(fid, [])),
-                   "consigne": consigne, "questions": qs}
+                   "consigne": consigne, "questions": qs, "saisies": [] if code else saisies(cs[0], fid)}
+        champ_g = ex.fields.get(fid, {})
+        q = next((q for q in ex.template["questions"] if q["num"] == champ_g.get("question")), {})
+        pts = ex.bareme.get("champs", {}).get(fid, {}).get("points") if code else ex.points.get(fid)
+        tete = {"exercice": (q.get("exercise") or {}).get("title"), "question": q.get("num"),
+                "points": None if pts is None else f"{pts:g}".replace(".", ",")}
         i = ids.index(fid)
-        return render_template("question.html", data=payload, groupe=g, champ=fid, code=code,
+        return render_template("question.html", data=payload, groupe=g, champ=fid, code=code, tete=tete,
                                prec=ids[i - 1] if i else None, suiv=ids[i + 1] if i + 1 < len(ids) else None)
+
+    @app.route("/g/<g>/q/<fid>/enonce.png")
+    def enonce_image(g, fid):
+        """Question découpée dans le PDF du sujet, zone surlignée (cf. enonce). 404 : l'outil garde le texte."""
+        from .correction import stockage_examen
+        from .enonce import image_question, pdf_du_sujet
+        c = group(g)[0]
+        st = stockage_examen(c.dir)
+        dossiers = [st["templates_dir"].parent, st["templates_dir"]] if st else [Path("templates")]
+        cache = (st["templates_dir"].parent / "enonces") if st else (c.dir / "enonces")
+        try:
+            p = image_question(pdf_du_sujet(c.exam.template, dossiers), c.exam.template, fid,
+                               cache / f"{c.exam_id}_{fid}.png")
+        except Exception:      # PDF illisible, page absente… : l'énoncé reste en texte
+            p = None
+        if not p:
+            abort(404)
+        return send_from_directory(p.parent.resolve(), p.name, max_age=0)
 
     @app.route("/suivi")
     def suivi_page():

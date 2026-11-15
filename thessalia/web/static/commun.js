@@ -83,19 +83,37 @@ function badgeProvenance(it) {
   return el("span", {className: "origine o-" + fam, textContent: texte, title: plus});
 }
 
+// Lectures déjà tapées par l'enseignant, par champ (toutes classes du sujet) : un clic les reprend sur une autre
+// carte. Une erreur fréquente des élèves ({prix} au lieu de {prix:.2f}) ne se tape qu'une fois.
+const SAISIES = {};
+function noterSaisie(champ, texte) {
+  const l = SAISIES[champ] = SAISIES[champ] || [];
+  const x = l.find(s => s.texte === texte);
+  if (x) x.n += 1; else l.push({texte: texte, n: 1});
+  l.sort((a, b) => b.n - a.n);
+  for (const c of document.querySelectorAll(".carte")) if (c.majSaisies) c.majSaisies();
+}
+
+// lecture sur une ligne : les retours à la ligne d'une réponse deviennent ⏎
+function uneLigne(t) { return String(t).replace(/\s*\n\s*/g, " ⏎ "); }
+
 // Après une décision : ce que Thessalia en retient (mémoire des verdicts, exemple pour affiner le lecteur).
-function annoncerRetenu(rep) {
+function annoncerRetenu(rep, saisi, enUnClic) {
   const r = rep.retenu, morceaux = [];
   const s = n => n > 1 ? "s" : "";
   if (r) {
-    morceaux.push("Retenu : « " + r.lecture + " » → " + r.verdict + (r.total > 1 ? " (vous : " + r.n + " fois sur " + r.total + ")" : "") + ".");
-    if (r.office) morceaux.push(r.office + " réponse" + s(r.office) + " identique" + s(r.office) + " d'autres classes ser" + (r.office > 1 ? "ont" : "a") + " décidée" + s(r.office) + " d'office.");
-    if (r.proposees) morceaux.push(r.proposees + " autre" + s(r.proposees) + " recevr" + (r.proposees > 1 ? "ont" : "a") + " ce verdict en proposition.");
-    if (r.pas_encore) morceaux.push(r.pas_encore + " en attente ailleurs : encore " + r.manque + " jugement" + s(r.manque) + " avant de le leur proposer.");
+    const vous = r.total > 1 ? " (" + r.n + " fois sur " + r.total + ")" : "";
+    morceaux.push(saisi != null && saisi !== r.lecture
+      ? r.champ + " · vous : « " + uneLigne(saisi) + " » → " + r.verdict + vous + ". La machine avait lu « " + uneLigne(r.lecture) + " »."
+      : r.champ + " · « " + uneLigne(r.lecture) + " » → " + r.verdict + vous + ".");
+    if (r.office) morceaux.push(r.office + " réponse" + s(r.office) + " lue" + s(r.office) + " pareil dans d'autres classes : décidée" + s(r.office) + " d'office.");
+    if (r.proposees) morceaux.push(r.proposees + " réponse" + s(r.proposees) + " lue" + s(r.proposees) + " pareil ailleurs : ce verdict leur sera proposé.");
+    if (r.pas_encore) morceaux.push(r.pas_encore + " lue" + s(r.pas_encore) + " pareil ailleurs : proposé après encore " + r.manque + " jugement" + s(r.manque) + ".");
     if (!r.office && !r.proposees && !r.pas_encore)
-      morceaux.push(r.autres_classes ? "Aucune réponse identique en attente dans les autres classes." : "Servira aux autres classes de cet examen.");
+      morceaux.push(r.autres_classes ? "Pas d'autre réponse lue pareil ailleurs pour l'instant." : "Servira aux classes suivantes.");
   }
-  if (rep.exemple) morceaux.push("Lecture gardée comme exemple pour affiner le lecteur (Apprentissage).");
+  if (enUnClic) morceaux.push("« " + uneLigne(saisi) + " » est proposé en un clic sur les autres cartes de la question.");
+  if (rep.exemple) morceaux.push("Image gardée pour apprendre à mieux lire.");
   if (!morceaux.length) return;
   let b = document.getElementById("retenu");
   if (!b) { b = el("div", {id: "retenu", role: "status"}); document.body.append(b); }
@@ -119,7 +137,11 @@ function carte(it, surDecision, opts = {}) {
     const rep = await decider(Object.assign({classe: it.classe, cle: it.cle}, corps));
     if (rep.item) Object.assign(it, rep.item);
     redessiner();
-    annoncerRetenu(rep);
+    // lecture tapée (pas « bien lu », pas le corrigé) : proposée aussitôt sur les autres cartes du champ
+    const saisi = corps.texte, nouvelle = saisi != null && saisi !== "" && saisi !== it.proposition && saisi !== it.attendu
+      && !(SAISIES[it.champ] || []).some(s => s.texte === saisi);
+    if (saisi != null && saisi !== "" && saisi !== it.attendu && saisi !== it.proposition) noterSaisie(it.champ, saisi);
+    annoncerRetenu(rep, saisi, nouvelle);
     surDecision(rep, c, clavier);
   };
   const redessiner = () => {
@@ -208,12 +230,17 @@ function carte(it, surDecision, opts = {}) {
       }
       c.append(liste);
       const tous = it.criteres.map(cr => cr.id);
-      const juste = el("button", {className: "verdict juste", textContent: "✓ tout juste", tabIndex: -1, title: "J"});
+      // état visible : « tout juste » ou « rien de juste » coloré quand c'est la décision enregistrée
+      const parVous = it.decide && it.origine === "enseignant" && it.verdict !== "vide";
+      const etat = cond => cond ? " choisi" : "";
+      const juste = el("button", {className: "verdict juste" + etat(parVous && tous.length && tous.every(x => coches.has(x))),
+                                  textContent: "✓ tout juste", tabIndex: -1, title: "J"});
       juste.onclick = () => enregistrer({options: tous});
       const vide = el("button", {className: "verdict vide" + (it.verdict === "vide" ? (it.decide ? " choisi" : " propose") : ""),
                                  textContent: LIBELLE.vide, tabIndex: -1, title: "V : rien d'écrit (0)"});
       vide.onclick = () => enregistrer({verdict: "vide", options: []});
-      const zero = el("button", {className: "verdict faux", textContent: "✗ rien de juste", tabIndex: -1, title: "0 : écrit mais aucun critère (0)"});
+      const zero = el("button", {className: "verdict faux" + etat(parVous && !coches.size),
+                                 textContent: "✗ rien de juste", tabIndex: -1, title: "0 : écrit mais aucun critère (0)"});
       zero.onclick = () => enregistrer({options: []});
       const ligne = el("div", {className: "verdicts"}, juste, zero, vide);
       if (!it.decide) {
@@ -331,12 +358,30 @@ function carte(it, surDecision, opts = {}) {
         });
       }
       c.alternatives = alts;
+      // lectures déjà tapées pour cette question (toutes classes) : un clic, sans retaper
+      const ligneSaisies = el("div", {className: "alternatives saisies gris"});
+      c.majSaisies = () => {
+        ligneSaisies.textContent = "";
+        const deja = new Set([lu, ...alts].filter(x => x != null));
+        const l = (SAISIES[it.champ] || []).filter(s => !deja.has(s.texte)).slice(0, 5);
+        if (!l.length) return;
+        ligneSaisies.append("déjà saisi : ");
+        for (const s of l) {
+          const b = el("button", {className: "lecture alt saisie-deja", tabIndex: -1,
+                                  title: "l'étudiant a écrit « " + s.texte + " » (tapé " + s.n + " fois sur cette question)"},
+                       el("code", {textContent: uneLigne(s.texte)}), el("span", {className: "gris", textContent: " ×" + s.n}));
+          b.onclick = () => envoyer({texte: s.texte});
+          ligneSaisies.append(b, " ");
+        }
+      };
+      c.majSaisies();
       const corr = el("button", {className: "lecture", textContent: "✎ corriger la lecture", tabIndex: -1,
                                  title: "taper ce qui est réellement écrit (T) : sert à l'apprentissage"});
       corr.onclick = () => saisir();
       ligneLu.append(" ", corr);
       c.append(ligneLu);
       if (ligneAlt) c.append(ligneAlt);
+      c.append(ligneSaisies);
       if (it.attendu != null) c.append(el("div", {className: "attendu-carte"}, "attendu : ", el("code", {textContent: it.attendu})));
       const ligne = el("div", {className: "verdicts"});
       if (!it.decide && it.verdict) {
