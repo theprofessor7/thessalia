@@ -67,11 +67,13 @@ class Processor:
         mise en page, tout s'aligne et rien n'échoue. Seul le score de reconnaissance des pages le
         trahit : médiane 0,96-0,97 avec le bon gabarit (lots EN et supA 1), 0,75 avec le mauvais
         (lots « sup nb » lus en FR). Sous 0,85 : alerte visible, en tête de la revue."""
+        self.gabarit_douteux = None
         scores = sorted(p["match_score"] for c in copies for p in c["pages"].values())
         if not scores:
             return
         med = scores[len(scores) // 2]
         if med < min_median:
+            self.gabarit_douteux = round(med, 2)          # écrit dans results.json : alerte rouge dans l'application
             msg = (f"GABARIT DOUTEUX : score de reconnaissance médian {med:.2f} (attendu ≥ 0,85 ; bon gabarit : 0,96). "
                    f"Le sujet scanné n'est probablement pas « {self.template['exam_id']} » (FR / EN ?) : "
                    f"résultats à ne pas utiliser.")
@@ -209,7 +211,8 @@ class Processor:
                    "n_copies": len(copies), "blank_pages": self.blank_pages, "other_pages": self.other_pages, "elapsed_s": round(time.time() - t0, 1),
                    "copies": [{k: c[k] for k in ("copy_id", "missing_pages", "unreadable", "flat")}
                               | {"n_review": len(c["review"]), "grade": c.get("grade")}
-                              | ({"hors_format": True} if c.get("hors_format") else {}) for c in copies]},
+                              | ({"hors_format": True} if c.get("hors_format") else {}) for c in copies]}
+                  | ({"gabarit_douteux": self.gabarit_douteux} if getattr(self, "gabarit_douteux", None) else {}),
                   out_dir / "results.json")
         write_batch_csv(copies, self.template, out_dir / "results.csv")
         write_review_csv(copies, out_dir / "review.csv")

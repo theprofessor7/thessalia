@@ -226,6 +226,8 @@ body.pinceau-actif .carte:hover { outline: 3px solid var(--accent); }
 /* ---- pages Examens (application) ---- */
 .message { background:var(--doutef); border:1px solid var(--trait); border-radius:6px; padding:6px 10px; }
 .erreur { color:var(--faux); font-weight:600; }
+tr.gabarit-douteux td { background:var(--fauxf); }
+.alerte-gabarit { color:var(--faux); font-weight:600; }
 .erreurs { background:var(--fauxf); border-radius:6px; padding:8px 8px 8px 28px; font-family:ui-monospace, Consolas, monospace; font-size:12.5px; }
 .etapes { list-style:none; padding:0; display:grid; gap:12px; max-width:980px; }
 .etape { background:var(--carte); border:1px solid var(--trait); border-left:5px solid var(--doute); border-radius:8px; padding:4px 14px 10px; }

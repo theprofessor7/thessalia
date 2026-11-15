@@ -90,10 +90,17 @@
     <table class="tableau">
       <tr><th>Classe</th><th>Sujet</th><th class="n">Copies</th><th class="n">À revoir</th><th></th></tr>
       {% for c in e.classes %}
-      <tr><td>{{ c.classe }}</td><td>{{ (c.langue or '?')|upper }}</td>
+      <tr class="{{ 'gabarit-douteux' if c.lue and c.gabarit_douteux }}"><td>{{ c.classe }}</td><td>{{ (c.langue or '?')|upper }}</td>
         <td class="n">{{ c.copies if c.lue else '—' }}</td><td class="n">{{ c.a_revoir if c.lue else '—' }}</td>
         <td>{% if not c.lue %}<span class="attente">pas encore lue</span>{% elif c.lue_avant %}<span class="attente">scan remplacé</span>{% endif %}
           <form class="enligne" method="post" action="/examens/{{ e.nom }}/lire/{{ c.classe }}"><button class="bouton {{ 'fait' if c.lue else 'principal' }}">{{ 'Lue · relire' if c.lue else 'Lire' }}</button></form></td></tr>
+      {% if c.lue and c.gabarit_douteux %}
+      {% set autres = e.langues|reject('equalto', c.langue)|map('upper')|join(' ou ') %}
+      <tr class="gabarit-douteux"><td colspan="5"><span class="alerte-gabarit">⚠ GABARIT DOUTEUX : ces copies ne ressemblent pas
+        au sujet {{ (c.langue or '?')|upper }} (reconnaissance {{ ('%.2f'|format(c.gabarit_douteux))|replace('.', ',') }}, attendu 0,96).
+        Mauvaise langue ? Résultats à ne pas utiliser :{% if autres %} redéposer le même PDF sous le même nom avec
+        « Sujet distribué » = {{ autres }}.{% else %} vérifier que ce sont bien les copies de cet examen.{% endif %}</span></td></tr>
+      {% endif %}
       {% endfor %}
     </table>
     {% endif %}
@@ -104,7 +111,7 @@
       <button class="bouton {{ 'principal' if not e.lues }}" {{ 'disabled' if not e.produit }}>Déposer et lire</button>
     </form>
     <p class="aide">Un PDF par classe, tel qu'il sort du scanner (A3, pages tournées ou blanches : gérés). Choisissez
-      bien la langue du sujet distribué : un mauvais choix est signalé « GABARIT DOUTEUX » dans le journal.</p>
+      bien la langue du sujet distribué : un mauvais choix est signalé en rouge (« GABARIT DOUTEUX ») sur la ligne de la classe.</p>
     {% include "_pas_nav.html" %}
   </section>
   {% set x = etapes[3] %}

@@ -53,6 +53,18 @@ def nom_valide(nom: str) -> bool:
     return bool(RE_NOM.match(nom or "")) and ".." not in nom
 
 
+def _douteux_ancien(dossier):
+    """Classe lue avant que results.json note l'alerte : « GABARIT DOUTEUX » en tête de review.csv."""
+    import re
+    p = dossier / "review.csv"
+    if not p.exists():
+        return None
+    with p.open(encoding="utf-8") as f:
+        debut = f.read(2000)
+    m = re.search(r"GABARIT DOUTEUX : score de reconnaissance médian ([0-9.]+)", debut)
+    return float(m.group(1)) if m else None
+
+
 class Projet:
     def __init__(self, dossier):
         self.dir = Path(dossier)
@@ -173,7 +185,8 @@ class Projet:
             if res.exists():
                 r = json.loads(res.read_text(encoding="utf-8"))
                 ligne.update(copies=r.get("n_copies"), a_revoir=sum(c.get("n_review", 0) for c in r.get("copies", [])),
-                             lue_avant=res.stat().st_mtime < scan.stat().st_mtime)
+                             lue_avant=res.stat().st_mtime < scan.stat().st_mtime,
+                             gabarit_douteux=r.get("gabarit_douteux") or _douteux_ancien(self.classes_dir / nom))
             out.append(ligne)
         return out
 
