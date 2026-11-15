@@ -1,5 +1,4 @@
 """Application : identifiant et mot de passe avant toute page."""
-import json
 
 import pytest
 

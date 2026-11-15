@@ -1,11 +1,10 @@
-"""Préparation d'une classe la veille de la correction, sans Claude : `python -m thessalia preparer sorties/<classe>`.
+"""Lecture approfondie des classes d'un examen, sans Claude (bouton de la page de l'examen, cf. `Projet.preparer`).
 
 Enchaîne, sur ce PC (Ollama, aucun envoi), un modèle à la fois (16 Go suffisent) :
-  1. `transcrire --local`  : code manuscrit lu par Qwen3-VL 8B (~1 min par cadre) ;
-  2. `precocher`           : critères pré-cochés par les tests (corrigé du barème), réparateur Qwen3 14B contrôlé ;
-  3. `second-lecteur`      : réponses courtes en revue relues par Qwen3-VL 4B (~30 s par réponse).
-Chaque étape reprend où elle s'était arrêtée : relancer la même commande après une coupure.
-Une centaine de copies tient en une nuit. Ensuite : `serve`, puis `code-bilan` après la correction.
+  1. transcription    : code manuscrit lu par Qwen3-VL 8B (~1 min par cadre) ;
+  2. pré-cochage      : critères pré-cochés par les tests (corrigé du barème), réparateur Qwen3 14B contrôlé ;
+  3. second lecteur   : réponses courtes en revue relues par Qwen3-VL 4B (~30 s par réponse).
+Chaque étape reprend où elle s'était arrêtée : relancer après une coupure. Une centaine de copies tient en une nuit.
 
 Modèles absents (PC d'un collègue) : vérifiés AVANT de commencer ; l'outil marche sans eux, en moins aidé.
   - pas de lecteur du code : pas de transcription (pré-cochage seulement sur les transcriptions déjà là) ;
@@ -20,8 +19,7 @@ import time
 
 
 def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second="qwen3-vl:4b-instruct",
-        sans_code=False, sans_courtes=False, essai=False):
-    """essai=True : réponses courtes « en revue » d'après la base d'essai (copie d'une classe déjà corrigée)."""
+        sans_code=False, sans_courtes=False):
     from .code_tests import run as precocher
     from .lecteur_code import modeles_ollama, run_local
     from .second_lecteur import run as relire
@@ -48,7 +46,7 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
         etapes.append(("pré-cochage par les tests", lambda: precocher(dossiers, rep)))
     if not sans_courtes:
         if second in dispo:
-            etapes.append(("second lecteur des réponses courtes", lambda: relire(dossiers, second, essai=essai)))
+            etapes.append(("second lecteur des réponses courtes", lambda: relire(dossiers, second)))
         else:
             print("  → second lecteur sauté")
     from . import avancement
@@ -59,5 +57,4 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
             f()
         except SystemExit as e:          # une étape impossible n'empêche pas les suivantes
             print(f"  étape arrêtée : {e}")
-    print(f"\nPréparation terminée en {(time.time() - t0) / 60:.0f} min. Ensuite : python -m thessalia serve "
-          + " ".join(map(str, dossiers)))
+    print(f"\nLecture approfondie terminée en {(time.time() - t0) / 60:.0f} min.")

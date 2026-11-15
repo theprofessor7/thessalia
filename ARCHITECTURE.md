@@ -5,40 +5,62 @@ Entrée : copies remplies et scannées. Sortie : réponses détectées + tout ce
 
 ## 1. Vue d'ensemble
 
-```
-                 ┌──────────────────────────── une fois par sujet ────────────────────────────┐
-  sujet.html ──WeasyPrint──► sujet.pdf ──template_builder──► gabarit.json  (+ corrigé.key.json)
-                                 │                               │
-                                 └── rendu 200 dpi = pages de référence (vierges)
-                 └─────────────────────────────────────────────────────────────────────────────┘
+Tout passe par l'application (`python -m thessalia app`, lancée par `Thessalia.bat` / `Thessalia.command`) ; un
+examen est un dossier `examens/<nom>/` qui contient tout, du sujet aux notes (`projet`).
 
-  scans (PDF/JPG/TIFF) ─► loader ─► align ─────────► page redressée (repère du PDF, 200 dpi)
-                                    │ fiducials            │
-                                    │ homographie          ├─► omr ─────► QCM / V-F  (niveau 1)
-                                    │ n° de page + sens    ├─► extract ─► vignettes  ─► ocr_short (niveau 2)
-                                    ▼                      │                          └► htr_code  (niveau 3)
-                               regroupement en copies      └─► report ──► overlays, JSON, CSV
-                                                                              │
-                                                               review UI (niveau 4) ◄┘ ─► CSV notes / Moodle
+```
+  ┌───────────────────────────────── une fois par examen ─────────────────────────────────┐
+  examen.yaml ──sujet (Typst)──► sujet.pdf, corrigé.pdf, zones ──┐
+                                                                  ├─ template_builder ─► gabarit.json
+  sujet importé (générateur d'un collègue) : PDF + .key + .vocab ─┘   (lu dans le PDF)   + .key / .vocab / .bareme
+  └────────────────────────────────────────────────────────────────────────────────────────┘
+
+  scans ─► loader ─► align ─► page redressée ─┬─► omr ─────► QCM / V-F                (niveau 1)
+           (PDF,      fiducials, homographie,  ├─► extract ─► vignettes ─► ocr_run    (niveau 2 : réponses courtes)
+           images)    n° de page + sens        │                         └► preparer (niveau 3 : code, Ollama local)
+                                               └─► report ──► overlays, results.json
+                                                                   │
+                       correction + serve / web (outil de correction, mémoire, apprentissage) ─► excel (notes)
 ```
 
 Principe directeur : **chaque décision automatique porte un statut** (`ok`, `blank`, `review`). On vise un taux d'erreur *silencieuse* quasi nul, quitte à envoyer plus de cas en revue ; la revue humaine est rapide parce que tout est pré-rempli.
 
 ## 2. Modules
 
-| Module | Rôle | Entrée → sortie |
-|---|---|---|
-| `template_builder` | Lit le PDF vierge **en vectoriel** (PyMuPDF) : fiducials, cases, blancs, cadres, questions, barème, libellés | `sujet.pdf` → `gabarit.json` |
-| `loader` | PDF, images, TIFF multipage, dossiers ; niveau de gris « encre » (min RGB : l'encre bleue devient aussi sombre que la noire) ; estimation px/mm | fichiers → `ScanPage` (générateur, mémoire constante) |
-| `align` | Fiducials (ouverture morphologique + filtres forme), reconstruction d'un fiducial manquant, homographie, identification page + orientation par corrélation avec les pages vierges | `ScanPage` → `AlignedPage` |
-| `omr` | Raffinement local de chaque case (±2 mm), taux d'encre intérieur − vierge, double seuil + détection de traces claires, décision par question | page redressée → `{field_id: résultat}` |
-| `extract` | Découpe identité, blancs, cadres texte/code | page redressée → PNG |
-| `report` | Overlays colorés, `results.csv`, `review.csv` | résultats → fichiers |
-| `grade` | Barème + corrigé (tout-ou-rien ou par option), `pending` si revue | résultats + clé → notes |
-| `pipeline` | Orchestration, regroupement en copies, pages manquantes / en double | scans → dossier de sortie |
-| `simulate` / `evaluate` | Copies synthétiques avec vérité terrain ; métriques | tests de non-régression |
+**Sujet et gabarit**
 
-Niveau 2 : `ocr_prep` (nettoyage), `ocr` (moteurs), `vocab` (rapprochement), `ocr_run` (commande `ocr`), `evaluate_ocr`. À créer : `htr_code`, `review_app` (voir §6).
+| Module | Rôle |
+|---|---|
+| `sujet/` | Source YAML d'un sujet (docs/FORMAT_SUJET.md) : lecture stricte (`source`), contrôle (`modele`), mise en page Typst (`mise_en_page`), fichiers de corrigé (`corrige`), production de toutes les langues (`produire_tout`) |
+| `template_builder` | Lit le PDF vierge **en vectoriel** (PyMuPDF) : fiducials, cases, blancs, cadres, questions, barème, libellés → `gabarit.json` |
+| `verif_zones` | Fichier de zones d'un générateur contrôlé contre le PDF (rapport Markdown) |
+| `projet` | Examen de l'application : dossier, sujet produit ou importé (`importer_fichiers`), classes, lectures, notes |
+| `enonce` | Énoncé d'une question découpé dans le PDF vierge (affiché dans l'outil de correction) |
+
+**Lecture des copies**
+
+| Module | Rôle |
+|---|---|
+| `loader` | PDF, images, TIFF multipage, dossiers ; niveau de gris « encre » (min RGB) ; estimation px/mm |
+| `align` | Fiducials, reconstruction d'un fiducial manquant, homographie, identification page + orientation |
+| `omr` | Cases à cocher : recalage local, taux d'encre, double seuil, traces claires, ratures, décision par question |
+| `extract`, `code_vide` | Vignettes (identité, blancs, cadres) ; cadres de code vides |
+| `pipeline`, `report`, `grade` | Orchestration et regroupement en copies ; overlays et `results.json` ; notation des QCM |
+| `ocr_prep`, `ocr`, `digits`, `vocab`, `ocr_run` | Réponses courtes : nettoyage, TrOCR, lecteur de chiffres, rapprochement du vocabulaire, lecture d'une classe |
+| `identite` | Noms proposés d'après les vignettes d'identité (l'enseignant confirme) |
+| `preparer` | Lecture approfondie locale (Ollama, `ollama_local`) : `lecteur_code` (transcription du code ; option payante en ligne), `code_tests` (pré-cochage par exécution), `second_lecteur` (réponses courtes relues) |
+
+**Correction et notes**
+
+| Module | Rôle |
+|---|---|
+| `correction` | État de chaque réponse (verdict, origine), décisions (SQLite), mémoire des verdicts, lectures tapées, étiquettes d'apprentissage |
+| `notes` | Règle de jugement d'une réponse courte (juste, forme, faux) |
+| `serve`, `web_examens`, `web/` | Application Flask : pages des examens, outil de correction, noms, notes |
+| `apprentissage`, `digits_train`, `trocr_train`, `evaluate_ocr` | Page « Apprentissage » : affiner les lecteurs sur les corrections, mesurer sur des copies jamais vues |
+| `verif_noms`, `excel` | Contrôle des attributions avant l'export ; classeur des notes |
+| `compte`, `reglages`, `extensions`, `avancement` | Compte local, réglages du PC, extensions en un clic, jauge des tâches longues |
+| `simulate` / `evaluate` | Copies synthétiques avec vérité terrain ; métriques (tests de non-régression) |
 
 ## 3. Repère de coordonnées
 
@@ -112,7 +134,7 @@ Les niveaux 2 et 3 **ajoutent** leurs clés dans `fields[id]` (`ocr`: {text, can
 
 ## 5. Niveau 1 — choix techniques et réglages
 
-**Gabarit exact sans mesure.** Le PDF WeasyPrint est vectoriel : une case est un rectangle à bordure (3,7 mm, bordure 0,42 mm), un blanc est un rectangle à bordure basse seule, un cadre est un grand rectangle à bordure, un fiducial un aplat 5 × 5 mm. Les libellés viennent du texte du PDF. Le builder retrouve les 19 questions, 24 cases, 37 blancs, 9 cadres des deux sujets FR/EN sans réglage.
+**Gabarit exact sans mesure.** Le PDF du sujet est vectoriel (Typst pour les sujets produits par Thessalia, WeasyPrint pour les anciens et certains sujets importés) : une case est un rectangle à bordure (3,7 mm, bordure 0,42 mm), un blanc est un rectangle à bordure basse seule, un cadre est un grand rectangle à bordure, un fiducial un aplat 5 × 5 mm. Les libellés viennent du texte du PDF. Le builder retrouve les 19 questions, 24 cases, 37 blancs, 9 cadres des deux sujets FR/EN sans réglage.
 
 **Fiducials.** Seuil à 62 % du blanc papier (50 % manquait les repères rendus en gris à 128 par certains scanners), ouverture morphologique de 3 mm (efface texte, traits, grille, écriture, y compris le texte d'en-tête qui touche les carrés du haut), filtres taille ±40 % / carré / plein / ne touche pas le bord. Parmi les candidats, on choisit les 4 qui forment le rectangle attendu (côtés opposés égaux, diagonales égales, rapport 264/187), où que soit la feuille dans l'image (scan A3, page couchée, marges). 3 fiducials sur 4 suffisent (angle droit + parallélogramme). Une page sans fiducial et sans traits fins est classée « page blanche » et ignorée. Si la résolution déclarée est fausse (photo), ré-estimation en supposant un A4.
 
@@ -160,59 +182,41 @@ Ce que les vraies copies ont appris, et qui est désormais pris en compte :
 
 Réglages de numérisation à corriger pour les prochains lots : **format A4** (pas A3), **200 dpi minimum** (100 dpi fonctionne pour les QCM mais sera limite pour l'OCR des niveaux 2 et 3).
 
-Ces chiffres valident la chaîne, pas les seuils sur tes vrais scans : le simulateur ne reproduit ni tous les styles de marques, ni ton scanner. Première chose à faire avec de vrais scans : 10 copies avec vérité saisie → `evaluate` → ajuster.
+Ces chiffres valident la chaîne, pas les seuils sur tes vrais scans : le simulateur ne reproduit ni tous les styles de marques, ni ton scanner. Les seuils ont depuis été validés sur plusieurs classes réelles (cf. HANDOFF).
 
-## 6. Feuille de route niveaux 2 → 4
+## 6. Niveaux 2 à 4 — en place
 
-### Niveau 2 — réponses courtes contraintes (q2, q3, q5–q8, q10, q14)
+Mesures et historique : HANDOFF. Tout est local et gratuit par défaut ; seule la transcription du code par un
+service en ligne (`transcrire`) est une option payante, sur clé, plafonnée.
 
-**Implémenté** (`ocr_prep`, `vocab`, `ocr`, `ocr_run`, `evaluate_ocr`) — voir HANDOFF §3 pour les mesures.
-Contrainte : moteurs **locaux et gratuits par défaut** (TrOCR recommandé) ; API Claude / Google Vision en
-option payante opt-in (clé dans l'environnement). Le plan d'origine ci-dessous reste la référence.
+### Niveau 2 — réponses courtes
 
-Pipeline par vignette `short_text` :
-1. **Nettoyage** : soustraire la page vierge recalée (enlève soulignement, texte imprimé), ne garder que l'encre ; recadrer sur la boîte englobante de l'encre ; vide ⇒ `blank` directement (fiable, et c'est déjà une info de notation).
-2. **Reconnaissance** : plusieurs candidats (beam search / top-k) plutôt qu'une seule chaîne.
-3. **Snapping** vers le vocabulaire du champ, avec une distance d'édition *pondérée par les confusions manuscrites* (1/l/I/7, 0/O/o, 5/S, 2/Z, `"`/`''`, `.`/`,`) — `rapidfuzz` pour la vitesse.
-4. **Décision** : accepté si distance ≤ seuil **et** écart suffisant avec le 2e candidat, sinon `review` avec les 3 meilleurs candidats proposés en boutons.
+1. **Nettoyage** (`ocr_prep`) : page vierge recalée soustraite, seuls les tracés qui reposent sur leur
+   soulignement sont gardés (l'écriture déborde sur la ligne voisine) ; vide ⇒ `blank`, vide avec de l'encre
+   écartée ⇒ `suspect` (jamais déclaré vide).
+2. **Lecture** : TrOCR (`ocr`), affiné sur les corrections de l'enseignant (page Apprentissage) ; nombres lus
+   par le lecteur de chiffres (`digits`). Un nombre décimal part toujours en revue.
+3. **Rapprochement** (`vocab`) vers le vocabulaire du champ, qui doit contenir les **mauvaises réponses
+   plausibles** (sinon le rapprochement « corrige » l'étudiant). Les lectures tapées par l'enseignant sur
+   2 copies ou plus s'y ajoutent (`Projet.vocab_appris`).
+4. **Décision** : acceptée seulement si le rapprochement est sûr ; sinon en revue avec des propositions. Un
+   second lecteur local (Qwen3-VL, `second_lecteur`) peut confirmer une lecture (« deux lecteurs »).
+5. **Mémoire des verdicts** (`correction.Memory`) : une même lecture jugée de la même façon dans d'autres
+   classes est proposée (3 fois), puis décidée d'office (10 fois, 95 % d'accord).
 
-Le piège principal : **le vocabulaire doit contenir les mauvaises réponses plausibles**, pas seulement la bonne, sinon le snapping « corrige » les erreurs des étudiants vers la bonne réponse. Pour q2 : `{int, float, str, bool}` ; pour q3 : `{3, 2, 1024, 2.5, 11, 14}` + erreurs classiques (`3.4`, `2.0`, `20`, `4`, `2`) + valeur libre numérique parsée ; pour q8 : `<class 'int'>`, `int`, … (normaliser : minuscules, espaces, guillemets). Le champ `vocab` du gabarit accueille ces listes ; `"vocab": "number"` pour un nombre libre validé par parsing.
+### Niveau 3 — code manuscrit
 
-Modèles à comparer (sur 200–300 vignettes étiquetées) :
+Transcription par un modèle de vision local (Qwen3-VL 8B via Ollama, `lecteur_code`), puis pré-cochage des
+critères du barème en **exécutant** le code transcrit (`code_tests`, tests `<sujet>.tests.py`) : un critère
+n'est pré-coché que si ses tests passent ; un échec ne décide rien. Les fautes tolérées sont réparées avant
+l'exécution (règles, puis réparateur local sous contrôle). L'enseignant confirme toujours.
 
-| Option | Pour | Contre |
-|---|---|---|
-| Tesseract 5 | déjà connu, rapide | médiocre en manuscrit, garder seulement comme témoin |
-| TrOCR `microsoft/trocr-base-handwritten` / `-large-` | local, niveau « ligne », bon sur mots courts | entraîné sur de l'anglais (IAM) : accents, symboles de code moins bons ; fine-tuning utile |
-| PaddleOCR / docTR | local, rapide, détection + reco | manuscrit moyen sans fine-tuning |
-| Google Cloud Vision (`DOCUMENT_TEXT_DETECTION`), Azure Document Intelligence (modèle *Read*, ex-Form Recognizer) | très bons en manuscrit | payant, données hors établissement |
-| VLM (Qwen-VL en local ; Claude / Gemini / GPT via API) | lit le contexte (« type : int »), gère symboles et code | coût/latence ; en local il faut un GPU |
+### Niveau 4 — outil de correction
 
-Métriques : CER, exactitude par champ, **taux d'acceptation automatique vs erreur dans les acceptés** (courbe en faisant varier le seuil), temps de revue par copie.
-
-### Niveau 3 — code manuscrit (q11.b, q12, q13, q15–q19)
-
-1. **Isolation de l'encre** : soustraire le cadre vierge recalé (la grille est connue au pixel près grâce au gabarit ⇒ elle disparaît), plutôt que d'essayer de détecter la grille.
-2. **Segmentation en lignes** : profil horizontal de l'encre, calé sur la grille 5 mm (une ligne de code ≈ 1 ou 2 carreaux) ; fusion des jambages qui débordent.
-3. **Indentation** : abscisse du premier trait de chaque ligne, convertie en carreaux (grille 5 mm) puis regroupement (k-means 1D) en niveaux 0/1/2/3. Plus fiable que ce que l'OCR déduit des espaces.
-4. **HTR** — deux familles à comparer :
-   - *ligne par ligne* : TrOCR (fine-tuné sur tes données), Google/Azure ; on reconstruit le code avec l'indentation de l'étape 3 ;
-   - *cadre entier* : VLM (Qwen-VL local, ou API) avec une consigne du type « transcris exactement, n'invente rien, garde les fautes, [?] si illisible ». Souvent le meilleur résultat brut sur du code, mais risque d'« auto-correction » du code de l'étudiant — à mesurer spécifiquement.
-5. **Post-traitement Python** : normalisation des guillemets typographiques, `ast.parse` / `compile` ; règles de confusion ciblées (`;`→`:` en fin de `if/for/while/else/def`, `l`/`1`, `O`/`0` dans les nombres, `=`/`==` dans les conditions) appliquées **seulement si elles font passer le parse**, et affichées comme suggestions surlignées, jamais silencieusement.
-6. **Sortie** : pour chaque question, vignette + transcription éditable côte à côte, lignes à faible confiance surlignées.
-
-Bonus puissant pour la notation : une fois la transcription validée, l'exécuter dans le sandbox avec les jeux de tests CodeRunner que tu as déjà dans Moodle ⇒ pré-note automatique du code.
-
-Métriques : CER par ligne, % de lignes exactes, % de programmes qui parsent, et surtout **effort de correction** (distance d'édition entre transcription proposée et version validée, rapportée à la longueur) — l'objectif réel est « le correcteur retouche < 30 % des caractères ».
-
-### Niveau 4 — interface de validation
-
-Flask + SQLite (Streamlit est plus rapide à prototyper mais se prête mal à une file de revue au clavier). Écrans :
-- **file de revue** : seulement les éléments `review` (+ un échantillon aléatoire de `ok` pour contrôle qualité), vignette à gauche, proposition à droite, raccourcis clavier (Entrée = valider, 1–4 = choisir un candidat) ;
-- **vue copie** : overlays de toutes les pages ;
-- **export** : CSV de notes, et CSV d'import du carnet de notes Moodle (identifiant = n° étudiant).
-
-Chaque validation est enregistrée (vignette, proposition, correction) : c'est **ton jeu d'entraînement gratuit** pour fine-tuner TrOCR sur l'écriture de tes étudiants et pour recalibrer les seuils.
+Application Flask (`serve`, `web_examens`, `web/`) : une page par question (réponses groupées par lecture,
+propositions, décisions à la souris), vue par copie, noms, notes. Chaque décision est enregistrée
+(`examens/<nom>/decisions.sqlite`) et nourrit la mémoire et l'apprentissage. Export : classeur Excel (`excel`),
+après le contrôle des attributions (`verif_noms`).
 
 ## 7. Pièges attendus et parades
 
@@ -221,7 +225,6 @@ Chaque validation est enregistrée (vignette, proposition, correction) : c'est *
 - **Cases noircies pour annuler** : fixer la convention dans la consigne, puis `full_policy`.
 - **Réglages scanner** : 200–300 dpi, niveaux de gris ou couleur, **pas de binarisation** (noir & blanc 1 bit détruit les traces claires et le gris de la grille), pas de « suppression des pages blanches » (sinon pages manquantes).
 - **Regroupement des copies** : aujourd'hui par ordre de numérisation + n° de page reconnu. Une copie dont on perd la page 1 se fond dans la précédente ⇒ `missing_pages`/pages en double signalés. Le QR code (hors scope pour l'instant) supprimerait ce risque.
-- **Calibrage sur vrais scans** : scanner 10 copies remplies par des collègues avec des marques variées, saisir la vérité dans un `truth.json` (même format que `simulate`), lancer `evaluate`, ajuster les seuils.
 - **RGPD** : les vignettes de réponses ne contiennent pas l'identité (elle est découpée à part) ⇒ on peut n'envoyer que des vignettes anonymes à une API cloud ; à valider avec le DPO de l'école.
 
 ## 8. Remarques sur le template v3 (observées dans les PDF)

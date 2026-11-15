@@ -44,7 +44,6 @@ class ExamenImporte:
         g = json.loads((gabarits / info["langues"][self.langues[0]]["gabarit"]).read_text(encoding="utf-8"))
         self._questions = g["questions"]
         self.points = sum(q.get("points") or 0 for q in self._questions)
-        self.importe = True
 
     def questions(self):
         return self._questions
@@ -240,8 +239,7 @@ class Projet:
             log(f"=== {d.name} ({info['langue'].upper()})")
             if getattr(log, "progression", None):
                 log.progression(None)
-            ocr(d, self.vocab_appris(info["langue"], log), "trocr", log=log,
-                backend_kw={"model": modele} if modele else None)
+            ocr(d, self.vocab_appris(info["langue"], log), model=modele, log=log)
         # noms écrits sur les copies : propositions pour « Identifier les copies »
         from .identite import run as noms
         log("=== noms des élèves")
@@ -358,17 +356,9 @@ class Projet:
 
     # ---------------------------------------------------------------- réglages
     def reglages(self) -> dict:
-        """Réglages généraux (page Réglages), sauf ceux que l'examen garde dans son reglages.json."""
-        from .reglages import DEFAUTS, lire
-        p = self.dir / "reglages.json"
-        propres = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
-        return {**lire(), **{k: v for k, v in propres.items() if k in DEFAUTS}}
-
-    def regler(self, **valeurs):
-        r = self.reglages()
-        from .reglages import DEFAUTS
-        r.update({k: v for k, v in valeurs.items() if k in DEFAUTS})
-        (self.dir / "reglages.json").write_text(json.dumps(r, indent=1), encoding="utf-8")
+        """Réglages généraux (page Réglages) : les mêmes pour tous les examens de ce PC."""
+        from .reglages import lire
+        return lire()
 
     @property
     def notes_xlsx(self) -> Path:
@@ -546,6 +536,70 @@ def importer(nom: str, titre: str, langues: dict, racine=RACINE, autres=()) -> P
         shutil.copy2(a, p.corriges / Path(a).name)
     (d / IMPORT).write_text(json.dumps(desc, ensure_ascii=False, indent=1), encoding="utf-8")
     return p
+
+
+def importer_fichiers(nom: str, titre: str, langues: dict, racine=RACINE, autres=()):
+    """Import en une fois (accueil de l'application ou `thessalia importer`) : pour chaque langue, le PDF imprimé,
+    le corrigé `.key.json` et le vocabulaire `.vocab.json` ; facultatifs : le fichier de zones du générateur
+    (contrôlé contre le PDF, refusé s'il ne colle pas) et un gabarit déjà construit (sinon lu dans le PDF).
+
+    Refusé (ValueError, avec la raison) si le corrigé ou le vocabulaire nomment des champs absents du sujet.
+    Renvoie (Projet, résumé lisible : questions, points, champs sans corrigé) : les points sont ceux lus dans le
+    PDF, à vérifier par l'enseignant."""
+    import tempfile
+
+    from .template_builder import build_template
+    from .verif_zones import controler
+    if not langues:
+        raise ValueError("au moins une langue : PDF du sujet, corrigé .key.json, vocabulaire .vocab.json")
+    lignes = []
+    with tempfile.TemporaryDirectory() as tmp:
+        prets = {}
+        for langue, f in langues.items():
+            for k, nom_f in (("pdf", "PDF du sujet"), ("key", "corrigé .key.json"), ("vocab", "vocabulaire .vocab.json")):
+                if not f.get(k) or not Path(f[k]).is_file():
+                    raise ValueError(f"{langue} : {nom_f} manquant")
+            try:
+                key = json.loads(Path(f["key"]).read_text(encoding="utf-8"))
+                vocab = json.loads(Path(f["vocab"]).read_text(encoding="utf-8"))
+            except (ValueError, UnicodeDecodeError) as e:
+                raise ValueError(f"{langue} : corrigé ou vocabulaire illisible ({e})")
+            if not key.get("exam_id"):
+                raise ValueError(f"{langue} : le corrigé n'a pas d'« exam_id »")
+            if f.get("zones"):
+                rapport, ok = controler(f["pdf"], f["zones"])
+                if not ok:
+                    lr = [l for l in rapport.splitlines() if l.strip()]
+                    i = next((j for j, l in enumerate(lr) if "Résultat" in l), 0)
+                    raise ValueError(f"{langue} : les zones du générateur ne collent pas au PDF "
+                                     f"(rapport complet : thessalia verif-zones)\n" + "\n".join(lr[i:i + 10]))
+            if f.get("gabarit"):
+                g = json.loads(Path(f["gabarit"]).read_text(encoding="utf-8"))
+            else:
+                try:
+                    g = build_template(str(f["pdf"]), exam_id=key["exam_id"])
+                except Exception as e:     # PDF sans les repères du format Thessalia, scanné, protégé…
+                    raise ValueError(f"{langue} : PDF du sujet illisible comme sujet Thessalia ({e})")
+            champs = {c["id"] for p in g["pages"] for c in p["fields"]}
+            nommes = (set(key.get("answers", {})) | set(key.get("short_answers", {}))
+                      | set(vocab.get("fields", {})))
+            absents = sorted(nommes - champs)
+            if absents:
+                raise ValueError(f"{langue} : le corrigé nomme des champs absents du sujet : {', '.join(absents[:10])}"
+                                 " (corrigé d'une autre version du sujet ?)")
+            gp = Path(tmp) / f"{langue}_gabarit.json"
+            gp.write_text(json.dumps(g, ensure_ascii=False, indent=1), encoding="utf-8")
+            prets[langue] = {"pdf": f["pdf"], "gabarit": gp, "key": f["key"], "vocab": f["vocab"]}
+            courts = sorted(c["id"] for p in g["pages"] for c in p["fields"] if c["type"] == "short_text")
+            sans = [c for c in courts if c not in key.get("short_answers", {})]
+            pts = sum(q.get("points") or 0 for q in g["questions"])
+            lignes.append(f"{langue.upper()} : {g['page_count']} pages, {len(g['questions'])} questions, "
+                          f"{f'{pts:g}'.replace('.', ',')} points (lus dans le PDF : à vérifier), {len(champs)} zones"
+                          + (f" ; sans corrigé : {', '.join(sans)}" if sans else ""))
+            lignes.append("   " + " · ".join(f"q{q['num']} " + f"{q.get('points') or 0:g}".replace(".", ",")
+                                              for q in g["questions"]))
+        p = importer(nom, titre, prets, racine=racine, autres=autres)
+    return p, "\n".join(lignes)
 
 
 def creer(nom: str, source_yaml: bytes, racine=RACINE, fichiers=None) -> Projet:

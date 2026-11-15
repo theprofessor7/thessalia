@@ -1,28 +1,13 @@
 """Point d'entrée : python -m thessalia <commande> ...
 
-    template   PDF vierge -> gabarit JSON
-    process    scans -> résultats (JSON, CSV, overlays, vignettes)
-    ocr        Niveau 2 : lecture des réponses courtes (après process)
-    digits-train  Niveau 2 : affiner le lecteur de chiffres sur un lot dont la vérité est validée
-    trocr-train   Niveau 2 : affiner TrOCR sur des lots validés (long, ~6 Go de mémoire)
-    truth-page    Niveau 2 : page HTML locale pour valider la vérité terrain des réponses courtes
-    separateur    Niveau 2 : mesurer / apprendre le détecteur de séparateur décimal (point ou virgule)
-    serve      outil de correction local (navigateur) : vue par question, vue par copie, notes en direct
-    identite   proposer l'élève de chaque copie (vignettes Nom/Prénom + liste), à confirmer dans l'outil
-    verif-noms page de contrôle des attributions : nom écrit / élève attribué, copies à risque en tête
-    verif-zones contrôle d'un fichier de zones (généré avec le sujet) contre le PDF : rapport à coller
-    app        application : examens (sujet source -> PDF -> scans -> lecture) et outil de correction, navigateur
-    sujet      source unique d'un examen (YAML, docs/FORMAT_SUJET.md) : contrôle strict, fichiers de corrigé
-    precocher  code : pré-cocher les critères en exécutant le code transcrit (tests du sujet, local)
-    transcrire lire le code manuscrit : --local (Ollama, gratuit) ou service en ligne (clé, plafond de dépense)
-    preparer   lecture approfondie : code transcrit + pré-coché, réponses courtes relues (local, quelques heures en arrière-plan)
-    second-lecteur  réponses courtes : second lecteur local (Qwen3-VL 4B) ; deux lectures identiques = décidée
-    code-bilan code : chaîne locale contre les décisions de l'enseignant, quoi améliorer avant la classe suivante
-    bilan      ce que les décisions de l'enseignant disent de la machine, par groupe (après correction)
-    excel      notes finales (QCM + réponses courtes + code, sur 20) dans un classeur Excel, absents compris
-    notes      notes partielles : QCM + réponses courtes, par classe (et fichier commun d'un groupe)
-    simulate   génère des copies remplies + scannées synthétiques (tests)
-    evaluate   compare des résultats à une vérité terrain
+    app          l'application (navigateur) : examens, copies, lectures, correction, notes ; c'est elle que lancent
+                 Thessalia.bat / Thessalia.command
+    importer     créer un examen à partir d'un sujet produit par un autre générateur (aussi depuis l'accueil)
+    verif-zones  contrôle d'un fichier de zones (générateur d'un collègue) contre le PDF : rapport à coller
+    transcrire   option payante, sur clé : lire le code manuscrit par un service en ligne (plafond de dépense) ;
+                 la lecture approfondie locale (Ollama) se lance depuis l'application
+    simulate     copies remplies et scannées synthétiques (tests)
+    evaluate     lecture des cases d'un lot simulé, comparée à sa vérité (tests ; 0 « FAUSSES » exigé)
 """
 import argparse
 import sys
@@ -32,24 +17,38 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="thessalia")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    t = sub.add_parser("template", help="PDF vierge -> gabarit JSON")
-    t.add_argument("pdf")
-    t.add_argument("-o", "--out", required=True)
-    t.add_argument("--exam-id")
-    t.add_argument("--merge")
+    ap_ = sub.add_parser("app", help="application : examens, du sujet à la correction (navigateur)")
+    ap_.add_argument("--examens", default="examens", help="dossier des examens (défaut : examens/)")
+    ap_.add_argument("--port", type=int, default=8765)
+    ap_.add_argument("--no-browser", action="store_true")
 
-    p = sub.add_parser("process", help="scans -> résultats")
-    p.add_argument("scans", nargs="+", help="PDF, images ou dossiers")
-    p.add_argument("-t", "--template", required=True)
-    p.add_argument("-b", "--blank", required=True, help="PDF vierge du sujet")
-    p.add_argument("-o", "--out", required=True)
-    p.add_argument("-k", "--key", help="corrigé JSON (optionnel)")
-    p.add_argument("--dpi", type=int, default=200)
-    p.add_argument("--no-overlays", action="store_true")
-    p.add_argument("--no-crops", action="store_true")
-    p.add_argument("--full-policy", choices=["auto", "checked", "cancelled", "review"])
-    p.add_argument("--bridge-line", action="store_true",
-                   help="Niveau 2 (expérimental) : recoller les tracés coupés par le soulignement")
+    im = sub.add_parser("importer", help="examen à partir d'un sujet produit par un autre générateur")
+    im.add_argument("nom", help="nom du dossier de l'examen (lettres, chiffres, _ - .)")
+    im.add_argument("--titre", help="titre affiché (défaut : le nom)")
+    im.add_argument("--langue", nargs=4, action="append", required=True,
+                    metavar=("LANGUE", "SUJET_PDF", "CORRIGE_KEY", "VOCAB"),
+                    help="une langue du sujet : fr sujet.pdf sujet.key.json sujet.vocab.json (répétable)")
+    im.add_argument("--zones", nargs=2, action="append", default=[], metavar=("LANGUE", "ZONES"),
+                    help="fichier de zones du générateur, contrôlé contre le PDF (recommandé)")
+    im.add_argument("--gabarit", nargs=2, action="append", default=[], metavar=("LANGUE", "GABARIT"),
+                    help="gabarit déjà construit sur ce PDF (sinon lu dans le PDF)")
+    im.add_argument("--autre", action="append", default=[], help="barème du code .bareme.json, tests .tests.py…")
+    im.add_argument("--examens", default="examens", help="dossier des examens (défaut : examens/)")
+
+    vz = sub.add_parser("verif-zones", help="contrôle d'un fichier de zones (.json du générateur) contre le PDF du sujet")
+    vz.add_argument("pdf", help="PDF vierge du sujet")
+    vz.add_argument("zones", help="fichier de zones .json")
+    vz.add_argument("-o", "--sortie", help="écrire le rapport (Markdown) dans ce fichier au lieu de l'afficher")
+    vz.add_argument("--tolerance", type=float, default=0.3, help="écart toléré en mm (défaut 0,3)")
+
+    tr = sub.add_parser("transcrire", help="code manuscrit lu par un service en ligne (option payante, plafonnée) "
+                                           "ou --local (Ollama, gratuit)")
+    tr.add_argument("dossiers", nargs="+", help="dossiers de classes (examens/<nom>/classes/<classe>)")
+    tr.add_argument("--champ", action="append", help="champ(s) de code : q12, q18… (en local : tous par défaut)")
+    tr.add_argument("--local", nargs="?", const="qwen3-vl:8b-instruct", metavar="MODELE",
+                    help="modèle de vision local via Ollama (gratuit, rien ne sort du PC) ; défaut qwen3-vl:8b-instruct")
+    tr.add_argument("--refaire", action="store_true", help="local : relire aussi les cadres déjà transcrits par la machine")
+    tr.add_argument("--limite", type=int, help="nombre maximal de cadres envoyés ce lancement")
 
     s = sub.add_parser("simulate", help="copies synthétiques pour tester")
     s.add_argument("-t", "--template", required=True)
@@ -59,279 +58,48 @@ def main(argv=None):
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--hard", action="store_true", help="déformations et marques plus difficiles")
 
-    o = sub.add_parser("ocr", help="Niveau 2 : lecture des réponses courtes d'un dossier de résultats")
-    o.add_argument("results_dir")
-    o.add_argument("-v", "--vocab", required=True, help="vocabulaires par champ (*.vocab.json)")
-    o.add_argument("--backend", default="trocr", help="trocr (défaut), tesseract, rapidocr")
-    o.add_argument("--model", help="modèle TrOCR (ex. microsoft/trocr-large-handwritten)")
-    o.add_argument("--truth", help="vérité terrain pour évaluer (format cNN_qX.Y)")
-    o.add_argument("--batch", type=int, default=4,
-                   help="vignettes lues à la fois (défaut 4 ; plus petit = moins de mémoire)")
-
-    o.add_argument("--confirm-model", help="second modèle TrOCR (lectures déjà en cache) dont l'accord est exigé pour accepter")
-    o.add_argument("--digits-model", help="modèle du lecteur de chiffres (défaut : data/models/digits.npz s'il existe, sinon celui fourni)")
-    o.add_argument("--no-digits", action="store_true",
-                   help="ne pas utiliser le lecteur de chiffres pour proposer les nombres")
-
-    d = sub.add_parser("digits-train", help="Niveau 2 : affiner le lecteur de chiffres sur un lot validé")
-    d.add_argument("results_dir", nargs="?")
-    d.add_argument("-v", "--vocab")
-    d.add_argument("--truth", help="vérité terrain VALIDÉE (format cNN_qX.Y)")
-    d.add_argument("-o", "--out", help="modèle affiné (défaut : data/models/digits.npz, hors dépôt)")
-    d.add_argument("--base-only", action="store_true", help="réentraîner le modèle MNIST fourni avec le paquet")
-    d.add_argument("--also", nargs=3, action="append", default=[], metavar=("DOSSIER", "VOCAB", "VERITE"),
-                   help="autre lot validé à ajouter (répétable) : dossier de résultats, vocabulaire, vérité")
-
-    tt = sub.add_parser("trocr-train", help="Niveau 2 : affiner TrOCR sur des lots validés (long, ~6 Go de mémoire)")
-    tt.add_argument("results_dir")
-    tt.add_argument("-v", "--vocab", required=True)
-    tt.add_argument("--truth", required=True, help="vérité terrain VALIDÉE (format cNN_qX.Y)")
-    tt.add_argument("--also", nargs=3, action="append", default=[], metavar=("DOSSIER", "VOCAB", "VERITE"),
-                    help="autre lot validé à ajouter (répétable) : dossier de résultats, vocabulaire, vérité")
-    tt.add_argument("-o", "--out", default="data/models/trocr", help="modèle affiné (hors dépôt, ~1,3 Go)")
-    tt.add_argument("--passes", type=int, default=3)
-    tt.add_argument("--limit", type=int, help="essai court : n'utiliser que N vignettes tirées au hasard")
-    tt.add_argument("--from", dest="from_model", help="repartir de ce modèle déjà affiné (ex. data/models/trocr_commun)")
-    tt.add_argument("--replay", type=int, help="ne reprendre que N vignettes tirées au hasard dans les lots --also")
-    tt.add_argument("--new", type=int, default=1,
-                    help="avec --replay : nombre de lots (le principal puis les premiers --also) appris en entier")
-
-    v = sub.add_parser("truth-page", help="Niveau 2 : page HTML locale pour valider la vérité terrain")
-    v.add_argument("results_dir")
-    v.add_argument("-t", "--template", help="gabarit JSON (affiche la consigne de chaque blanc)")
-    v.add_argument("--truth", help="vérité existante à relire (sinon : propositions de `ocr`)")
-    v.add_argument("-o", "--out", help="défaut : <results_dir>/validation.html")
-
-    n = sub.add_parser("notes", help="notes partielles : QCM + réponses courtes")
-    n.add_argument("results_dirs", nargs="+", help="dossiers de résultats (une classe chacun)")
-    n.add_argument("-t", "--template", required=True)
-    n.add_argument("-k", "--key", required=True, help="corrigé JSON (short_answers, short_accept, short_reject)")
-    n.add_argument("-v", "--vocab", required=True, help="vocabulaire (nature de chaque blanc)")
-    n.add_argument("-o", "--out", help="fichier commun du groupe (ex. sorties/notes/B.csv)")
-
-    sv = sub.add_parser("serve", help="outil de correction local dans le navigateur")
-    sv.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    sv.add_argument("--port", type=int, default=8765)
-    sv.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
-    sv.add_argument("--essai", action="store_true",
-                    help="décisions dans une base à part (data/correction_essai.sqlite), rien appris : pour essayer")
-    sv.add_argument("--banc", action="store_true",
-                    help="banc d'essai (implique --essai) : boutons humain / Claude / local sur les cadres de code")
-
-    pc = sub.add_parser("precocher", help="code : pré-cocher les critères en exécutant le code transcrit (tests du sujet)")
-    pc.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    pc.add_argument("--reparateur", help="modèle local (Ollama) qui répare la syntaxe, sous contrôle : ex. qwen3:14b")
-    pc.add_argument("--force", action="store_true", help="tout refaire (sinon : seulement les transcriptions nouvelles)")
-
-    idt = sub.add_parser("identite", help="lire les noms des copies et les rapprocher de la liste des élèves")
-    idt.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    idt.add_argument("--liste", help="liste des élèves .xlsx/.csv (défaut : data/listes/*.xlsx)")
-    idt.add_argument("--force", action="store_true", help="relire les vignettes même si déjà lues")
-
-    tr = sub.add_parser("transcrire", help="lire le code manuscrit par un service en ligne (option payante, plafonnée)")
-    tr.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    tr.add_argument("--champ", action="append", help="champ(s) de code : q12, q18… (en local : tous par défaut)")
-    tr.add_argument("--local", nargs="?", const="qwen3-vl:8b-instruct", metavar="MODELE",
-                    help="modèle de vision local via Ollama (gratuit, rien ne sort du PC) ; défaut qwen3-vl:8b-instruct")
-    tr.add_argument("--refaire", action="store_true", help="local : relire aussi les cadres déjà transcrits par la machine")
-    tr.add_argument("--limite", type=int, help="nombre maximal de cadres envoyés ce lancement")
-
-    pr = sub.add_parser("preparer", help="lecture approfondie : transcription du code, pré-cochage, second lecteur (local, sans Claude, en arrière-plan)")
-    pr.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    pr.add_argument("--vision", default="qwen3-vl:8b-instruct", help="lecteur du code (Ollama)")
-    pr.add_argument("--reparateur", default="qwen3:14b", help="réparateur de syntaxe contrôlé (Ollama)")
-    pr.add_argument("--second", default="qwen3-vl:4b-instruct", help="second lecteur des réponses courtes (Ollama)")
-    pr.add_argument("--sans-code", action="store_true", help="ne pas traiter le code")
-    pr.add_argument("--sans-courtes", action="store_true", help="ne pas relire les réponses courtes")
-    pr.add_argument("--essai", action="store_true", help="copie d'une classe corrigée : réponses en revue d'après la base d'essai")
-
-    sl = sub.add_parser("second-lecteur", help="réponses courtes : second lecteur local (Qwen3-VL 4B, Ollama) des réponses en revue")
-    sl.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    sl.add_argument("--modele", default="qwen3-vl:4b-instruct", help="modèle de vision Ollama (défaut qwen3-vl:4b-instruct)")
-    sl.add_argument("--refaire", action="store_true", help="relire aussi les réponses déjà relues")
-    sl.add_argument("--limite", type=int, help="nombre maximal de réponses lues ce lancement")
-    sl.add_argument("--essai", action="store_true", help="réponses en revue d'après la base d'essai")
-
-    cb = sub.add_parser("code-bilan", help="code : la chaîne locale comparée aux décisions de l'enseignant (après une classe)")
-    cb.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    cb.add_argument("--essai", action="store_true", help="décisions de la base d'essai (banc à l'aveugle)")
-    cb.add_argument("--avec-auto", action="store_true", help="compter aussi les lots « auto: » (référence faible)")
-
-    bl = sub.add_parser("bilan", help="bilan d'un groupe corrigé : propositions, boutons, v2/v3, mémoire, indices")
-    bl.add_argument("groupes", nargs="+", help="groupes (A, B, …, NA, NB)")
-    bl.add_argument("--dossiers", nargs="+", default=["sorties/booster"],
-                    help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    bl.add_argument("--db", default="data/correction.sqlite", help="base des décisions (lue seulement)")
-
-    xl = sub.add_parser("excel", help="notes finales dans un classeur Excel (sorties/notes/notes.xlsx)")
-    xl.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    xl.add_argument("-o", "--sortie", default="sorties/notes/notes.xlsx")
-
-    vn = sub.add_parser("verif-noms", help="contrôle des attributions : nom écrit à côté de l'élève attribué")
-    vn.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    vn.add_argument("-o", "--sortie", default="sorties/notes/verif_identites.html")
-
-    vz = sub.add_parser("verif-zones", help="contrôle d'un fichier de zones (.json du générateur) contre le PDF du sujet")
-    vz.add_argument("pdf", help="PDF vierge du sujet")
-    vz.add_argument("zones", help="fichier de zones .json")
-    vz.add_argument("-o", "--sortie", help="écrire le rapport (Markdown) dans ce fichier au lieu de l'afficher")
-    vz.add_argument("--tolerance", type=float, default=0.3, help="écart toléré en mm (défaut 0,3)")
-
-    ap_ = sub.add_parser("app", help="application : examens, du sujet source à la correction (navigateur)")
-    ap_.add_argument("--examens", default="examens", help="dossier des examens (défaut : examens/)")
-    ap_.add_argument("--port", type=int, default=8765)
-    ap_.add_argument("--no-browser", action="store_true")
-
-    sj = sub.add_parser("sujet", help="source unique d'un examen (YAML) : contrôle strict, fichiers de corrigé")
-    sj.add_argument("source", help="fichier examen.yaml")
-    sj.add_argument("--langue", help="langue des fichiers de corrigé (fr, en…)")
-    sj.add_argument("--gabarit", help="gabarit du sujet imprimé : les champs produits y sont confrontés")
-    sj.add_argument("--traduction-de", help="exam_id du sujet dont celui-ci est la traduction (barème partagé)")
-    sj.add_argument("-o", "--out", help="préfixe des fichiers écrits (ex. keys/midterm_2026_FR)")
-    sj.add_argument("--produire", help="dossier : sujets et corrigés PDF (Typst), zones, gabarits, corrigés")
-
-    sp = sub.add_parser("separateur", help="Niveau 2 : mesurer / apprendre le détecteur point ou virgule")
-    sp.add_argument("dossiers", nargs="+", help="dossiers de résultats (une classe) ou dossiers qui les contiennent")
-    sp.add_argument("--kind", action="append", choices=("image", "lecteur", "image+lecteur"),
-                    help="modèle(s) à mesurer (défaut : les trois)")
-    sp.add_argument("--save", choices=("image", "lecteur", "image+lecteur"),
-                    help="apprendre ce modèle sur tous les exemples et l'enregistrer (data/models/separateur.npz)")
-    sp.add_argument("--l2", type=float, default=10.0, help="régularisation de la régression logistique")
-    sp.add_argument("--truth-dir", default="data/truth")
-    sp.add_argument("--lists-dir", default="data/listes")
-    sp.add_argument("--db", default="data/correction.sqlite", help="base des décisions (lue seulement)")
-    sp.add_argument("-o", "--out", default="data/models/separateur.npz")
-    sp.add_argument("--indices", action="store_true",
-                    help="avec le modèle enregistré, écrire <classe>/separateur.json (lu par l'outil de correction)")
-
-    e = sub.add_parser("evaluate", help="résultats vs vérité terrain")
-    e.add_argument("results_dir")
-    e.add_argument("truth")
+    e = sub.add_parser("evaluate", help="lecture d'un lot simulé (scans.pdf) comparée à sa vérité (truth.json)")
+    e.add_argument("lot", help="dossier écrit par simulate")
+    e.add_argument("-t", "--template", required=True, help="gabarit du sujet")
+    e.add_argument("-b", "--blank", required=True, help="PDF vierge du sujet")
 
     a = ap.parse_args(argv)
-    if a.cmd == "template":
-        from .template_builder import main as tmain
-
-        args = [a.pdf, "-o", a.out] + (["--exam-id", a.exam_id] if a.exam_id else []) + \
-               (["--merge", a.merge] if a.merge else [])
-        tmain(args)
-    elif a.cmd == "process":
-        from .omr import OMRConfig
-        from .pipeline import Processor
-        from .common import load_json
-
-        cfg = OMRConfig.from_dict(load_json(a.template).get("omr"))
-        if a.full_policy:
-            cfg.full_policy = a.full_policy
-        proc = Processor(a.template, a.blank, a.dpi, cfg, a.key, not a.no_overlays, not a.no_crops,
-                         bridge_line=a.bridge_line)
-        copies = proc.run(a.scans, a.out)
-        n_rev = sum(len(c["review"]) for c in copies)
-        print(f"{len(copies)} copie(s) traitée(s), {n_rev} point(s) à revoir -> {a.out}")
-    elif a.cmd == "ocr":
-        from .ocr_run import run
-
-        run(a.results_dir, a.vocab, a.backend, a.truth, {"model": a.model} if a.model else None,
-            batch=max(1, a.batch), digits=not a.no_digits, digits_model=a.digits_model,
-            confirm_model=a.confirm_model)
-    elif a.cmd == "digits-train":
-        from . import digits_train
-
-        if a.base_only:
-            digits_train.train_base()
-        elif not (a.results_dir and a.vocab and a.truth):
-            ap.error("digits-train : results_dir, --vocab et --truth sont requis (ou --base-only)")
-        else:
-            digits_train.run(a.results_dir, a.vocab, a.truth, also=a.also, **({"out": a.out} if a.out else {}))
-    elif a.cmd == "trocr-train":
-        from . import trocr_train
-
-        trocr_train.run([(a.results_dir, a.vocab, a.truth), *a.also], out=a.out, passes=a.passes, limit=a.limit,
-                        base=a.from_model or trocr_train.BASE, replay=a.replay, new=a.new)
-    elif a.cmd == "truth-page":
-        from .truth_page import build
-
-        build(a.results_dir, a.template, a.truth, a.out)
-    elif a.cmd == "notes":
-        from .notes import run as nrun
-
-        nrun(a.results_dirs, a.template, a.key, a.vocab, a.out)
-    elif a.cmd == "serve":
-        from .serve import run as srun
-
-        srun(a.dossiers, port=a.port, open_browser=not a.no_browser, essai=a.essai, banc=a.banc)
-    elif a.cmd == "precocher":
-        from .code_tests import run as prun
-
-        prun(a.dossiers, a.reparateur, a.force)
-    elif a.cmd == "simulate":
-        from .simulate import main as smain
-
-        smain(a)
-    elif a.cmd == "identite":
-        from .identite import run as irun
-
-        irun(a.dossiers, a.liste, a.force)
-    elif a.cmd == "transcrire":
-        from .lecteur_code import run as trun
-
-        trun(a.dossiers, a.champ, a.limite, a.local, a.refaire)
-    elif a.cmd == "preparer":
-        from .preparer import run as prrun
-
-        prrun(a.dossiers, a.vision, a.reparateur, a.second, a.sans_code, a.sans_courtes, a.essai)
-    elif a.cmd == "second-lecteur":
-        from .second_lecteur import run as slrun
-
-        slrun(a.dossiers, a.modele, a.refaire, a.limite, a.essai)
-    elif a.cmd == "code-bilan":
-        from .code_bilan import run as cbrun
-
-        cbrun(a.dossiers, a.essai, a.avec_auto)
-    elif a.cmd == "bilan":
-        from .bilan import run as brun
-
-        brun(a.groupes, a.dossiers, a.db)
-    elif a.cmd == "excel":
-        from .excel import run as xrun
-
-        try:
-            xrun(a.dossiers, a.sortie)
-        except ValueError as e:   # ex. plusieurs listes d'élèves : on s'arrête sans rien écrire
-            print(f"ERREUR : {e}")
-            return 1
-    elif a.cmd == "verif-noms":
-        from .verif_noms import run as vrun
-
-        try:
-            vrun(a.dossiers, a.sortie)
-        except ValueError as e:
-            print(f"ERREUR : {e}")
-            return 1
-    elif a.cmd == "verif-zones":
-        from .verif_zones import run as vzrun
-        return vzrun(a.pdf, a.zones, a.sortie, a.tolerance)
-    elif a.cmd == "app":
+    if a.cmd == "app":
         from .serve import run_app
         return run_app(a.examens, port=a.port, open_browser=not a.no_browser)
-    elif a.cmd == "sujet":
-        from .sujet import run as sjrun
-        if a.out and not (a.langue and a.gabarit):
-            ap.error("sujet -o : --langue et --gabarit sont nécessaires")
-        return sjrun(a)
-    elif a.cmd == "separateur":
-        from .separateur import KINDS, Separateur, class_dirs, run as seprun, write_indices
+    if a.cmd == "importer":
+        from .projet import importer_fichiers
+        langues = {lg.lower(): {"pdf": pdf, "key": key, "vocab": vocab} for lg, pdf, key, vocab in a.langue}
+        for opt, cle in ((a.zones, "zones"), (a.gabarit, "gabarit")):
+            for lg, f in opt:
+                if lg.lower() not in langues:
+                    ap.error(f"--{cle} {lg} : langue absente des --langue")
+                langues[lg.lower()][cle] = f
+        try:
+            p, resume = importer_fichiers(a.nom, a.titre or a.nom, langues, racine=a.examens, autres=a.autre)
+        except ValueError as err:
+            print(f"Import refusé : {err}")
+            return 1
+        print(f"Examen importé : {p.dir}\n{resume}")
+        return 0
+    if a.cmd == "verif-zones":
+        from .verif_zones import run as vzrun
+        return vzrun(a.pdf, a.zones, a.sortie, a.tolerance)
+    if a.cmd == "transcrire":
+        from .lecteur_code import run as trun
+        return trun(a.dossiers, a.champ, a.limite, a.local, a.refaire)
+    if a.cmd == "simulate":
+        from .simulate import main as smain
+        return smain(a)
+    if a.cmd == "evaluate":
+        from pathlib import Path
 
-        if a.indices:
-            det = Separateur.load(a.out)
-            for d in class_dirs(a.dossiers):
-                write_indices(d, det)
-        else:
-            seprun(a.dossiers, a.kind or KINDS, a.l2, a.save, a.truth_dir, a.lists_dir, a.db, out=a.out)
-    elif a.cmd == "evaluate":
         from .evaluate import main as emain
-
-        emain(a.results_dir, a.truth)
+        from .pipeline import Processor
+        lot = Path(a.lot)
+        copies = Processor(a.template, a.blank).run([str(lot / "scans.pdf")], str(lot / "lu"))
+        print(f"{len(copies)} copie(s) lue(s) -> {lot / 'lu'}")
+        return emain(lot / "lu", lot / "truth.json")
 
 
 if __name__ == "__main__":

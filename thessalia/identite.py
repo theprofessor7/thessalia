@@ -1,7 +1,7 @@
 """Identification des copies : quelle copie est à quel élève.
 
 La liste des élèves (`data/listes/*.xlsx` : NOM, Prénom, Classe) ne dit pas quel numéro de copie leur
-revient. `python -m thessalia identite sorties/booster …` lit les vignettes Nom et Prénom de la page 1
+revient. La lecture des réponses courtes (page de l'examen) lit les vignettes Nom et Prénom de la page 1
 (TrOCR d'origine, en local) et range les élèves du groupe du plus au moins ressemblant. Ce n'est qu'une
 proposition : l'enseignant confirme chaque copie dans l'outil (`/g/<groupe>/noms`), qui écrit
 `data/listes/<classe>.csv` (copie;etudiant). Rien n'est attribué sans lui : une erreur d'identité est pire

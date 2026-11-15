@@ -312,7 +312,8 @@ def decide(field, opts, cfg: OMRConfig):
                 full_review = True
                 flags.append(f"{oid}:noircie à côté d'une case cochée, annulation ?" if n_checked
                              else f"{oid}:noircie, cochée ou annulée ?")
-            # "cancelled" : case annulée, ignorée
+            else:          # "cancelled" : case annulée, ignorée, mais signalée (jamais de décision muette)
+                flags.append(f"{oid}:noircie (lue annulée)")
         elif st == "ambiguous":
             if o.get("lost"):
                 why = (f"case non retrouvée, recalage {o['match']:.2f} : "

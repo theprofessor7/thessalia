@@ -1,6 +1,4 @@
-"""Niveau 2 — entraînement du lecteur de chiffres (commande `digits-train`, nécessite l'extra [trocr]).
-
-    python -m thessalia digits-train sorties/<lot> -v keys/<x>.vocab.json --truth data/truth/<x>.json
+"""Niveau 2 — entraînement du lecteur de chiffres (page « Apprentissage », cf. `apprentissage` ; extra [trocr]).
 
 1. Modèle de base : petit réseau entraîné sur MNIST (téléchargé une fois, ~11 Mo, dans ~/.cache/thessalia).
 2. Affinage sur les chiffres du lot : les réponses numériques dont le découpage a la forme de la vérité
@@ -8,7 +6,8 @@
 3. Mesure en validation croisée PAR COPIE : chaque copie est lue par un modèle qui n'a jamais vu son
    écriture. C'est ce chiffre qui compte, pas le score sur les copies d'entraînement.
 4. Le modèle affiné sur tout le lot est écrit dans data/models/digits.npz (local, hors dépôt par défaut ;
-   il a priorité sur les modèles fournis). `--base-only` régénère le modèle MNIST fourni avec le paquet.
+   il a priorité sur les modèles fournis). `train_base()` régénère le modèle MNIST fourni avec le paquet
+   (`python -c "from thessalia.digits_train import train_base; train_base()"`).
 
 La vérité doit être validée par l'enseignant : une étiquette fausse apprend une erreur au modèle.
 """

@@ -35,19 +35,6 @@ function poserPinceau() { PINCEAU.valeur = null; PINCEAU.appui = false; PINCEAU.
 document.addEventListener("keydown", ev => { if (ev.key === "Escape" && PINCEAU.valeur != null) poserPinceau(); });
 document.addEventListener("mouseup", () => { PINCEAU.appui = false; PINCEAU.faites.clear(); });
 
-// Mode banc d'essai (serve --banc) : trois correcteurs, chacun sa lettre et sa couleur.
-const SOURCES_BANC = [["humain", "H", "ancienne correction (vous)"], ["claude", "C", "Claude (session)"],
-                      ["local", "L", "chaîne locale (tests)"]];
-function marquesBanc(it, id) {
-  if (!it.banc) return null;
-  const s = el("span", {className: "marques"});
-  for (const [k, l, t] of SOURCES_BANC) {
-    const v = it.banc[k];
-    if (v && v.choix.includes(id)) s.append(el("span", {className: "marque src-" + k, textContent: l, title: t + " : coché"}));
-  }
-  return s;
-}
-
 // D'où vient la proposition (ou la décision) affichée sur une carte : étiquette, famille (couleur), explication.
 // Pas de pourcentage de confiance : celle du lecteur d'écriture ne sépare pas le juste du faux (erreurs à 1,00).
 function provenance(it) {
@@ -157,9 +144,8 @@ function carte(it, surDecision, opts = {}) {
       // code noté au barème : chaque clic enregistre (critères cochés = options) ; la note est leur somme
       if (it.raison) c.append(el("div", {className: "raison", textContent: "doute : " + it.raison}));
       const T = it.tests;
-      const cache = it.banc ? " banc-cache" : "";   // banc à l'aveugle : la machine ne se montre qu'avec le bouton L
       if (T && T.complet && !it.decide)
-        c.append(el("div", {className: "tests-complet" + cache, textContent: "✔ tous les critères vérifiés en exécutant le code"}));
+        c.append(el("div", {className: "tests-complet", textContent: "✔ tous les critères vérifiés en exécutant le code"}));
       if (it.transcription) c.append(el("pre", {className: "transcription", textContent: it.transcription}));
       // transcription corrigée (T) : les tests se relancent aussitôt sur ce qui est vraiment écrit
       const ligneT = el("div", {className: "lu"});
@@ -172,7 +158,7 @@ function carte(it, surDecision, opts = {}) {
       c.append(ligneT);
       // preuve : ce que le code a affiché pour chaque saisie de test (code réparé des fautes tolérées)
       if (T) {
-        const det = el("details", {className: "essais" + cache},
+        const det = el("details", {className: "essais"},
           el("summary", {textContent: "exécution : " + (T.tourne ? "le code tourne" : "ne tourne pas")
             + (T.reparation !== "aucune" ? " · réparé (" + T.reparation + ")" : "")
             + (T.refus_modele ? " · réparation du modèle refusée (" + T.refus_modele + ")" : "")}));
@@ -212,19 +198,18 @@ function carte(it, surDecision, opts = {}) {
                      el("kbd", {textContent: String(i + 1)}), " " + cr.libelle + " ",
                      el("span", {className: "gris", textContent: "(" + fmt(cr.points) + ")"}),
                      T && cr.id in T.criteres
-                       ? el("span", {className: (T.criteres[cr.id] ? "test-ok" : "test-ko") + cache,
+                       ? el("span", {className: (T.criteres[cr.id] ? "test-ok" : "test-ko"),
                                      textContent: T.criteres[cr.id] ? " ✔ test" : " ✗ test",
                                      title: T.criteres[cr.id] ? "les tests de ce critère passent"
                                        : "les tests ne passent pas : à juger (un échec ne décide rien)"})
-                       : (T ? el("span", {className: "gris" + cache, textContent: " · sans test", title: "à juger : pas de test pour ce critère"}) : null),
-                     marquesBanc(it, cr.id));
+                       : (T ? el("span", {className: "gris", textContent: " · sans test", title: "à juger : pas de test pour ce critère"}) : null));
         b.onclick = () => basculer(cr.id);
         liste.append(b);
       });
       if (it.malus) {
         const b = el("button", {className: "critere malus" + (coches.has(it.malus.id) ? " on" : ""), tabIndex: -1, title: "touche M"},
                      el("kbd", {textContent: "M"}), " " + it.malus.libelle + " ",
-                     el("span", {className: "gris", textContent: "(" + fmt(it.malus.points) + ")"}), marquesBanc(it, it.malus.id));
+                     el("span", {className: "gris", textContent: "(" + fmt(it.malus.points) + ")"}));
         b.onclick = () => basculer(it.malus.id);
         liste.append(b);
       }
@@ -256,24 +241,6 @@ function carte(it, surDecision, opts = {}) {
       }
       c.append(ligne);
       c.append(el("div", {className: "points", textContent: fmt(it.points || 0) + " / " + fmt(it.max) + " pt"}));
-      if (it.banc) {
-        // mode banc : note de chaque correcteur (visible quand son bouton est actif en haut de page)
-        const r = el("div", {className: "banc-points"});
-        for (const [k, l, t] of SOURCES_BANC) {
-          const v = it.banc[k];
-          r.append(el("span", {className: "marque-ligne src-" + k, title: t,
-                               textContent: l + " " + (v ? (v.verdict === "vide" ? "vide" : fmt(v.points)) : "—")}));
-        }
-        c.append(r);
-        const cl = it.banc.claude;
-        if (cl && (cl.doute || (cl.transcription && cl.transcription !== it.transcription))) {
-          const det = el("details", {className: "banc-detail src-claude"}, el("summary", {textContent: "transcription et doute de Claude"}));
-          if (cl.doute) det.append(el("div", {className: "raison", textContent: "doute : " + cl.doute}));
-          if (cl.transcription) det.append(el("pre", {className: "transcription", textContent: cl.transcription}));
-          c.append(det);
-        }
-      }
-      c.banc = it.banc;
       c.valider = (clavier = false) => it.verdict === "vide" ? envoyer({verdict: "vide", options: []}, clavier)
                                                                : envoyer({options: [...coches].sort()}, clavier);
       c.basculer = basculer;

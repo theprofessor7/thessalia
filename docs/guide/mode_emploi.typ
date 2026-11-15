@@ -387,7 +387,12 @@ dans le dossier de Thessalia, `py installer.py` (une fois) puis `.venv\Scripts\p
 
 *Écrire un sujet.* Un fichier texte `examen.yaml` (énoncés FR et EN, bonnes réponses, mauvaises réponses
 plausibles, barème du code), décrit dans `docs/FORMAT_SUJET.md`. #bouton-clair[Produire les PDF] fabrique sujet
-et corrigé ; imprimer en *taille réelle*. Un sujet d'un autre générateur peut être importé.
+et corrigé ; imprimer en *taille réelle*.
+
+*Importer un sujet produit ailleurs* (générateur d'un collègue, au format Thessalia). Sur l'accueil,
+« Importer un sujet produit par un autre générateur » : pour chaque langue, le PDF du sujet, son corrigé
+(`.key.json`), son vocabulaire (`.vocab.json`) et, recommandé, le fichier de zones, contrôlé contre le PDF.
+Thessalia lit les zones et les points dans le PDF et vous les montre : vérifiez les points.
 
 *Réglages.* L'arrondi de la note finale, et les extensions installées en un clic : lecteur d'écriture (2 Go),
 Ollama et ses modèles pour la lecture approfondie. Sans extension, tout fonctionne : vous corrigez plus à la main.

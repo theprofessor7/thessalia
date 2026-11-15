@@ -1,6 +1,6 @@
 """Notes finales dans un classeur Excel (.xlsx), sans dépendance.
 
-`python -m thessalia excel sorties/booster sorties/supA_1_v3 [-o sorties/notes/notes.xlsx]`
+Page de l'examen, étape 6 (« Exporter les notes »).
 
 Feuilles :
   Notes     une ligne par copie identifiée : groupe (celui de la liste), élève, classe où il a composé,
@@ -9,7 +9,7 @@ Feuilles :
   Absents   élèves de la liste sans copie
   À vérifier  copies sans élève attribué, ou avec des réponses en attente (jamais une note silencieusement fausse)
 Si le fichier de sortie existe déjà, il est d'abord copié en `<nom>.avant-AAAAMMJJ-HHMM.xlsx` (jamais écrasé sans trace).
-Le fichier contient des noms d'élèves : il va dans `sorties/` (hors dépôt), jamais dans un partage public.
+Le fichier contient des noms d'élèves : il reste dans le dossier de l'examen (hors dépôt), jamais dans un partage public.
 """
 from __future__ import annotations
 

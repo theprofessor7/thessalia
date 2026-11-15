@@ -121,9 +121,12 @@ def test_mise_en_page_gabarit_et_zones(tmp_path):
         corrige: print(3)
         criteres:
           - {texte: affiche 3, points: 1, essais: [[]]}
+        tests_python: essai.tests.py
 """, encoding="utf-8")
+    (tmp_path / "essai.tests.py").write_text("EXAM_ID = 'ESSAI_FR'\nTESTS = {}\n", encoding="utf-8")
     ex = examen_texte(src.read_text(encoding="utf-8"))
     produire_tout(ex, src, tmp_path / "out")
+    assert (tmp_path / "out" / "essai.tests.py").exists()       # copié avec les corrigés : l'examen se suffit
     for lg in ("FR", "EN"):
         gab = json.loads((tmp_path / "out" / f"gabarit_ESSAI_{lg}.json").read_text(encoding="utf-8"))
         ids = sorted(f["id"] for p in gab["pages"] for f in p["fields"])

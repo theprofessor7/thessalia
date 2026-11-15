@@ -73,7 +73,8 @@ function dessinerListe() {
 
 document.getElementById("seulement").onchange = dessinerListe;
 document.addEventListener("keydown", ev => {
-  if (ev.target.tagName === "INPUT") return;
+  // touche déjà prise par une carte (P sur une réponse courte = pinceau) : pas de changement de copie
+  if (ev.target.tagName === "INPUT" || ev.defaultPrevented) return;
   if (ev.key === "n" || ev.key === "N") { const a = document.getElementById("suiv"); if (a) location = a.href; }
   if (ev.key === "p" || ev.key === "P") { const a = document.getElementById("prec"); if (a) location = a.href; }
 });

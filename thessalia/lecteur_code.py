@@ -1,16 +1,16 @@
 """Transcription du code manuscrit par un service en ligne (OPTION : clé de l'utilisateur, plafond de dépense).
 
-`python -m thessalia transcrire sorties/booster --champ q12 [--limite 20]` envoie les cadres de code (jamais
-l'identité : principe 3) à un modèle qui lit les images, et range la transcription dans
+`python -m thessalia transcrire examens/<nom>/classes/<classe> --champ q12 [--limite 20]` envoie les cadres
+de code (jamais l'identité : principe 3) à un modèle qui lit les images, et range la transcription dans
 `<classe>/code_lectures.json`. L'outil de correction l'affiche sous l'image ; l'enseignant note toujours.
 
-MODE LOCAL (gratuit, rien ne sort de la machine) : `transcrire sorties/<classe> --local [qwen3-vl:8b-instruct]`
-lit les cadres avec un modèle de vision servi par Ollama sur ce PC (sans clé, sans dépense ; ~65 s par cadre sans
-GPU, une centaine de copies tient en une nuit). Tous les champs du barème par défaut ; cadres presque vides
+MODE LOCAL (gratuit, rien ne sort de la machine ; étape de la lecture approfondie, cf. `preparer`) : lit les
+cadres avec un modèle de vision servi par Ollama sur ce PC (sans clé, sans dépense ; ~65 s par cadre sans GPU,
+une centaine de copies tient en une nuit). Tous les champs du barème par défaut ; cadres presque vides
 (encre < CODE_VIDE) sautés ; reprend après arrêt. Mesuré sur le BIS le 27 octobre (Qwen3-VL 8B) : 75 % de
 ressemblance avec la transcription de session. L'ÉNONCÉ n'est pas donné au modèle local : il contient le
 programme imprimé et le 8B répondait alors « (vide) ». Un champ `"nature": "texte"` du barème (explication en
-phrase, q11.a) est lu comme du texte, pas comme du code. Ensuite : `precocher` (critères par les tests).
+phrase, q11.a) est lu comme du texte, pas comme du code. Ensuite : `code_tests` (critères par les tests).
 
 Indépendant du fournisseur (décision de l'enseignant, 23 octobre) : deux adaptateurs légers.
   claude   API Anthropic (bibliothèque `anthropic`, extra `lecteur-claude`)
@@ -64,7 +64,6 @@ Transcris EXACTEMENT le code écrit, ligne par ligne :
 Réponds uniquement avec le code, sans commentaire ni explication."""
 
 
-LOCAL_DEFAUT = "qwen3-vl:8b-instruct"
 OLLAMA = "http://localhost:11434"
 CONSIGNE_LOCALE = CONSIGNE.replace("Énoncé de la question : {enonce}\n", "")
 CONSIGNE_TEXTE = """Tu lis un cadre de réponse d'un examen, écrit à la main par un étudiant sur papier quadrillé.
@@ -75,10 +74,6 @@ Transcris EXACTEMENT ce qui est écrit :
 - un passage illisible : écris [?] à sa place ;
 - si le cadre est vide, réponds seulement : (vide).
 Réponds uniquement avec le texte transcrit, sans commentaire ni explication."""
-
-
-class Plafond(Exception):
-    pass
 
 
 def reglages():
@@ -284,7 +279,7 @@ def run_local(dossiers, champs, limite, modele, refaire=False):
                       f"reste ~{v * (len(a_faire) - n) / 60:.0f} min)", flush=True)
     finally:
         lec.decharger()
-    print(f"{faits} cadres transcrits en local. Ensuite : python -m thessalia precocher {' '.join(map(str, dossiers))}")
+    print(f"{faits} cadres transcrits en local.")
 
 
 def run_en_ligne(dossiers, champs, limite=None):

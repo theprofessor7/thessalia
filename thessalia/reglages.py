@@ -1,6 +1,4 @@
 """Réglages généraux de l'application (page « Réglages ») : `data/reglages.json`, propres à ce PC.
-
-Un examen peut garder ses propres valeurs dans `examens/<nom>/reglages.json` ; sinon il suit ces réglages.
 """
 from __future__ import annotations
 

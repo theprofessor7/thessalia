@@ -1,5 +1,0 @@
-# Préférer : pip install -e ".[trocr,ocr-light,dev]"  (voir pyproject.toml)
-opencv-python-headless>=4.8
-numpy>=1.24
-pymupdf>=1.24
-Pillow>=10

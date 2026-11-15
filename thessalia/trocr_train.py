@@ -1,15 +1,9 @@
-"""Niveau 2 — affinage de TrOCR sur des lots dont la vérité est validée (commande `trocr-train`,
-nécessite l'extra [trocr]).
+"""Niveau 2 — affinage de TrOCR sur les lectures vérifiées par l'enseignant (page « Apprentissage », cf.
+`apprentissage` ; extra [trocr]).
 
-    python -m thessalia trocr-train sorties/<lot> -v keys/<x>.vocab.json --truth data/truth/<x>.json \
-        [--also DOSSIER VOCAB VERITE]... [-o data/models/trocr] [--passes 3] [--limit 160]
-        [--from data/models/<précédent> --replay 400]
-
-Le modèle affiné est écrit dans data/models/ (local, hors dépôt : ~1,3 Go) après CHAQUE passe ; une
-commande interrompue (veille, mémoire) reprend après la dernière passe enregistrée. Il se mesure ensuite
-sur un lot qu'il n'a JAMAIS vu :
-
-    python -m thessalia ocr sorties/<autre lot> -v … --model data/models/trocr --truth data/truth/<autre>.json
+Le modèle affiné est écrit dans data/models/ (local, hors dépôt : ~1,3 Go) après CHAQUE passe ; un affinage
+interrompu (veille, mémoire) reprend après la dernière passe enregistrée. Il se mesure ensuite sur une classe
+qu'il n'a JAMAIS vue (cf. `apprentissage`).
 
 Mesuré le 5 octobre 2026 (754 vignettes EN, 3 passes, test sur supA 1) : lecture brute exacte 91 -> 211
 sur 325. À savoir avant de s'en servir :
@@ -19,11 +13,11 @@ sur 325. À savoir avant de s'en servir :
 - sa confiance ne sépare pas le juste du faux (erreurs à 1,00) : la décision reste au rapprochement ;
 - une étiquette fausse apprend une erreur : la vérité doit être validée par l'enseignant ;
 - ~6 Go de mémoire, ~20 min par passe pour 750 vignettes sur CPU : fermer les applications lourdes.
-  `--limit` permet un essai court sur un échantillon avant de lancer plusieurs heures.
+  `limit` permet un essai court sur un échantillon avant de lancer plusieurs heures.
 
-Affinage classe par classe (`--from`, `--replay`) : repartir du modèle précédent plutôt que du modèle
+Affinage classe par classe (`base`, `replay`) : repartir du modèle précédent plutôt que du modèle
 d'origine, avec toute la nouvelle classe (lot principal) et seulement N vignettes tirées au hasard dans
-les lots déjà appris (`--also`), pour qu'il ne les oublie pas. Durée à peu près constante d'une classe à
+les lots déjà appris, pour qu'il ne les oublie pas. Durée à peu près constante d'une classe à
 l'autre, au lieu d'un réentraînement complet qui s'allonge à chaque lot ajouté ; en refaire un complet
 de temps en temps (une nuit) pour vérifier qu'on n'a rien perdu.
 """

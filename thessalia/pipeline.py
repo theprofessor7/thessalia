@@ -72,7 +72,7 @@ class Processor:
             return
         med = scores[len(scores) // 2]
         if med < min_median:
-            msg = (f"GABARIT DOUTEUX : score de reconnaissance médian {med:.2f} (attendu > 0,9). "
+            msg = (f"GABARIT DOUTEUX : score de reconnaissance médian {med:.2f} (attendu ≥ 0,85 ; bon gabarit : 0,96). "
                    f"Le sujet scanné n'est probablement pas « {self.template['exam_id']} » (FR / EN ?) : "
                    f"résultats à ne pas utiliser.")
             copies[0]["review"].insert(0, {"item": "lot", "reason": msg})

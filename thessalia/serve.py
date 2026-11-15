@@ -1,20 +1,18 @@
-"""Outil de correction local : `python -m thessalia serve sorties/booster [autres dossiers…]`.
+"""Application Thessalia (`python -m thessalia app`, lancée par Thessalia.bat / Thessalia.command) : pages des
+examens (web_examens) et outil de correction de l'examen ouvert.
 
-Petit serveur Flask qui n'écoute que cette machine (127.0.0.1) : tableau de bord, vue par question (comme
-Gradescope), vue par copie, notes en direct, export CSV. Chaque clic est enregistré dans
-`data/correction.sqlite` (hors dépôt) : plus de fichier à exporter ni à recopier.
-Les copies, vignettes et décisions ne quittent jamais la machine.
+Petit serveur Flask qui n'écoute que cette machine (127.0.0.1) : tableau de bord, vue par question, vue par copie,
+notes en direct. Chaque clic est enregistré dans la base de l'examen (`examens/<nom>/decisions.sqlite`, hors
+dépôt). Les copies, vignettes et décisions ne quittent jamais la machine.
 """
 from __future__ import annotations
 
 import csv
 import io
-import json
 import webbrowser
 from pathlib import Path
 
 from .correction import Classe, Decisions, DB_PATH, Memory, group_of, lectures_tapees, resume_memoire, retenu
-from .notes import RATE
 
 
 def _classes(paths):
@@ -39,13 +37,9 @@ def _qkey(fid):
     return [int(x) if x.isdigit() else 0 for x in fid.replace("q", "").split(".")]
 
 
-def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None, compte=None):
-    """apprendre=False (mode essai) : aucune étiquette d'apprentissage écrite (data/truth/<classe>.appris.json).
-    banc=True (mode banc d'essai, avec l'essai) : l'enseignant corrige les cadres de code À L'AVEUGLE (rien de
-    pré-coché, rien de la machine affiché) ; ses choix (base d'essai) forment H. Boutons en haut de la vue par
-    question pour comparer H à Claude (`<classe>/code_lectures_claude.json`, critères proposés en session) et à la
-    chaîne locale (tests sur la transcription locale). Idée de l'enseignant, 27 octobre : sur le Booster, les
-    anciennes décisions du code sont surtout des propositions de Claude validées en lot, pas une référence."""
+def create_app(paths, db_path=DB_PATH, examens=None, compte=None):
+    """examens : dossier des examens (application) ; « Corriger les copies lues » d'un examen y charge ses classes.
+    paths : classes chargées d'emblée (tests)."""
     from flask import Flask, abort, jsonify, render_template, request, send_from_directory, Response, redirect, url_for
 
     web = Path(__file__).parent / "web"
@@ -69,7 +63,7 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
         classes.update(nouv)
         groups.clear()
         for c in classes.values():  # vérité d'apprentissage à jour dès le chargement (classes déjà travaillées)
-            if apprendre and decisions.of(c.name):
+            if decisions.of(c.name):
                 c.save_labels()
             groups.setdefault(c.group, []).append(c)
         memory.dirty = True
@@ -98,39 +92,12 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
                          "completes": sum(r["en_attente"] == 0 for r in n)})
         return rows
 
-    def avec_banc(c, items):
-        """Mode banc : choix de chaque correcteur pour les cadres de code (lecture seule)."""
-        if not banc:
-            return items
-        cla = c._json(c.dir / "code_lectures_claude.json")
-        for it in items:
-            if not it.get("code"):
-                continue
-            src = {}
-            if it.get("origine") == "enseignant":          # jugement à l'aveugle, dans la base d'essai
-                src["humain"] = {"choix": [] if it["verdict"] else list(it["choix"]), "verdict": it["verdict"]}
-            k = cla.get(it["cle"])
-            if k and k.get("criteres_proposes") is not None:
-                vide = (k.get("code") or "").strip() == "(vide)"
-                src["claude"] = {"choix": [] if vide else list(k["criteres_proposes"]), "verdict": "vide" if vide else None,
-                                 "transcription": k.get("code"), "doute": k.get("doute")}
-            if it.get("tests"):
-                src["local"] = {"choix": sorted(x for x, ok in it["tests"]["criteres"].items() if ok), "verdict": None}
-            elif it.get("origine") == "vide ?" or (it.get("transcription") or "").strip() == "(vide)":
-                src["local"] = {"choix": [], "verdict": "vide"}
-            for v in src.values():
-                v["points"] = c._points_code({**it, "choix": v["choix"], "verdict": v["verdict"]})
-            it["banc"] = src
-            if it.get("origine") == "tests":                # à l'aveugle : rien de pré-coché par la machine
-                it.update(choix=[], raison=None, points=0.0, origine="à noter")
-        return items
-
     def items_of(cs, fid):
         out = []
         for c in cs:
             pool = (c.qcm_items() if fid in _qcm_fids(c)
                     else c.code_items() if fid in c.exam.bareme.get("champs", {}) else c.short_items())
-            out += avec_banc(c, [i for i in pool if i["champ"] == fid])
+            out += [i for i in pool if i["champ"] == fid]
         return out
 
     def saisies(c, fid, n=6):
@@ -196,7 +163,7 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
         if code:   # énoncé de la question (gabarit) ; le barème tient lieu de corrigé
             num = ex.fields.get(fid, {}).get("question")
             consigne = next((q.get("prompt", "") for q in ex.template["questions"] if q["num"] == num), "")
-        payload = {"groupe": g, "champ": fid, "items": items_of(cs, fid), "code": code, "banc": banc,
+        payload = {"groupe": g, "champ": fid, "items": items_of(cs, fid), "code": code,
                    "attendu": "barème ci-dessous" if code else
                    ex.key.get("short_answers", {}).get(fid) or ", ".join(ex.key.get("answers", {}).get(fid, [])),
                    "consigne": consigne, "questions": qs, "saisies": [] if code else saisies(cs[0], fid)}
@@ -236,18 +203,6 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
                 rows.append(st)
                 erreurs += err
         return render_template("suivi.html", lignes=rows, erreurs=erreurs)
-
-    @app.route("/revoir")
-    def revoir_page():
-        """Page temporaire : quelques réponses désignées (?cles=classe/cNN_qX.Y,…) à trancher par l'enseignant."""
-        wanted = [x.strip() for x in request.args.get("cles", "").split(",") if "/" in x]
-        items = []
-        for w in wanted:
-            name, cle = w.split("/", 1)
-            c = classes.get(name)
-            if c:
-                items += [i for i in c.all_items() if i["cle"] == cle]
-        return render_template("revoir.html", data={"items": items}, titre=request.args.get("titre", "Réponses à revoir"))
 
     def identification(g):
         """Copies du groupe avec leur élève confirmé ou proposé (répartition d'ensemble sur ce qui reste)."""
@@ -348,7 +303,7 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
         for num, p in sorted(doc.get("pages", {}).items(), key=lambda kv: int(kv[0])):
             if p.get("overlay"):
                 pages.append({"page": int(num), "img": p["overlay"].replace("\\", "/")})
-        items = avec_banc(c, [it for it in c.all_items() if it["copie"] == cid])
+        items = [it for it in c.all_items() if it["copie"] == cid]
         for it in items:  # position de la réponse sur la page (overlay à l'échelle 0,6)
             f = c.exam.fields.get(it["champ"], {})
             it["page"] = f.get("page")
@@ -417,18 +372,15 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
         else:
             texte = d.get("texte")
             c.decide(d["cle"], d.get("verdict"), texte, d.get("options"))  # ce qui manque est conservé
-        if apprendre:
-            c.save_labels()  # data/truth/<classe>.appris.json à jour : rien à exporter à la main
+        c.save_labels()  # examens/<nom>/verite/<classe>.appris.json à jour : rien à exporter à la main
         cid = next((x for x in c.copy_ids if f"c{int(x.split('_')[-1]):02d}_" == d["cle"][:4]), None)
         item = next((i for i in c.all_items() if i["cle"] == d["cle"]), None)
         note = next((r for r in c.notes() if r["copie"] == cid), None)
-        if item:
-            avec_banc(c, [item])
         rep = {"item": item, "note": note}
         if item and not d.get("annuler") and not item.get("qcm") and not item.get("code"):
             rep["retenu"] = retenu(list(classes.values()), c, d["cle"])
             # lecture tapée par l'enseignant : exemple pour affiner le lecteur (page Apprentissage)
-            rep["exemple"] = bool(apprendre and d.get("texte") is not None)
+            rep["exemple"] = d.get("texte") is not None
         return jsonify(rep)
 
     @app.post("/api/code-transcription")
@@ -440,11 +392,8 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
         if not texte.strip():
             return jsonify({"erreur": "transcription vide : écrire (vide) si rien n'est écrit"}), 400
         c.corriger_transcription(d["cle"], texte)
-        if apprendre:
-            c.save_labels()   # data/truth/<classe>.code_appris.json : vérité pour faire progresser la chaîne locale
+        c.save_labels()   # <classe>.code_appris.json : vérité pour faire progresser la chaîne locale
         item = next((i for i in c.code_items() if i["cle"] == d["cle"]), None)
-        if item:
-            avec_banc(c, [item])
         return jsonify({"item": item})
 
     @app.route("/g/<g>/notes.csv")
@@ -467,7 +416,7 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
             resp.headers["Cache-Control"] = "no-store"
         return resp
 
-    app.jinja_env.globals.update(rate=RATE, mode_examens=examens is not None, avec_compte=False)
+    app.jinja_env.globals.update(mode_examens=examens is not None, avec_compte=False)
     if compte is not None:         # application : identifiant et mot de passe avant toute page (thessalia.compte)
         from .compte import proteger
         proteger(app, compte)
@@ -481,7 +430,6 @@ def create_app(paths, db_path=DB_PATH, apprendre=True, banc=False, examens=None,
     return app
 
 
-ESSAI_DB = Path("data/correction_essai.sqlite")
 
 
 def port_occupe(port) -> bool:
@@ -499,22 +447,6 @@ def _refuser_si_occupe(port):
                          "est ouverte. La fermer, puis relancer ; ou utiliser l'onglet déjà ouvert.")
 
 
-def run(paths, port=8765, open_browser=True, db_path=DB_PATH, essai=False, banc=False):
-    """essai=True : base de décisions à part (data/correction_essai.sqlite), aucune étiquette d'apprentissage :
-    pour essayer l'outil sur une classe déjà corrigée sans toucher à ses décisions."""
-    essai = essai or banc          # le banc d'essai ne touche jamais aux vraies décisions
-    if essai:
-        db_path = ESSAI_DB
-    _refuser_si_occupe(port)
-    app = create_app(paths, db_path, apprendre=not essai, banc=banc)
-    url = f"http://127.0.0.1:{port}/"
-    print(f"Outil de correction{' (BANC : humain / Claude / local)' if banc else ''}{' (ESSAI : décisions à part, rien appris)' if essai else ''} : {url}  "
-          f"(Ctrl+C pour arrêter ; décisions dans {db_path})")
-    if open_browser:
-        webbrowser.open(url)
-    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
-
-
 def run_app(examens="examens", port=8765, open_browser=True, db_path=DB_PATH):
     """Application : pages Examens (sujet source, PDF, dépôt des scans, lecture) + outil de correction."""
     from .compte import Compte
@@ -522,7 +454,7 @@ def run_app(examens="examens", port=8765, open_browser=True, db_path=DB_PATH):
     Path(examens).mkdir(parents=True, exist_ok=True)
     app = create_app([], db_path, examens=examens, compte=Compte())
     url = f"http://127.0.0.1:{port}/examens"
-    print(f"Thessalia : {url}  (Ctrl+C pour arrêter ; examens dans {Path(examens).resolve()}, décisions dans {db_path})")
+    print(f"Thessalia : {url}  (Ctrl+C pour arrêter ; examens et décisions dans {Path(examens).resolve()})")
     if open_browser:
         webbrowser.open(url)
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)

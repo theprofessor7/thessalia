@@ -124,4 +124,7 @@ def test_copie_tapee_dans_le_lot(tmp_path):
     lignes = _xlsx_rows(racine / "essai" / "notes" / "notes.xlsx")
     zoe = next(list(l.values()) for l in lignes if "PETIT Zoé" in l.values())
     assert "1.5" in [str(x) for x in zoe], zoe
+    # copies 1 et 2 sans élève : jamais sous leur nom provisoire du fichier d'attributions (elles iraient en
+    # « Notes » comme identifiées et sortiraient de « À vérifier »)
+    assert not any(str(x).startswith("supA_1_copie") for l in lignes for x in l.values()), lignes
     assert any("3 copies, 2 absents" in l for l in t["journal"]), t["journal"]   # PETIT Zoé n'est pas absente

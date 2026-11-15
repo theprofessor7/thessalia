@@ -24,7 +24,6 @@ data/correction_essai.sqlite
 data/compte.json
 data/reglages.json
 data/session.cle
-!data/truth/README.md
 
 # Python
 __pycache__/

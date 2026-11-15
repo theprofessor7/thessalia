@@ -13,7 +13,7 @@ L'inférence n'utilise que numpy (aucune dépendance en plus). Deux modèles son
     digits_affine.npz   le même, affiné sur les chiffres du lot EN (examen blanc, 21 copies). Il ne
                         contient que des poids, aucune image : partage entre collègues autorisé par
                         l'enseignant. Utilisé par défaut.
-`python -m thessalia digits-train` affine sur un autre lot dont la vérité est validée et écrit un
+La page « Apprentissage » (`digits_train`) affine sur les nombres vérifiés par l'enseignant et écrit un
 modèle local (data/models/digits.npz), prioritaire sur les modèles fournis.
 
 La lecture n'est qu'une PROPOSITION pour la revue : un nombre libre n'est jamais accepté seul.

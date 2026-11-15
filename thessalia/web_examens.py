@@ -12,7 +12,8 @@ from pathlib import Path
 from urllib.parse import quote
 
 from . import ollama_local
-from .projet import Projet, corbeille, creer, mettre_a_la_corbeille, nom_valide, outils, projets, restaurer
+from .projet import (Projet, corbeille, creer, importer_fichiers, mettre_a_la_corbeille, nom_valide, outils,
+                     projets, restaurer)
 
 
 class Pause(BaseException):
@@ -196,7 +197,43 @@ def enregistrer(app, racine: Path, charger, memoire=None):
     @app.route("/examens")
     def examens_page():
         return render_template("examens.html", examens=[resume(p) for p in projets(racine)], racine=str(racine),
-                               message=request.args.get("m"), corbeille=corbeille(racine))
+                               message=request.args.get("m"), corbeille=corbeille(racine),
+                               ouvrir_import=request.args.get("import") == "1")
+
+    @app.post("/examens/importer")
+    def importer_examen():
+        """Sujet d'un autre générateur : fichiers déposés, contrôlés, gabarit lu dans le PDF (projet.importer_fichiers)."""
+        import tempfile
+        nom = (request.form.get("nom") or "").strip()
+        refus = lambda m: redirect(_vers("/examens", m) + "&import=1#import")
+        with tempfile.TemporaryDirectory() as tmp:
+            def garder(champ, sous=""):
+                f = request.files.get(champ)
+                if not f or not f.filename:
+                    return None
+                d = Path(tmp) / sous
+                d.mkdir(exist_ok=True)
+                cible = d / Path(f.filename).name
+                f.save(cible)
+                return cible
+            langues = {}
+            for lg in ("fr", "en"):
+                fichiers = {k: garder(f"{k}_{lg}", lg) for k in ("pdf", "key", "vocab", "zones")}
+                if any(fichiers.values()):
+                    langues[lg] = {k: v for k, v in fichiers.items() if v}
+            autres = []
+            for f in request.files.getlist("autres"):
+                if f and f.filename and Path(f.filename).suffix in (".json", ".py"):
+                    cible = Path(tmp) / "autres" / Path(f.filename).name
+                    cible.parent.mkdir(exist_ok=True)
+                    f.save(cible)
+                    autres.append(cible)
+            try:
+                _, resume_import = importer_fichiers(nom, (request.form.get("titre") or "").strip() or nom, langues,
+                                                     racine=racine, autres=autres)
+            except ValueError as e:
+                return refus(f"Import refusé : {e}")
+        return redirect(_vers(f"/examens/{nom}", "Sujet importé. Vérifiez les points lus dans le PDF :\n" + resume_import))
 
     @app.post("/examens/<nom>/supprimer")
     def supprimer_examen(nom):

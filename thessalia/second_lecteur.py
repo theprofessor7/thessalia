@@ -1,4 +1,4 @@
-"""Second lecteur LOCAL des réponses courtes : `python -m thessalia second-lecteur sorties/<classe> [--modele …]`.
+"""Second lecteur LOCAL des réponses courtes (étape de la lecture approfondie, cf. `preparer`).
 
 Un modèle de vision servi par Ollama sur ce PC (Qwen3-VL 4B par défaut : gratuit, rien ne sort de la machine) relit
 les réponses courtes EN REVUE. Le résultat va dans `<classe>/lectures_secondaires.json`, déjà lu par l'outil de
@@ -12,7 +12,7 @@ ni quand un espace compte (sortie d'un programme, q7 : l'enseignant juge les esp
 Mesuré sur le BIS le 26 octobre (247 réponses vérifiées, vignette brute, ~32 s par vignette) : TrOCR v2 et Qwen
 d'accord sur 92 réponses, 3 fausses, qui étaient toutes des erreurs de saisie de l'enseignant (0 après
 correction). Sujet A (supD_2, 28 octobre) : 135 décidées, 11 fausses, toutes sur q7 (espaces) ; 0 sans q7.
-Reprend après arrêt ; `--refaire` relit tout ; `--essai` : réponses en revue d'après la base d'essai.
+Reprend après arrêt ; `refaire=True` relit tout.
 """
 from __future__ import annotations
 
@@ -44,16 +44,16 @@ def sur(c, it, brut, lecture):
     return bool(a) and a == b
 
 
-def run(dossiers, modele=MODELE, refaire=False, limite=None, essai=False):
+def run(dossiers, modele=MODELE, refaire=False, limite=None):
     from .correction import Classe, Decisions, Memory
     from .lecteur_code import _Local
-    from .serve import ESSAI_DB, _classes
+    from .serve import _classes
 
     lec = _Local(modele)
     exams, faits, t0 = {}, 0, time.time()
     try:
         for d in _classes(dossiers):
-            c = Classe(d, exams, Decisions(ESSAI_DB) if essai else Decisions(), memory=Memory())
+            c = Classe(d, exams, Decisions(), memory=Memory())
             p = d / SECOND
             deja = json.loads(p.read_text(encoding="utf-8")) if p.exists() and not refaire else {}
             todo = [it for it in c.short_items(use_memory=False)

@@ -310,7 +310,7 @@ Une réponse attendue tient sur une ligne (c'est ce qu'on lit dans un blanc). Po
 2. **Mise en page Typst** de chaque langue : sujet et corrigé. Mêmes repères et mêmes dimensions de cases que le
    template v5 (cases 3,7 mm, trait 0,53 mm ; grille 6,5 × 4,8 mm, trait 0,4 mm ; repères 5 mm à 16 mm des bords).
 3. **Gabarit** : les identifiants et types viennent de la source, les positions sont relues dans le PDF
-   (principe n° 4) ; `verif-zones` doit trouver 100 % des zones conformes, sinon refus.
+   (principe n° 4) ; le contrôle des zones (`verif_zones`) doit les trouver 100 % conformes, sinon refus.
 4. **`corrige.json`** : bonnes cases, réponses attendues avec tolérances développées, points par champ,
    plausibles, barème et essais du code. Dans un premier temps, Thessalia écrit aussi les fichiers actuels
    (`key.json`, `vocab.json`, `bareme.json`) pour que la correction marche sans autre changement.

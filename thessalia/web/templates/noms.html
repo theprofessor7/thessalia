@@ -10,8 +10,7 @@
   champ vidé + <kbd>Entrée</kbd> : retirer l'attribution. Après chaque confirmation, les noms proposés plus bas se recalculent (surlignés) ; un nom que vous avez tapé n'est jamais remplacé, et il est enregistré dès que vous quittez le champ.
   {% if not data.copies|selectattr('nom')|list %}<br><span class="attente">Ce sujet n'a pas de zone Nom / Prénom : identifier chaque copie d'après le papier (ou la vue « Copies et notes »).</span>
   {% elif not data.lus %}<br><span class="attente">Pas encore de proposition de nom :
-    {% if mode_examens %}sur la page de l'examen, « Lire les réponses courtes » lit aussi les noms (lecteur d'écriture installé).
-    {% else %}lancer <code>python -m thessalia identite &lt;dossier de la classe&gt;</code>.{% endif %}</span>{% endif %}</p>
+    sur la page de l'examen, « Lire les réponses courtes » lit aussi les noms (lecteur d'écriture installé).</span>{% endif %}</p>
 {% set suite %}{% if examen_ouvert %}<a class="bouton principal" href="/examens/{{ examen_ouvert }}#etape-6">Vérifier les noms et exporter les notes →</a>
   <span class="gris">page de l'examen, étape 6</span>{% else %}<a class="bouton principal" href="/g/{{ groupe }}/copies">Copies et notes →</a>{% endif %}{% endset %}
 <div class="message suite-noms" hidden><b>Toutes les copies du groupe sont identifiées ✓</b> {{ suite }}</div>

@@ -1,5 +1,4 @@
 """Apprentissage : un lecteur affiné n'est adopté que s'il fait mieux, et l'ancien se rétablit."""
-import json
 
 import pytest
 

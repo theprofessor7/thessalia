@@ -287,7 +287,7 @@ class _Controle:
         if not isinstance(aff, Liste) or not aff:
             self.e(q, f"{ou} : « affirmations » : liste attendue")
             return
-        items, pts = [], []
+        items = []
         for i, a in enumerate(aff, 1):
             self.cles(a, {"texte", "reponse", "points", "explication"}, f"{ou}, affirmation {i}", ("texte", "reponse"))
             rep = str(a.get("reponse", "")).upper()

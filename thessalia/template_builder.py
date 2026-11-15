@@ -1,4 +1,5 @@
-"""Construit le gabarit JSON à partir du PDF vierge généré par WeasyPrint.
+"""Construit le gabarit JSON à partir du PDF vierge du sujet (Typst pour les sujets produits par Thessalia,
+WeasyPrint pour les sujets importés d'un autre générateur).
 
 Le PDF est vectoriel : chaque case, soulignement de réponse, cadre et fiducial
 est un rectangle PDF dont on lit les coordonnées exactes. Aucune mesure
@@ -17,9 +18,7 @@ Règles de reconnaissance (adaptées au template v3) :
     identité     soulignement gris dans le tableau de la page 1
     question     span "Question N" (+ barème "1,00 pt" sur la même ligne)
 
-Le JSON produit est ensuite éditable à la main (mode single/multi, vocabulaire
-attendu, etc.) ; les champs ajoutés à la main sont conservés si on régénère
-avec --merge.
+Appelé à la production d'un sujet (sujet.produire_tout) et à l'import d'un sujet (projet.importer_fichiers).
 """
 from __future__ import annotations
 
@@ -30,7 +29,7 @@ from pathlib import Path
 
 import pymupdf
 
-from .common import A4_MM, MM_PER_PT, TEMPLATE_SCHEMA, load_json, save_json
+from .common import A4_MM, MM_PER_PT, TEMPLATE_SCHEMA
 
 RE_QUESTION = re.compile(r"^\s*Question\s+(\d+)\s*$", re.I)
 RE_POINTS = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*pts?\s*$", re.I)
@@ -391,7 +390,7 @@ def build_template(pdf_path, exam_id=None) -> dict:
             prompt = _text_left_of(words, b, start_x)
             box = [b[0] - 2, b[1] - 3, b[2] + 2, b[3] + 1.2]
             q["fields"].append({"id": None, "type": "short_text", "page": pno, "prompt": prompt,
-                                "bbox_mm": _xywh(box), "line_mm": _xywh(b), "vocab": None})
+                                "bbox_mm": _xywh(box), "line_mm": _xywh(b)})
 
         # -- cadres (texte libre / code)
         for fr in sorted(p["frames"], key=lambda f: f["outer"][1]):
@@ -405,8 +404,7 @@ def build_template(pdf_path, exam_id=None) -> dict:
             label = " ".join(s["text"] for s in inside if s["text"].isupper() or s["text"][:1].isupper()).strip()
             is_code = bool(re.search(r"PROGRAM|\bCODE\b", label, re.I))
             q["fields"].append({"id": None, "type": "code_grid" if is_code else "text_box",
-                                "page": pno, "label": label, "bbox_mm": _xywh(fr["inner"]),
-                                **({"grid_mm": 5.0} if is_code else {})})
+                                "page": pno, "label": label, "bbox_mm": _xywh(fr["inner"])})
 
     # 4) identifiants stables et mode single/multi
     for qnum, q in sorted(questions.items()):
@@ -482,54 +480,3 @@ def build_template(pdf_path, exam_id=None) -> dict:
 
 def _xyxy(r):
     return [r[0], r[1], r[0] + r[2], r[1] + r[3]]
-
-
-def merge_manual_edits(new: dict, old: dict) -> dict:
-    """Reporte les réglages faits à la main (mode, vocab, points, champs 'manual')."""
-    keep_keys = ("mode", "vocab", "expected_lang", "notes")
-    old_fields = {f["id"]: f for p in old.get("pages", []) for f in p["fields"]}
-    for p in new["pages"]:
-        for f in p["fields"]:
-            of = old_fields.get(f["id"])
-            if of:
-                for k in keep_keys:
-                    if k in of:
-                        f[k] = of[k]
-        for of in (f for op in old.get("pages", []) if op["page"] == p["page"] for f in op["fields"]):
-            if of.get("manual"):
-                p["fields"].append(of)
-    return new
-
-
-def summarize(tpl: dict) -> str:
-    from collections import Counter
-
-    c = Counter(f["type"] for p in tpl["pages"] for f in p["fields"])
-    nbox = sum(len(f["options"]) for p in tpl["pages"] for f in p["fields"] if "options" in f)
-    lines = [f"{tpl['exam_id']}: {tpl['page_count']} pages, {len(tpl['questions'])} questions, "
-             f"{nbox} cases à cocher", "  champs: " + ", ".join(f"{k}={v}" for k, v in sorted(c.items()))]
-    for p in tpl["pages"]:
-        ids = [f["id"] + ("[" + f.get("mode", "") + "]" if f["type"] == "mcq" else "") for p2 in [p] for f in p2["fields"]]
-        if ids:
-            lines.append(f"  p{p['page']:>2}: " + " ".join(ids))
-    return "\n".join(lines)
-
-
-def main(argv=None):
-    import argparse
-
-    ap = argparse.ArgumentParser(description="PDF vierge -> gabarit JSON")
-    ap.add_argument("pdf")
-    ap.add_argument("-o", "--out", required=True)
-    ap.add_argument("--exam-id")
-    ap.add_argument("--merge", help="gabarit existant dont on conserve les réglages manuels")
-    a = ap.parse_args(argv)
-    tpl = build_template(a.pdf, a.exam_id)
-    if a.merge and Path(a.merge).exists():
-        tpl = merge_manual_edits(tpl, load_json(a.merge))
-    save_json(tpl, a.out)
-    print(summarize(tpl))
-
-
-if __name__ == "__main__":
-    main()

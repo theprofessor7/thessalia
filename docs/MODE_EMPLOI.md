@@ -29,7 +29,8 @@ noire ouverte.**
 
 **Mettre à jour.** Thessalia fermé : `git pull`, relancer l'installeur, puis Thessalia.
 
-**L'accueil** : une carte par examen. **Ouvrir** mène à l'assistant en six étapes ; **Supprimer** range l'examen
+**L'accueil** : une carte par examen, et en bas « Nouvel examen » (sujet source) ou « Importer un sujet » (voir
+[Pour aller plus loin](#pour-aller-plus-loin)). **Ouvrir** mène à l'assistant en six étapes ; **Supprimer** range l'examen
 dans la corbeille (en bas de l'accueil), **Restaurer** le remet.
 
 ## 2. Charger les copies (étape 3)
@@ -122,6 +123,10 @@ copie ; une **feuille d'un autre format** entre deux copies devient une **copie 
 
 - **Écrire un sujet** : `examen.yaml`, décrit dans [`FORMAT_SUJET.md`](FORMAT_SUJET.md) ; « Produire les PDF » ;
   imprimer en taille réelle.
+- **Importer un sujet produit ailleurs** (générateur d'un collègue, au format Thessalia) : sur l'accueil,
+  « Importer un sujet produit par un autre générateur ». Pour chaque langue : le PDF du sujet, son corrigé
+  (`.key.json`), son vocabulaire (`.vocab.json`) et, recommandé, le fichier de zones, contrôlé contre le PDF.
+  Thessalia lit les zones et les points dans le PDF et les affiche : **vérifier les points**.
 - **Réglages** : arrondi de la note, extensions (lecteur d'écriture, Ollama et ses modèles).
 
 Le dossier `examens/` contient des **copies et des noms d'élèves** : ne pas le partager (il n'est jamais envoyé

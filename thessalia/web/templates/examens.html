@@ -60,4 +60,29 @@ les PDF produits, les copies scannées et leur lecture. Tout reste sur cette mac
 </form>
 <p class="aide">Format de la source : <code>docs/FORMAT_SUJET.md</code>. Le fichier est contrôlé dès l'ouverture de l'examen ;
 chaque erreur dit sa ligne et quoi corriger.</p>
+
+<details id="import" class="panneau-reglages import-sujet" {{ 'open' if ouvrir_import }}>
+  <summary>Importer un sujet produit par un autre générateur</summary>
+  <p class="aide">Sujet déjà imprimé, fabriqué ailleurs (générateur d'un collègue) au format Thessalia : carrés noirs
+    aux coins, zones de réponse. Pour chaque langue distribuée : le <b>PDF du sujet</b>, son <b>corrigé</b>
+    (<code>.key.json</code>) et son <b>vocabulaire</b> (<code>.vocab.json</code>). Le fichier de <b>zones</b> du
+    générateur est contrôlé contre le PDF : recommandé. Thessalia lit les zones et les points dans le PDF et vous
+    montre le résultat : vérifiez les points.</p>
+  <form class="formulaire import" method="post" action="/examens/importer" enctype="multipart/form-data">
+    <label>Nom du dossier <input name="nom" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="midterm_2026"></label>
+    <label>Titre <input name="titre" placeholder="Midterm 2026 — partie écrite"></label>
+    {% for lg, nom_lg in [('fr', 'Français'), ('en', 'Anglais')] %}
+    <fieldset class="langue-import">
+      <legend>{{ nom_lg }}{% if lg == 'en' %} <span class="gris">(si distribué)</span>{% endif %}</legend>
+      <label>Sujet PDF <input type="file" name="pdf_{{ lg }}" accept=".pdf" {{ 'required' if lg == 'fr' }}></label>
+      <label>Corrigé <input type="file" name="key_{{ lg }}" accept=".json"></label>
+      <label>Vocabulaire <input type="file" name="vocab_{{ lg }}" accept=".json"></label>
+      <label>Zones <span class="gris">(recommandé)</span> <input type="file" name="zones_{{ lg }}" accept=".json"></label>
+    </fieldset>
+    {% endfor %}
+    <label>Autres fichiers du corrigé <span class="gris">(barème du code .bareme.json, tests .tests.py)</span>
+      <input type="file" name="autres" multiple accept=".json,.py"></label>
+    <button class="bouton principal">Importer le sujet</button>
+  </form>
+</details>
 {% endblock %}

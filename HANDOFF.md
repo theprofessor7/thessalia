@@ -1,9 +1,30 @@
-# Passation — état du projet au 27 octobre 2026
+# Passation — état du projet au 15 novembre 2026
 
 > Note de reprise rédigée par Claude (session cloud claude.ai) pour la suite du développement en local
 > avec Claude Code. À lire avec `CLAUDE.md` (consignes) et `ARCHITECTURE.md` (conception détaillée).
 
-## État d'ensemble au 27 octobre 2026 (à lire en premier)
+## Point du 15 novembre 2026 (à lire en premier)
+
+Avant le déploiement chez les collègues, le code a été nettoyé.
+- **Une seule entrée pour les enseignants : l'application** (`python -m thessalia app`, `Thessalia.bat` /
+  `Thessalia.command`). Les commandes des débuts sont retirées : `template`, `process`, `ocr`, `truth-page`,
+  `notes`, `serve`, `preparer`, `precocher`, `second-lecteur`, `code-bilan`, `bilan`, `verif-noms`, `excel`,
+  `digits-train`, `trocr-train`, `identite`, `sujet`, `separateur`, ainsi que les modes `--banc` et `--essai` (et la base `correction_essai.sqlite`).
+  Tout cela se fait depuis l'application (lecture, lecture approfondie, apprentissage, noms, export).
+- Commandes restantes : `app`, `importer` (sujet d'un autre générateur, aussi depuis l'accueil), `verif-zones`,
+  `transcrire` (option payante sur clé), `simulate` et `evaluate` (tests ; `evaluate` lit lui-même le lot
+  simulé).
+- **Import d'un sujet produit ailleurs** depuis l'accueil : PDF, corrigé, vocabulaire et zones par langue ; le
+  gabarit est lu dans le PDF, les zones sont contrôlées (`verif_zones`), les points lus sont affichés.
+- Modules supprimés : `bilan`, `code_bilan`, `truth_page`, `separateur` ; `notes`, `verif_noms`, `ocr`,
+  `evaluate_ocr`, `template_builder` réduits à ce que l'application utilise. `requirements.txt` et les extras
+  `ocr-light` / `sujets` (WeasyPrint) retirés.
+- La note brute (sur 12,25 au Midterm) est voulue : une autre partie de l'examen ramène la note sur 20.
+
+Les sections suivantes sont le **journal** du projet : elles citent des commandes qui n'existent plus ; leurs
+mesures et décisions restent valables.
+
+## État d'ensemble au 27 octobre 2026 (journal)
 
 | Niveau | État |
 |---|---|

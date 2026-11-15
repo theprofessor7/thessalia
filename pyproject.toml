@@ -18,13 +18,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Niveau 2, moteurs légers (Tesseract nécessite aussi le programme tesseract installé sur le système)
-ocr-light = ["pytesseract>=0.3", "rapidocr-onnxruntime>=1.3"]
-# Niveau 2, moteur recommandé : TrOCR local (gratuit, le modèle est téléchargé une fois depuis Hugging Face)
+# Lecteur d'écriture : TrOCR local (gratuit, le modèle est téléchargé une fois depuis Hugging Face, ~2 Go)
 trocr = ["torch>=2.1", "transformers>=4.40", "sentencepiece"]
-# Générer les sujets PDF (déjà dans la stack HTML -> PDF)
-sujets = ["weasyprint>=60"]
-# Outil de correction dans le navigateur (python -m thessalia serve)
+# L'application dans le navigateur (python -m thessalia app) : installée par installer.py
 serveur = ["flask>=3"]
 # Transcription du code par un service en ligne (OPTION payante, clé de l'utilisateur, plafond de dépense) :
 # installer celui dont on a la clé. « openai » = format compatible OpenAI : ChatGPT, Azure OpenAI / Foundry,

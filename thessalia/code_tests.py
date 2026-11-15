@@ -1,4 +1,4 @@
-"""Pré-cochage du code par EXÉCUTION : `python -m thessalia precocher sorties/<classe> [--reparateur qwen3:14b]`.
+"""Pré-cochage du code par EXÉCUTION (étape de la lecture approfondie, cf. `preparer`).
 
 Le code transcrit d'un cadre tourne isolé (`python -I`, 5 s au plus, `input()` simulé) avec les saisies des tests
 du sujet (`keys/<sujet>.tests.py`, écrits une fois avec le corrigé). Un critère est PRÉ-COCHÉ seulement si ses tests

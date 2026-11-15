@@ -80,15 +80,13 @@ def normalize_background(gray: np.ndarray, px_mm: float) -> np.ndarray:
     return np.clip(norm, 0.0, 1.0)
 
 
-def render_pdf_pages(pdf_path, dpi: int, pages=None) -> list[np.ndarray]:
+def render_pdf_pages(pdf_path, dpi: int) -> list[np.ndarray]:
     """Rend les pages d'un PDF en niveaux de gris (uint8) à la résolution donnée."""
     import pymupdf
 
     doc = pymupdf.open(pdf_path)
     out = []
-    for i, page in enumerate(doc):
-        if pages is not None and i not in pages:
-            continue
+    for page in doc:
         pix = page.get_pixmap(dpi=dpi, colorspace=pymupdf.csRGB, alpha=False)
         arr = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, 3)
         out.append(to_ink_gray(arr).copy())

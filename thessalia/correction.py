@@ -17,10 +17,6 @@ Origine du verdict d'une réponse courte, par ordre de priorité :
                 environ 1 réponse mal notée sur 100 décidées par la mémoire (surtout favorisée à tort).
   proposé       sinon : NON décidé (l'enseignant confirme ou change). Verdict pré-sélectionné : son verdict le
                 plus fréquent pour cette lecture dans les autres classes (dès 3 fois), sinon celui de la lecture.
-Nombre décimal en revue : si `<classe>/separateur.json` existe (`separateur --indices`), le séparateur de la
-proposition suit le détecteur point/virgule (virgule si P(virgule) >= 0,5 ; mesuré le 20 octobre : 27 erreurs
-de séparateur sur 240 contre 46). Ce n'est qu'une proposition : un tel décimal n'est jamais décidé par la
-mémoire, l'enseignant le juge toujours.
 Une zone détectée vide reste proposée (« vide ? ») : une écriture très pâle peut être prise pour du vide
 (mesuré le 19 octobre : 4 réponses justes sur 42 vides détectés, supC 1 et 2).
 
@@ -38,7 +34,7 @@ from pathlib import Path
 from .common import load_json
 from .grade import grade_copy
 from .vocab import other_separator
-from .notes import ATTENTE, FAUX, FORME, ILLISIBLE, JUSTE, PARTIEL, RATE, VIDE, judge, points_partiels
+from .notes import FAUX, FORME, ILLISIBLE, JUSTE, PARTIEL, RATE, VIDE, judge, points_partiels
 
 TRUTH_DIR = Path("data/truth")
 LISTS_DIR = Path("data/listes")
@@ -53,7 +49,6 @@ def mise_en_forme(attendu, *lectures):
     return any(x and re.search(r"[\s_]", str(x).strip()) for x in (attendu, *lectures))
 
 
-SEPARATEUR = "separateur.json"
 ESPACE_SERRE = 0.5    # écart (en hauteurs de lettre) sous lequel « X Y » est proposé « XY » (cf. _espace)
 ALTERNATIVES = 3      # autres lectures proposées en un clic (touches 6, 7, 8)
 VERDICTS = (JUSTE, FORME, FAUX, VIDE, ILLISIBLE, PARTIEL)
@@ -304,8 +299,8 @@ class Classe:
         res = load_json(self.dir / "results.json")
         self.exam_id = res["exam_id"]
         # classe d'un examen de l'application : tout ce qui la concerne est rangé dans l'examen (cf. stockage_examen),
-        # quel que soit le module qui la charge (outil, second lecteur, pré-cochage, export…) ; une base d'essai
-        # donnée explicitement est respectée
+        # quel que soit le module qui la charge (outil, second lecteur, pré-cochage, export…) ; une base donnée
+        # explicitement est respectée
         st = stockage_examen(self.dir)
         dirs = {}
         if st:
@@ -350,18 +345,14 @@ class Classe:
         return load_json(path) if Path(path).exists() else {}
 
     def students(self):
-        p = self.lists_dir / f"{self.name}.csv"
-        if not p.exists():
-            return {}
-        import csv
-        with open(p, encoding="utf-8-sig") as fh:
-            return {r["copie"]: r["etudiant"] for r in csv.DictReader(fh, delimiter=";")}
+        """Copies attribuées à un élève (jamais les noms provisoires `<classe>_copieNNN` du fichier)."""
+        from .identite import lire_attributions
+        return lire_attributions(self.name, self.lists_dir)
 
     # état des réponses courtes ----------------------------------------------
     def short_items(self, use_memory=True):
         truth = self._json(self.truth_dir / f"{self.name}.short_truth.json")
         second = self._json(self.dir / SECOND)
-        sep = self._json(self.dir / SEPARATEUR)
         dec = self.decisions.of(self.name)
         items = []
         for cid in self.lues:
@@ -390,7 +381,7 @@ class Classe:
                 elif st == "blank":
                     it.update(verdict=VIDE, origine="vide ?", decide=False)
                 else:
-                    indice = self._separateur(it, sep.get(key)) or self._espace(it, info, fid)
+                    indice = self._espace(it, info, fid)
                     prop = it["proposition"]
                     v = self.exam.verdict(prop or "", fid)
                     agree = (s2 is not None and s2.get("sur") and prop is not None
@@ -475,24 +466,6 @@ class Classe:
                         f"(serré si < {str(ESPACE_SERRE).replace('.', ',')}), à vérifier")
         return True
 
-    @staticmethod
-    def _separateur(it, s):
-        """Séparateur de la proposition d'un décimal d'après le détecteur (indice, jamais décision).
-        Retourne True si l'indice s'applique (entrée à jour pour cette lecture)."""
-        prop = it["proposition"]
-        if not s or s.get("p_virgule") is None or not prop or s.get("lecture") != prop or not other_separator(prop):
-            return False
-        p = float(s["p_virgule"])
-        want = "," if p >= 0.5 else "."
-        if want not in prop:
-            it["proposition"] = other_separator(prop)
-            it["lecture_machine"] = prop
-        it["p_virgule"] = p
-        sens = "virgule proposée" if want == "," else "point proposé"
-        it["raison"] = (f"nombre décimal : {sens} par le détecteur de séparateur "
-                        f"(P(virgule) = {p:.2f}), à vérifier".replace(f"{p:.2f}", f"{p:.2f}".replace(".", ",")))
-        return True
-
     # QCM en revue ----------------------------------------------------------------
     def qcm_items(self):
         truth = self._json(self.truth_dir / f"{self.name}.qcm_truth.json")
@@ -565,7 +538,7 @@ class Classe:
         malus = self.exam.bareme.get("malus")
         dec, enc = self.decisions.of(self.name), self._encre()
         lus = self._json(self.dir / "code_lectures.json")   # transcriptions (option `transcrire`)
-        tests = self._json(self.dir / CODE_TESTS)          # pré-cochage par exécution (commande `precocher`)
+        tests = self._json(self.dir / CODE_TESTS)          # pré-cochage par exécution (`code_tests`)
         # page de chaque cadre : l'élève écrit souvent sous le cadre imprimé, la page entière le montre
         page_de = {f["id"]: pg["page"] for pg in self.exam.template["pages"] for f in pg["fields"]}
         items = []
@@ -783,7 +756,7 @@ class Classe:
         tmp.replace(path)
         return path
 
-    def code_labels(self, avec_auto=False):
+    def code_labels(self):
         """Vérité du code pour faire progresser la chaîne locale (`data/truth/<classe>.code_appris.json`) :
         transcriptions corrigées par l'enseignant (touche T) et critères qu'il a décidés cadre par cadre.
         Jamais une décision validée en lot pendant la session (marqueur « auto: ») : ce sont des propositions de
@@ -796,7 +769,7 @@ class Classe:
             t = _transcription_enseignant(d)
             if t is not None:
                 out["transcriptions"][cle] = t
-            if (d.get("texte") or "").startswith("auto:") and not avec_auto:   # `code-bilan --avec-auto` seulement
+            if (d.get("texte") or "").startswith("auto:"):
                 continue
             if d.get("verdict") or d.get("options") is not None:
                 out["criteres"][cle] = {"choix": [] if d.get("verdict") else (d.get("options") or []),
@@ -870,7 +843,8 @@ class Classe:
         if fid not in self.exam.bareme.get("champs", {}):
             raise ValueError(f"{cle} n'est pas un cadre de code")
         self.decisions.set(self.name, cle, texte=texte)
-        tests = charger_tests(self.exam_id)
+        # tests de l'examen (examens/<nom>/produit/corriges/), comme la lecture approfondie ; keys/ hors application
+        tests = charger_tests(self.exam_id, (stockage_examen(self.dir) or {}).get("keys_dir", "keys"))
         if not tests:
             return
         p = self.dir / FICHIER

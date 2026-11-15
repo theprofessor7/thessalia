@@ -1,5 +1,6 @@
 """Application : un examen de bout en bout, du sujet source à l'outil de correction."""
 import io
+from pathlib import Path
 import time
 
 import pytest
@@ -189,6 +190,30 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     assert "Sujet <b>importé</b>" in page and "Remplacer la source" not in page and "Produire les PDF" not in page
     with pytest.raises(SystemExit, match="rien à produire"):
         Projet(racine / "importe").produire()
+
+    # import depuis l'accueil, sans gabarit : lu dans le PDF, zones du générateur contrôlées, résumé affiché
+    def deposer(nom, **f):
+        data = {"nom": nom, "titre": "Essai déposé"}
+        data.update({k: (open(v, "rb"), Path(v).name) for k, v in f.items()})
+        return c.post("/examens/importer", data=data, content_type="multipart/form-data")
+    r = deposer("depose", pdf_fr=fr["pdf"], key_fr=fr["key"], vocab_fr=fr["vocab"], zones_fr=prod / "zones_ESSAI_FR.json")
+    assert r.status_code == 302 and "/examens/depose" in r.headers["Location"], r.headers["Location"]
+    assert "Sujet%20import" in r.headers["Location"]
+    dep = Projet(racine / "depose")
+    assert dep.controle()[1] is None and dep.fichiers("fr")["gabarit"].exists()
+    # corrigé d'un autre sujet : refusé avec la raison, rien de créé
+    import json as _json
+    autre = Path(tmp_path) / "autre.key.json"
+    k = _json.loads(fr["key"].read_text(encoding="utf-8"))
+    k["short_answers"]["q99"] = "x"
+    autre.write_text(_json.dumps(k), encoding="utf-8")
+    r = deposer("refuse", pdf_fr=fr["pdf"], key_fr=autre, vocab_fr=fr["vocab"])
+    assert "absents%20du%20sujet" in r.headers["Location"] and not (racine / "refuse").exists()
+    assert "Importer un sujet" in c.get("/examens?import=1").get_data(as_text=True)
+    # la même chose en ligne de commande
+    assert thessalia(["importer", "cli", "--examens", str(racine), "--langue", "fr", str(fr["pdf"]), str(fr["key"]),
+                      str(fr["vocab"]), "--zones", "fr", str(prod / "zones_ESSAI_FR.json")]) == 0
+    assert Projet(racine / "cli").controle()[1] is None
 
 
 def test_assistant_etapes():
