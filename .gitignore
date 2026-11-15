@@ -45,3 +45,6 @@ examens/
 /templates/
 keys/
 docs/exemple_overlay_q4.jpg
+
+# captures brutes de l'enseignant (noms et notes réels) : jamais dans le dépôt ; le guide utilise docs/guide/img/ex_*.png
+docs/screens/

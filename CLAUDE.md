@@ -18,6 +18,8 @@ Lire d'abord `HANDOFF.md` (où on en est, chiffres mesurés, prochaines étapes)
    (cf. `.gitignore`). Les vignettes envoyées à un service externe ne contiennent jamais l'identité.
    **Dépôt public** : aucun nom d'élève (ni note nominative) dans HANDOFF, les commentaires, les tests ou les messages
    de commit ; exemples avec des noms inventés. Les sujets et corrigés (`templates/`, `keys/`, `sujets/`) restent hors dépôt.
+   Seule exception (accord de l'enseignant, 15 nov. 2026) : les captures du guide (`docs/guide/img/ex_*.png`) gardent
+   des réponses manuscrites sans identité ; noms, notes et prénom du compte y sont floutés ou retirés.
 4. **Le gabarit vient du PDF.** Ne jamais mesurer de coordonnées à la main : `python -m thessalia template`
    lit les positions exactes dans le PDF vectoriel WeasyPrint.
 

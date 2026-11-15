@@ -1,6 +1,6 @@
 // Guide de prise en main de Thessalia (PDF : docs/Thessalia_mode_emploi.pdf)
 // Construire : python docs/guide/construire.py
-// Captures d'écran : examen de démonstration, copies simulées, noms inventés (aucune donnée d'élève).
+// Captures : correction réelle du Midterm de novembre 2026 (supA), noms et notes floutés, barre latérale retirée ; réponses manuscrites gardées (accord de l'enseignant, 15 nov. 2026).
 
 #let bleu = rgb("#2a5caa")
 #let bleu-clair = rgb("#e8eef8")
@@ -78,13 +78,23 @@
   ]
 ]
 
+
 // ================================================================== en bref
 = Thessalia en bref
 
 Thessalia tourne *sur votre ordinateur* et s'utilise *dans votre navigateur*. Pas de compte en ligne, pas
 d'abonnement : *rien ne part sur internet*, ni les copies, ni les noms, ni les notes.
 
-Le parcours d'un examen, dans l'ordre de ce guide :
+La machine fait le travail répétitif : elle lit les cases, déchiffre l'écriture, regroupe les réponses
+identiques, exécute le code. Vous gardez le jugement : *chaque clic de votre part lui apprend quelque chose*, et
+la classe suivante va plus vite que la précédente.
+
+#info("Un exemple réel : le Midterm de novembre 2026, classe supA")[
+  Ce guide suit la correction d'une vraie classe : *29 copies scannées en un PDF*, plus *1 copie composée sur
+  un sujet imprimé en A3*, scannée à part. QCM, réponses courtes à la main, code manuscrit. Au départ, *866
+  réponses à décider*. À la fin, l'enseignant : _« Je n'ai jamais corrigé une classe papier aussi vite. »_
+  Les captures viennent de cette correction ; les noms et les notes y sont floutés.
+]
 
 #let case-etape(n, titre, texte) = block(width: 100%, fill: white, stroke: 0.6pt + rgb("#d5d3cc"), radius: 4pt,
   inset: 9pt, breakable: false)[
@@ -94,16 +104,15 @@ Le parcours d'un examen, dans l'ordre de ce guide :
 #grid(columns: (1fr, 1fr, 1fr), column-gutter: 8pt, row-gutter: 8pt,
   case-etape(1, "Ouvrir", [Lancer Thessalia, retrouver ses examens sur l'accueil.]),
   case-etape(2, "Charger les copies", [Un PDF du scanner par classe : cases lues, réponses découpées.]),
-  case-etape(3, "Corriger", [Confirmer ou corriger, question par question, en quelques clics.]),
-  case-etape(4, "Outils des cartes", [Chaque réponse : juste, forme, faux, vide, corriger la lecture…]),
-  case-etape(5, "Outils des blocs", [Les réponses identiques se décident en une fois.]),
-  case-etape(6, "Exporter les notes", [Un classeur Excel : notes sur 20, absents, copies à vérifier.]),
+  case-etape(3, "Laisser lire", [La machine lit l'écriture et le code pendant que vous faites autre chose.]),
+  case-etape(4, "Corriger", [Par question, par blocs de réponses identiques, en quelques clics.]),
+  case-etape(5, "Ce qu'elle apprend", [Vos verdicts et vos lectures servent aux classes suivantes.]),
+  case-etape(6, "Noms et notes", [Identifier les copies, puis un classeur Excel des notes sur 20.]),
 )
 
-#info("Thessalia ne décide jamais en silence")[
-  Quand la machine n'est pas sûre (case à moitié cochée, écriture difficile, nombre décimal, page illisible…),
-  elle le signale *« à décider »*, avec la raison. Une note n'est définitive que lorsque tout est tranché.
-]
+#astuce[*Thessalia ne décide jamais en silence.* Quand la machine n'est pas sûre (case à moitié cochée, écriture
+difficile, page illisible…), la réponse est *« à décider »*, avec la raison. Une note n'est définitive que
+lorsque tout est tranché.]
 
 // ================================================================== ouvrir
 = 1 · Ouvrir Thessalia
@@ -127,185 +136,230 @@ Le parcours d'un examen, dans l'ordre de ce guide :
 == Lancer, à chaque fois
 
 Double-cliquer sur *`Thessalia.bat`* (Mac : `Thessalia.command`). Le navigateur s'ouvre ; *la fenêtre noire doit
-rester ouverte*, c'est Thessalia qui tourne. Au premier lancement, choisissez un identifiant et un mot de passe
-(8 caractères au moins) ; ils sont redemandés après 12 heures.
+rester ouverte*, c'est Thessalia qui tourne. Au premier lancement, choisissez un identifiant et un mot de passe.
 
-#astuce[Mise à jour : Thessalia fermé, `cd C:\Thessalia` puis `git pull` dans PowerShell, puis relancer
-`installer.bat`. Vos examens ne sont jamais touchés. Après une mise à jour, *relancez Thessalia*.]
+#astuce[Mise à jour : Thessalia fermé, `git pull` dans `C:\Thessalia`, relancer `installer.bat`, puis
+Thessalia. Vos examens ne sont jamais touchés.]
 
-== L'accueil et les cartes d'examen
+== L'accueil
 
-#capture("img/accueil_cartes.png", largeur: 72%, legende: [L'accueil : une carte par examen, avec « Ouvrir » et « Supprimer ».])
+#capture("img/accueil_cartes.png", largeur: 72%, legende: [Une carte par examen, avec « Ouvrir » et « Supprimer ».])
 
-- #bouton[Ouvrir] mène à la page de l'examen : un assistant en *six étapes* (pastilles en haut, « Précédent /
-  Suivant » en bas). Une étape faite est verte ✓ ; une étape grisée dit ce qui lui manque. Ouvrir un examen
-  mène directement à l'étape à faire.
-- #bouton-clair[Supprimer] demande confirmation, puis range l'examen dans la *corbeille*, en bas de l'accueil,
-  avec tout son contenu (copies lues, décisions, notes). #bouton-clair[Restaurer] le remet en place d'un clic.
-  Rien n'est effacé du disque : pour vider la corbeille, supprimer le dossier `examens\.corbeille` à la main.
-
-Le *menu de gauche* : *Accueil*, *Correction* (l'examen ouvert en correction), *Apprentissage*, *Réglages*, *Aide*.
-
-Un nouvel examen se crée depuis l'accueil avec son fichier source `examen.yaml` (voir « Pour aller plus loin »).
-Les étapes 1 et 2 (sujet, PDF à imprimer) sont alors faites une fois pour toutes.
+#bouton[Ouvrir] mène à la page de l'examen : un assistant en *six étapes*. Une étape faite est verte ✓, une étape
+grisée dit ce qui lui manque. #bouton-clair[Supprimer] range l'examen dans la *corbeille* (en bas de l'accueil),
+d'où #bouton-clair[Restaurer] le remet d'un clic.
 
 // ================================================================== charger
-= 2 · Charger les copies d'une classe
+= 2 · Charger les copies
 
-Scanner *toutes les copies d'une classe en un seul PDF* : A4 ou A3, recto, 100 dpi ou plus. Les pages tournées,
-à l'envers ou blanches sont gérées, de même qu'une copie composée sur un sujet imprimé en A3.
+Scanner *toutes les copies d'une classe en un seul PDF* : A4 ou A3, 100 dpi ou plus. Pages tournées, à l'envers
+ou blanches : gérées.
 
-#capture("img/charger_classe.png", legende: [Étape 3 : nom de la classe, langue du sujet distribué, PDF, puis « Déposer et lire ».])
+#capture("img/charger_classe.png", largeur: 80%, legende: [Étape 3 : nom de la classe, langue du sujet distribué, PDF, puis « Déposer et lire ».])
 
 #etape(1, "Nommer la classe")[
-  Par exemple `supH` ou `supA_1`. Le nom range la classe dans son *groupe* (`supA_1`, `supA_2` → groupe A) :
-  c'est ce groupe qui sert pour les noms des élèves et les notes. Une copie scannée à part se charge comme une
-  classe de plus (`supA_2`) : elle rejoint les autres copies de A.
+  Le nom range la classe dans son *groupe* : `supA` et `supA_2` → groupe A. Dans l'exemple, la copie composée
+  sur un sujet A3 a été scannée à part et chargée comme `supA_2` : elle a rejoint les 29 autres copies du groupe A.
 ]
 #v(4pt)
-#etape(2, "Choisir la langue du sujet distribué")[
-  FR ou EN. Une erreur est signalée « GABARIT DOUTEUX » (voir « Si ça bloque »).
-]
+#etape(2, "Choisir la langue du sujet distribué")[FR ou EN (une erreur est signalée « GABARIT DOUTEUX »).]
 #v(4pt)
-#etape(3, "Déposer et lire")[
-  La lecture prend quelques minutes ; la jauge suit les pages. Vous pouvez travailler ailleurs : Thessalia
-  peut vous prévenir à la fin (« Me prévenir à la fin »).
+#etape(3, "Déposer et lire")[Quelques minutes ; une jauge suit les pages, une fenêtre résume la fin.]
+
+#capture("img/charger_classe_fin.png", largeur: 68%, legende: [Fin de lecture : ce qui mérite votre attention est signalé.])
+
+// ================================================================== lectures
+= 3 · Laisser la machine lire
+
+À l'étape 4, #bouton-clair[Lire les réponses courtes] fait lire l'écriture des élèves (et leurs noms) par le
+lecteur d'écriture, *sur votre ordinateur*. Pour supA, 766 vignettes : l'enseignant l'a lancée avant sa pause
+déjeuner et a retrouvé tout lu en revenant.
+
+#capture("img/ex_lecture_en_cours.png", largeur: 66%, legende: [La lecture tourne en arrière-plan ; « Me prévenir à la fin » envoie une notification Windows.])
+
+#bouton-clair[Lancer la lecture approfondie] va plus loin, en quelques heures (une nuit) : un modèle local
+recopie le *code manuscrit*, Thessalia l'*exécute* avec les tests du sujet et pré-coche les critères du barème.
+Les deux tâches se mettent en pause (⏸) et reprennent là où elles s'étaient arrêtées.
+
+#capture("img/ex_lecture_terminee.png", largeur: 60%, legende: [Fin de la lecture : il reste à corriger (étape 5).])
+
+#info("Sujet nouveau : tout passe d'abord par vous")[
+  Pour un sujet jamais corrigé, toutes les réponses courtes vous sont présentées, avec la lecture proposée. Après
+  30 lectures vérifiées sans erreur, #bouton-clair[Sujet validé] laisse la machine accepter seule ses lectures sûres.
 ]
-
-#capture("img/charger_classe_jauge.png", largeur: 92%, legende: [La lecture en cours : page lue, copie en cours.])
-
-À la fin, une fenêtre résume ce qui mérite votre attention, et le tableau donne pour chaque classe le nombre de
-copies et de réponses *à revoir*.
-
-#capture("img/charger_classe_fin.png", largeur: 92%, legende: [Fin de lecture : la page illisible est signalée, la classe est lue.])
-
-#astuce[« Lue · relire » relit une classe (après une mise à jour, par exemple) : vos décisions sont gardées.]
 
 // ================================================================== corriger
-= 3 · Corriger
+= 4 · Corriger, par l'exemple
 
-#bouton[Corriger les copies lues] (étape 5) ouvre l'outil de correction. Le tableau de bord présente vos classes
-par groupe, puis chaque groupe a une carte par question.
+== Le tableau de bord et les questions
 
-#grid(columns: (1fr, 1fr), column-gutter: 10pt,
-  capture("img/accueil_c.png", legende: [Ce qu'il reste à décider par groupe.]),
-  capture("img/groupe_c.png", legende: [Un groupe : une carte par question.]))
+#bouton[Corriger les copies lues] (étape 5) ouvre l'outil. Une carte par groupe : ce qu'il reste à décider.
 
-Corrigez *par question* : toutes les copies, une seule question. Pour chaque réponse : l'image de ce que l'élève
-a écrit, ce que la machine a lu, l'attendu et le verdict proposé (cadre pointillé). Vos décisions sont
-enregistrées *à chaque clic* : on peut fermer et reprendre plus tard.
+#capture("img/ex_tableau_de_bord.png", largeur: 50%, legende: [Au départ : 866 réponses à décider pour le groupe A.])
 
-#capture("img/question_c.png", legende: [Correction par question : les réponses identiques sont regroupées en blocs.])
+Dans un groupe, une case par question. Les QCM sûrs sont déjà faits (✓ vert) ; le bandeau rouge signale la copie
+dont une page est illisible, à reprendre sur le papier.
 
-Les autres vues, en haut de l'écran : *Copies et notes* (une copie entière, page scannée à gauche),
-*Identifier les copies* (attribuer chaque copie à un élève de la liste, le nom écrit à côté), *Suivi de la
-machine* (lectures justes et corrigées).
+#capture("img/ex_groupe.png", largeur: 88%, legende: [Le groupe A : on corrige question par question, « Commencer par q8.2 ».])
 
-#info("Étape 4, facultative : les lectures automatiques")[
-  Avant de corriger, la machine peut lire l'écriture des élèves (*Lire les réponses courtes*, lecteur d'écriture)
-  et, en arrière-plan pendant quelques heures, le code manuscrit (*Lecture approfondie*, Ollama). Ces
-  extensions s'installent depuis *Réglages*. Sans elles, tout se corrige à la main. Une tâche longue se met en
-  pause (⏸) et reprend (▶) là où elle s'était arrêtée.
-]
+== Une question : les réponses identiques en blocs
 
-// ================================================================== cartes
-= 4 · Les outils des cartes
+Chaque page de question montre en haut *l'énoncé tel que l'élève l'a vu* (découpé dans le sujet, la case à
+corriger surlignée) et l'attendu. Dessous, les réponses sont *regroupées par lecture identique* : les gros blocs
+d'abord.
 
-Chaque réponse est une *carte*. Tout se fait au clavier : #touche[↑] #touche[↓] passent d'une carte à l'autre.
+#capture("img/ex_bloc_bien_lu.png", largeur: 90%, legende: [q2 : deux élèves ont écrit « 23 » ; la machine l'a bien lu. « bien lu pour le bloc » le confirme en un clic.])
 
-#table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
-  [#bouton[✓ valider] #touche[Entrée]], [accepter le verdict proposé ;],
-  [#bouton-clair[✓ juste] #touche[1]], [tous les points ;],
-  [#bouton-clair[½ forme] #touche[2]], [la moitié : bonne réponse mal écrite (guillemets en trop, `2,5` au lieu de `2.5`) ;],
-  [#bouton-clair[✗ faux] #touche[3]], [zéro ;],
-  [#bouton-clair[ø vide] #touche[4] #bouton-clair[? illisible] #touche[5]], [rien d'écrit, ou impossible à lire ;],
-  [#bouton-clair[bien lu] #touche[L]], [la machine a lu exactement ce qui est écrit : la lecture devient un exemple pour l'apprentissage ;],
-  [#bouton-clair[\= attendu] #touche[A]], [l'élève a écrit la réponse attendue, la machine l'a mal lue ;],
-  [#touche[6] #touche[7] #touche[8]], [choisir une autre lecture proposée ;],
-  [#bouton-clair[corriger la lecture] #touche[T]], [taper ce que l'élève a vraiment écrit : le verdict se recalcule ;],
-  [#touche[Suppr]], [annuler la décision.],
-)
+Le cas le plus spectaculaire : à la q5.2 (attendu `5`), la machine a lu « 55 » sur *9 copies* (le soulignement
+pris pour un second 5). Un clic sur #bouton-clair[\= attendu pour le bloc] : les 9 réponses sont justes, et les 9
+images deviennent des exemples pour que la machine ne refasse pas l'erreur.
 
-*Cartes de code.* #touche[1]…#touche[5] cochent les critères du barème, #touche[J] tout juste, #touche[0] rien de
-juste, #touche[V] vide, #touche[M] entorse grave. La transcription du code se corrige sur la carte ; les tests
-sont alors relancés.
-
-*D'où vient la proposition ?* L'étiquette de la carte le dit (survolez-la) : *✓ vous*, *⚙ lecteur sûr*,
-*⚙ deux lecteurs d'accord*, *⚙ tests exécutés* (code), *↺ mémoire* (votre verdict habituel dans les autres
-classes), *? lecture proposée* (la machine hésite).
-
-*Ce que Thessalia retient.* Après une décision, un message en bas à droite dit ce qu'elle en garde. Dès 3
-jugements identiques, votre verdict est *proposé* dans les autres classes ; dès 10 jugements concordants à 95 %,
-il est *appliqué d'office*.
-
-// ================================================================== blocs
-= 5 · Les outils des blocs
-
-Les réponses identiques d'une question forment un *bloc* (« lu « 3 » → juste · 14 »). Les boutons du bloc
-agissent sur toutes ses cartes d'un coup :
+#capture("img/ex_bloc_attendu.png", largeur: 90%, legende: [q5.2 : 9 réponses lues « 55 » alors que l'élève a écrit 5 : réglées d'un clic.])
 
 #table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
   [#bouton-clair[Confirmer le bloc]], [accepter le verdict proposé pour tout le bloc ;],
-  [#bouton-clair[bien lu pour le bloc]], [la lecture est exacte partout : autant d'exemples d'apprentissage en un clic ;],
-  [#bouton-clair[\= attendu pour le bloc]], [la machine a mal lu la même chose partout, tous ont écrit l'attendu ;],
-  [#bouton-clair[vide pour le bloc]], [zones sans lecture où rien n'est écrit : 0 point, « vide ».],
+  [#bouton-clair[bien lu pour le bloc]], [la lecture est exacte partout ;],
+  [#bouton-clair[\= attendu pour le bloc]], [la machine a mal lu la même chose, tous ont écrit l'attendu ;],
+  [#bouton-clair[vide pour le bloc]], [rien n'est écrit dans ces zones ;],
+  [#bouton[Valider toutes les propositions]], [en haut : tout ce qui reste sur la question, une fois tout regardé.],
 )
 
-En haut de la page, #bouton[Valider toutes les propositions] accepte d'un coup tout ce qui reste sur la question,
-une fois que vous avez tout regardé.
+== Une réponse : la carte
 
-#astuce[Parcourez d'abord les gros blocs : ils sont en tête. Une carte du bloc qui ne lui ressemble pas se décide
-seule avant de confirmer le reste.]
+#grid(columns: (32%, 1fr), column-gutter: 14pt,
+  capture("img/ex_corriger_lecture.png", legende: [« corriger la lecture » : taper ce qui est écrit.]),
+  [
+    Chaque carte : l'image, ce que la machine a lu (*lu*), d'autres lectures possibles (*ou*), l'attendu et le
+    verdict proposé (cadre pointillé). Un clic enregistre.
 
-// ================================================================== notes
-= 6 · Exporter les notes
+    Ici, la machine a lu « 64.8 » ; l'élève a écrit `4,8`. #bouton-clair[corriger la lecture] : on tape ce qui est
+    écrit, le verdict se recalcule, et l'image rejoint les exemples d'apprentissage.
 
-#etape(1, "Déposer la liste des élèves")[
-  À l'étape 6 : un fichier Excel avec les colonnes `NOM`, `Prénom`, `Classe`.
-]
-#v(4pt)
-#etape(2, "Attribuer les copies")[
-  Dans l'outil, *Identifier les copies* : chaque copie avec le nom écrit par l'élève et l'élève proposé.
-]
-#v(4pt)
-#etape(3, "Vérifier les noms")[
-  L'étape 6 compte les copies sans élève et les copies *à risque* (nom proche d'un autre, voisin d'un absent,
-  autre groupe). #bouton-clair[Vérifier les noms] les montre en tête ; #bouton[J'ai vérifié les copies à risque]
-  évite que l'export le redemande.
-]
-#v(4pt)
-#etape(4, "Exporter")[
-  #bouton[Exporter les notes] produit un classeur `.xlsx` à télécharger :
-]
+    #table(columns: (auto, 1fr), stroke: none, inset: (x: 4pt, y: 3pt),
+      [#bouton-clair[✓ juste]], [tous les points],
+      [#bouton-clair[½ forme]], [la moitié : bonne réponse mal écrite],
+      [#bouton-clair[✗ faux]], [zéro],
+      [#bouton-clair[ø vide] #bouton-clair[? illisible]], [rien d'écrit / impossible à lire],
+      [#bouton-clair[bien lu]], [la machine a lu exactement],
+      [#bouton-clair[\= attendu]], [l'élève a écrit l'attendu, mal lu],
+      [#bouton-clair[↺]], [annuler la décision],
+    )
+  ])
+
+*Une erreur fréquente ne se tape qu'une fois.* À la q9.2, beaucoup d'élèves ont écrit `{prix}` au lieu de
+`{prix:.2f}`, et la machine lisait n'importe quoi (« Spring ? », « 5 points 3 . »). Une fois `{prix}` tapé, il
+apparaît sur les autres cartes de la question : *« déjà saisi : {prix} ×18 »*, à prendre d'un clic.
+
+#capture("img/ex_pinceau.png", largeur: 85%, legende: [« déjà saisi » sous la lecture, et le pinceau 🖌 : prendre une lecture, puis cliquer ou glisser sur les autres vignettes.])
+
+== Le code manuscrit
+
+Les cadres de code se notent *au barème* : un clic coche un critère. Après la lecture approfondie, la carte montre
+la transcription du code, le résultat de son exécution et les critères pré-cochés (« ✔ test ») ; un critère non
+vérifié (« ✗ test ») reste à juger. Les codes qui passent tous les tests forment un bloc « note pleine ? ».
+
+#capture("img/ex_code.png", largeur: 82%, legende: [q25 : le code de l'élève, les critères du barème, « tout juste » / « rien de juste ».])
+
+== Une copie entière
+
+#bouton-clair[Copies et notes] montre une copie avec sa page scannée : chaque zone est cliquable, la note se met
+à jour à chaque décision.
+
+#capture("img/ex_copie.png", largeur: 68%, legende: [Une copie : la page à gauche, les réponses à droite (note floutée).])
+
+// ================================================================== apprendre
+= 5 · Ce que Thessalia apprend
+
+== La mémoire de vos verdicts
+
+Après chaque décision, un message en bas à droite dit ce que Thessalia en retient. La mémoire range vos verdicts
+*par question et par lecture de la machine*, classe par classe. Une classe ne se juge jamais avec ses propres
+décisions : ce sont *les classes suivantes* qui en profitent.
+
+#capture("img/ex_memoire_message.png", largeur: 74%, legende: [q5.2 : « 5 » jugé juste 7 fois sur 7 ; 13 réponses identiques d'autres classes recevront ce verdict.])
 
 #table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
-  [*Notes*], [une ligne par copie : élève, détail par partie, total, note sur 20 arrondie au demi-point supérieur (13,1 → 13,5 ; réglable dans *Réglages*), plafonnée à 20 ;],
-  [*Absents*], [les élèves de la liste sans copie ;],
-  [*À vérifier*], [copies sans élève, copies avec des réponses encore à décider (note provisoire), copies hors format.],
+  [*3 jugements*], [votre verdict le plus fréquent est *proposé* ailleurs (étiquette « ↺ vos verdicts ailleurs ») ;],
+  [*10 jugements, 95 % d'accord*], [il est *appliqué d'office* (étiquette « ↺ mémoire »), toujours visible et annulable.],
 )
 
-#astuce[Chaque export garde l'ancien classeur à côté, daté : aucune version n'est perdue.]
+== Les lectures que vous tapez
+
+Une lecture tapée sur au moins 2 copies (comme `{prix}`) entre dans les *réponses plausibles* de la question à la
+lecture suivante : la machine la propose alors directement au lieu d'une lecture fantaisiste. Les erreurs
+classiques de vos élèves deviennent connues de la machine.
+
+== Les lecteurs affinés
+
+Toutes les lectures vérifiées (tapées, « bien lu », « = attendu ») sont des exemples. Le menu *Apprentissage*
+les compte et réentraîne les lecteurs sur l'écriture de *vos* élèves. Après supA : 612 lectures jugées, 691
+exemples pour le lecteur d'écriture, 187 pour le lecteur de chiffres.
+
+#capture("img/ex_apprentissage.png", largeur: 58%, legende: [Apprentissage : la mémoire, et les lecteurs prêts à être affinés.])
+
+Un lecteur affiné est mesuré sur une classe qu'il n'a jamais vue ; #bouton[Adopter] n'apparaît que s'il lit
+mieux que l'actuel, et l'ancien est gardé.
+
+#info("La routine entre deux classes")[
+  #etape(1, "Finir la classe", [Toutes les questions décidées.])
+  #etape(2, "Relancer « Lire les réponses courtes »", [Vos lectures tapées deviennent des réponses plausibles ; vos décisions sont gardées.])
+  #etape(3, "Lecture approfondie de la classe suivante", [Le code transcrit et pré-coché, pendant une nuit.])
+  #etape(4, "Corriger la classe suivante", [La mémoire propose ou décide ce que vous avez déjà jugé.])
+  #etape(5, "Affiner le lecteur d'écriture", [Dès deux classes corrigées, une nuit ; l'adopter s'il fait mieux.])
+]
+
+// ================================================================== notes
+= 6 · Identifier les copies et exporter les notes
+
+== Identifier les copies
+
+Déposez d'abord la *liste des élèves* à l'étape 6 (Excel, colonnes `NOM`, `Prénom`, `Classe`). Dans l'outil,
+#bouton-clair[Identifier les copies] montre pour chaque copie le nom et le prénom écrits par l'élève, et
+l'élève de la liste que la machine propose, avec ses autres candidats.
+
+#capture("img/ex_noms.png", largeur: 80%, legende: [Identifier les copies (noms floutés) : à gauche ce qu'a écrit l'élève, à droite l'élève proposé.])
+
+#attention[Un nom pré-rempli (gris italique, « proposé ») n'est *qu'une proposition* : il n'est enregistré
+qu'avec #touche[Entrée], un clic sur un candidat, ou #bouton[Confirmer toute la page]. Une copie confirmée passe
+en vert. Après chaque confirmation, les propositions restantes se recalculent.]
+
+Quand toutes les copies du groupe sont identifiées, un bandeau mène à l'étape suivante. En bas de la page, les
+*élèves sans copie* : à la fin, il ne doit rester que les absents.
+
+== Vérifier les noms, puis exporter
+
+#bouton-clair[Vérifier les noms] (étape 6) met en tête les copies *à risque* : nom proche d'un autre élève, voisin
+d'un absent, élève d'un autre groupe.
+
+#capture("img/ex_controle_noms.png", largeur: 85%, legende: [Le contrôle avant l'export : copies attribuées, à risque, sans élève.])
+
+#bouton[Exporter les notes] produit un classeur `.xlsx` :
+
+#table(columns: (auto, 1fr), stroke: none, inset: (x: 6pt, y: 5pt), fill: (_, y) => if calc.odd(y) { fond },
+  [*Notes*], [une ligne par copie : élève, détail par partie, note sur 20 arrondie au demi-point supérieur (réglable) ;],
+  [*Absents*], [les élèves de la liste sans copie ;],
+  [*À vérifier*], [copies sans élève, réponses encore à décider (note provisoire), copies hors format.],
+)
+
+#capture("img/ex_notes.png", largeur: 52%, legende: [Copies et notes : QCM, réponses courtes, code, total (notes floutées).])
+
+#astuce[Chaque export garde l'ancien classeur à côté, daté.]
 
 // ================================================================== dépannage
 = Si ça bloque
 
 == Une page illisible ou une copie hors format
 
-#capture("img/page_illisible.png", largeur: 92%, legende: [Une page sans les repères du sujet : signalée, jamais ignorée.])
+#capture("img/page_illisible.png", largeur: 66%, legende: [Une page sans les repères du sujet : signalée, jamais ignorée.])
 
-Thessalia retrouve chaque page grâce aux *carrés noirs des coins*. Une page sans ces repères est signalée
-« page illisible » avec sa place dans le PDF (`supH.pdf#73` : page 73). Ouvrez le PDF à cette page :
+Thessalia retrouve chaque page grâce aux *carrés noirs des coins*. Une page sans ces repères est signalée avec sa
+place dans le PDF (`supH.pdf#73` : page 73) :
 
-- *une page du sujet abîmée* (coin plié, scan de travers) : elle reste dans sa copie ; ses réponses sont « à
-  décider », à reprendre sur le papier ;
-- *une feuille d'un autre format* (réponses tapées d'un élève avec aménagement, feuille libre) placée entre deux
-  copies complètes : elle devient une *copie hors format*, numérotée après les autres.
+- *une page du sujet abîmée* : elle reste dans sa copie, ses réponses sont à reprendre sur le papier ;
+- *une feuille d'un autre format* (réponses tapées, feuille libre) entre deux copies : elle devient une *copie
+  hors format*, numérotée après les autres, notée à la main (même échelle), puis attribuée à l'élève.
 
-#capture("img/hors_format.png", largeur: 92%, legende: [Copie hors format : la feuille en grand, la note saisie à la main, l'élève attribué.])
-
-Une copie hors format se note *à la main* : lisez la feuille, saisissez les points obtenus (même échelle que les
-autres copies), puis attribuez-la à l'élève dans *Identifier les copies*. L'export reprend la note ; en attendant,
-elle compte 0 et figure dans « À vérifier ».
+#capture("img/hors_format.png", largeur: 66%, legende: [Copie hors format : la feuille en grand, la note saisie à la main.])
 
 == Les messages courants
 
@@ -313,49 +367,35 @@ elle compte 0 et figure dans « À vérifier ».
   table.header([*Ce que vous voyez*], [*Que faire*]),
   [« GABARIT DOUTEUX »], [Mauvaise langue au dépôt : redéposer le même PDF avec l'autre langue.],
   [Une nouveauté n'apparaît pas], [Relancer Thessalia (fermer la fenêtre noire, puis `Thessalia.bat`), puis « Lue · relire » si elle concerne la lecture.],
+  [Un nom « saisi » reste dans les élèves sans copie], [Il n'a pas été confirmé : #touche[Entrée] sur sa ligne.],
   [« une tâche tourne encore »], [Une seule tâche longue à la fois : la mettre en pause (⏸) ou attendre la fin.],
   [« n'a pas pu être déplacé »], [Un fichier de l'examen est ouvert (PDF, Excel) : le fermer, puis recommencer.],
   [La page ne s'ouvre pas], [Vérifier que la fenêtre noire est ouverte, puis aller sur #link("http://127.0.0.1:8765/examens")[127.0.0.1:8765/examens].],
   [« Address already in use »], [Thessalia tourne déjà : utiliser l'onglet déjà ouvert.],
   [Boutons de l'étape 4 grisés], [Le message à côté dit ce qui manque : l'installer depuis *Réglages*.],
-  [« Source refusée »], [Lire la ligne indiquée et la correction proposée, modifier le fichier, « Remplacer la source ».],
   [Une note semble fausse], [Ouvrir la copie (*Copies et notes*) : chaque point est détaillé, chaque décision modifiable.],
-  [Mot de passe oublié], [Fermer Thessalia, supprimer `data\compte.json`, relancer : un nouveau compte est demandé.],
-  [« Python introuvable »], [Réinstaller Python en cochant « Add python.exe to PATH », puis relancer l'installeur.],
-  [Autre chose], [Copier le journal (« Détail » en haut de la page) et l'envoyer à l'auteur, *sans* copie ni nom d'élève.],
+  [Mot de passe oublié], [Fermer Thessalia, supprimer `data\compte.json`, relancer.],
+  [« Python introuvable »], [Réinstaller Python en cochant « Add python.exe to PATH ».],
+  [Autre chose], [Copier le journal (« Détail ») et l'envoyer à l'auteur, *sans* copie ni nom d'élève.],
 )
 
-== Windows refuse d'ouvrir les fichiers .bat
-
-*Écran bleu « Windows a protégé votre ordinateur »* (Thessalia téléchargé en ZIP) : « Informations
-complémentaires » puis « Exécuter quand même ». *Rien ne se passe* (PC verrouillé) : dans le dossier de
-Thessalia, taper `powershell` dans la barre d'adresse de l'Explorateur, puis `py installer.py` (une fois) et
-`.venv\Scripts\python -m thessalia app` (à chaque fois). Si `py` n'est pas reconnu, écrire `python`.
+*Windows refuse les `.bat`* : « Informations complémentaires » puis « Exécuter quand même ». PC verrouillé :
+dans le dossier de Thessalia, `py installer.py` (une fois) puis `.venv\Scripts\python -m thessalia app`.
 
 // ================================================================== plus loin
 = Pour aller plus loin
 
-*Écrire un sujet.* Le sujet s'écrit une fois dans un fichier texte `examen.yaml` (énoncés FR et EN, bonnes
-réponses, points), décrit dans `docs/FORMAT_SUJET.md` ; le plus simple est de partir de celui d'un collègue.
-Thessalia le contrôle (une faute est signalée avec sa ligne), puis #bouton-clair[Produire les PDF] fabrique sujet
-et corrigé. À l'impression : *taille réelle*, PDF non modifié. Un sujet produit par un autre générateur peut aussi
-être importé (demander à l'auteur).
+*Écrire un sujet.* Un fichier texte `examen.yaml` (énoncés FR et EN, bonnes réponses, mauvaises réponses
+plausibles, barème du code), décrit dans `docs/FORMAT_SUJET.md`. #bouton-clair[Produire les PDF] fabrique sujet
+et corrigé ; imprimer en *taille réelle*. Un sujet d'un autre générateur peut être importé.
 
-*Sujet validé.* Pour un sujet nouveau, toutes les réponses courtes vous sont présentées. Après 30 lectures
-vérifiées sans erreur, #bouton-clair[Sujet validé] (étape 4) laisse la machine accepter seule ses lectures sûres.
-
-*Apprentissage* (menu de gauche). La mémoire de vos verdicts, et l'affinage des lecteurs de chiffres et
-d'écriture sur vos corrections. Un nouveau lecteur est mesuré sur des copies qu'il n'a jamais vues ;
-#bouton[Adopter] n'apparaît que s'il fait mieux, et l'ancien est gardé.
-
-*Réglages* (menu de gauche). L'arrondi de la note finale, et les extensions installées en un clic : lecteur
-d'écriture (2 Go), Ollama et ses modèles (environ 20 Go en tout). Sans extension, tout fonctionne : vous
-corrigez simplement plus à la main.
+*Réglages.* L'arrondi de la note finale, et les extensions installées en un clic : lecteur d'écriture (2 Go),
+Ollama et ses modèles pour la lecture approfondie. Sans extension, tout fonctionne : vous corrigez plus à la main.
 
 #attention[
-  Le dossier `examens\` contient des *copies et des noms d'élèves* : ne le partagez pas. Il n'est jamais envoyé
-  sur GitHub. Pour sauvegarder un examen, copiez son dossier sur un support personnel. Le fichier `examen.yaml`,
-  lui, se partage entre collègues, mais reste confidentiel jusqu'à l'examen.
+  Le dossier `examens\` contient des *copies et des noms d'élèves* : ne le partagez pas, il n'est jamais envoyé
+  sur GitHub. Pour sauvegarder un examen, copiez son dossier sur un support personnel. Le sujet `examen.yaml` se
+  partage entre collègues, confidentiel jusqu'à l'examen.
 ]
 
 #v(1fr)
