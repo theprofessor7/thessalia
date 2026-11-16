@@ -10,12 +10,16 @@ Uniquement Python et sa bibliothèque standard : aucun script PowerShell, rien �
 import argparse
 import functools
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 ICI = Path(__file__).resolve().parent
 WINDOWS = os.name == "nt"
+LINUX = sys.platform.startswith("linux")
+# Linux : sans cette adresse, pip installe torch pour cartes NVIDIA (plusieurs Go de plus) ; Thessalia n'en a pas besoin
+TORCH_CPU = "https://download.pytorch.org/whl/cpu"
 print = functools.partial(print, flush=True)     # messages dans l'ordre, entre ceux de pip
 PY = ICI / ".venv" / ("Scripts/python.exe" if WINDOWS else "bin/python")
 
@@ -45,9 +49,15 @@ def main():
 
     # 1. Environnement propre à Thessalia (.venv), sans toucher au reste du PC
     if not PY.exists():
+        if LINUX and lancer(sys.executable, "-c", "import ensurepip, venv", stderr=subprocess.DEVNULL):
+            v = f"{sys.version_info.major}.{sys.version_info.minor}"
+            arret("il manque le module venv de Python, absent par défaut sur Ubuntu / Debian. L'installer, puis "
+                  f"relancer ./installer.sh :\n    sudo apt install python3-venv python{v}-venv")
         print("Création de l'environnement .venv…")
         if lancer(sys.executable, "-m", "venv", ".venv"):
-            arret("création de .venv impossible (message ci-dessus)")
+            shutil.rmtree(ICI / ".venv", ignore_errors=True)      # une .venv à moitié créée bloquerait la suivante
+            arret("création de .venv impossible (message ci-dessus)"
+                  + ("\nSur Ubuntu / Debian : sudo apt install python3-venv" if LINUX else ""))
 
     # 2. Lecteur d'écriture : facultatif (gros téléchargement)
     lecteur = args.lecteur
@@ -74,6 +84,10 @@ def main():
     extras = "serveur,trocr" if lecteur == "oui" else "serveur"
     print(f"\nInstallation des bibliothèques ({extras}), quelques minutes…")
     lancer(PY, "-m", "pip", "install", "--upgrade", "pip", "--quiet", env=env)
+    if lecteur == "oui" and LINUX:
+        print("torch, version sans carte graphique…")
+        if lancer(PY, "-m", "pip", "install", "torch", "--index-url", TORCH_CPU, env=env):
+            arret("installation de torch impossible (connexion internet ? message ci-dessus)")
     if lancer(PY, "-m", "pip", "install", "-e", f".[{extras}]", env=env):
         arret("pip install a échoué (connexion internet ? message ci-dessus)")
 
@@ -83,10 +97,34 @@ def main():
         arret("l'application ne se charge pas (message ci-dessus)")
     if not WINDOWS:
         (ICI / "Thessalia.command").chmod(0o755)
+    menu = raccourci_linux() if LINUX else None
 
-    print("\nInstallation terminée. Pour lancer Thessalia : double-cliquer sur "
-          + ("Thessalia.bat" if WINDOWS else "Thessalia.command (ou ./Thessalia.command)"))
+    if WINDOWS:
+        print("\nInstallation terminée. Pour lancer Thessalia : double-cliquer sur Thessalia.bat")
+    elif LINUX:
+        print("\nInstallation terminée. Pour lancer Thessalia : « Thessalia » dans le menu des applications"
+              + (f" ({menu})" if menu else "") + ", ou ./Thessalia.command dans un terminal.")
+    else:
+        print("\nInstallation terminée. Pour lancer Thessalia : double-cliquer sur Thessalia.command")
     print("Facultatif, pour la préparation de nuit (code manuscrit) : Ollama, voir docs/MODE_EMPLOI.md")
+
+
+def raccourci_linux():
+    """Linux : un double-clic sur Thessalia.command ne le lance pas (le gestionnaire de fichiers l'ouvre comme un
+    texte). On ajoute « Thessalia » au menu des applications, qui l'ouvre dans un terminal (fermer = arrêter)."""
+    texte = ("[Desktop Entry]\nType=Application\nName=Thessalia\n"
+             "Comment=Correction des copies papier scannées\n"
+             f"Exec=\"{ICI / 'Thessalia.command'}\"\nPath={ICI}\nTerminal=true\nCategories=Education;\n")
+    try:
+        d = Path.home() / ".local" / "share" / "applications"
+        d.mkdir(parents=True, exist_ok=True)
+        p = d / "thessalia.desktop"
+        p.write_text(texte, encoding="utf-8")
+        p.chmod(0o755)
+        return str(p)
+    except OSError as e:
+        print(f"(raccourci du menu non créé : {e})")
+        return None
 
 
 if __name__ == "__main__":

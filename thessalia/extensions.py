@@ -19,6 +19,8 @@ from . import ollama_local
 
 TROCR = "microsoft/trocr-base-handwritten"
 PAQUETS_TROCR = ["torch>=2.1", "transformers>=4.40", "sentencepiece"]
+# Linux : sans cette adresse, pip installe torch pour cartes NVIDIA (plusieurs Go de plus) ; Thessalia n'en a pas besoin
+TORCH_CPU = "https://download.pytorch.org/whl/cpu"
 
 
 def _cache_hf() -> Path:
@@ -51,6 +53,9 @@ def installer_trocr(log=print):
     env.update(TEMP=str(tmp), TMP=str(tmp), TMPDIR=str(tmp))
     if not trocr_etat()["biblio"]:
         log("Installation des bibliothèques (torch, transformers : environ 1 Go, plusieurs minutes)…")
+        if sys.platform.startswith("linux") and not find_spec("torch"):
+            if _executer([sys.executable, "-m", "pip", "install", "torch", "--index-url", TORCH_CPU], log, env):
+                raise SystemExit("l'installation de torch a échoué (connexion internet ? message ci-dessus)")
         if _executer([sys.executable, "-m", "pip", "install", *PAQUETS_TROCR], log, env):
             raise SystemExit("l'installation des bibliothèques a échoué (connexion internet ? message ci-dessus)")
     log(f"Téléchargement du modèle {TROCR} (environ 1,3 Go)…")
@@ -73,7 +78,7 @@ def etat():
                "description": "Logiciel gratuit qui fait tourner sur ce PC les modèles de la lecture approfondie (code manuscrit, relecture).",
                "installe": o["installe"],
                "etat": "démarré" if o["lance"] else ("arrêté" if o["installe"] else None),
-               "actions": ([("installer", "Installer" if o["windows"] else "Télécharger")] if not o["installe"]
+               "actions": ([("installer", "Installer" if o["windows"] else "Comment l'installer" if o["linux"] else "Télécharger")] if not o["installe"]
                            else [] if o["lance"] else [("demarrer", "Démarrer")])}]
     for m in o["modeles"]:
         cartes.append({"id": m["nom"], "nom": m["nom"], "taille": m["taille"], "modele": True,

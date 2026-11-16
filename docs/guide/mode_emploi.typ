@@ -129,13 +129,13 @@ lorsque tout est tranché.]
 ]
 #v(4pt)
 #etape(3, "Installer")[
-  Double-cliquer sur `installer.bat` dans `C:\Thessalia` (Mac : `./installer.sh`). Le *lecteur d'écriture*
+  Double-cliquer sur `installer.bat` dans `C:\Thessalia` (Mac / Linux : `./installer.sh`). Le *lecteur d'écriture*
   (2 Go) est proposé : facultatif, il s'ajoute plus tard depuis *Réglages*.
 ]
 
 == Lancer, à chaque fois
 
-Double-cliquer sur *`Thessalia.bat`* (Mac : `Thessalia.command`). Le navigateur s'ouvre ; *la fenêtre noire doit
+Double-cliquer sur *`Thessalia.bat`* (Mac : `Thessalia.command` ; Linux : « Thessalia » dans le menu des applications). Le navigateur s'ouvre ; *la fenêtre noire doit
 rester ouverte*, c'est Thessalia qui tourne. Au premier lancement, choisissez un identifiant et un mot de passe.
 
 #astuce[Mise à jour : Thessalia fermé, `git pull` dans `C:\Thessalia`, relancer `installer.bat`, puis

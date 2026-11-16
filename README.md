@@ -8,9 +8,13 @@ Tout tourne en local, gratuitement, sans GPU (Windows, macOS, Linux). Aucune don
 
 ## Enseignants
 
-1. Installer une fois : double-cliquer sur `installer.bat` (Windows) ou lancer `installer.sh` (macOS, Linux).
+1. Installer une fois : double-cliquer sur `installer.bat` (Windows) ou lancer `./installer.sh` (macOS, Linux ;
+   sur Ubuntu, l'installeur demande au besoin `sudo apt install python3-venv`).
    Il faut Python 3.10 ou plus récent ; l'installeur propose le lecteur d'écriture (~2 Go).
-2. Lancer : `Thessalia.bat` / `Thessalia.command`. Le navigateur s'ouvre sur l'application.
+2. Lancer : `Thessalia.bat` / `Thessalia.command` (Linux : « Thessalia » dans le menu des applications). Le
+   navigateur s'ouvre sur l'application.
+
+Essayé sur Windows 11 et sur Ubuntu 24.04 ; macOS n'a pas encore été essayé.
 
 Mode d'emploi, par l'exemple d'une vraie classe : [`docs/MODE_EMPLOI.md`](docs/MODE_EMPLOI.md)
 (et sa version PDF illustrée, `docs/Thessalia_mode_emploi.pdf`).

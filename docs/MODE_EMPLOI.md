@@ -22,9 +22,11 @@ PATH »**) et [git](https://git-scm.com/downloads), puis dans PowerShell :
 git clone https://github.com/theprofessor7/thessalia.git C:\Thessalia
 ```
 
-et double-cliquer sur `installer.bat` (Mac / Linux : `./installer.sh`).
+et double-cliquer sur `installer.bat` (Mac / Linux : `./installer.sh` dans un terminal ; sur Ubuntu, si
+l'installeur le demande : `sudo apt install python3-venv`).
 
-**Lancer, à chaque fois.** Double-cliquer sur `Thessalia.bat` (Mac : `Thessalia.command`). **Laisser la fenêtre
+**Lancer, à chaque fois.** Double-cliquer sur `Thessalia.bat` (Mac : `Thessalia.command` ; Linux : « Thessalia »
+dans le menu des applications, ou `./Thessalia.command`). **Laisser la fenêtre
 noire ouverte.**
 
 **Mettre à jour.** Thessalia fermé : `git pull`, relancer l'installeur, puis Thessalia.
@@ -127,7 +129,8 @@ copie ; une **feuille d'un autre format** entre deux copies devient une **copie 
   « Importer un sujet produit par un autre générateur ». Pour chaque langue : le PDF du sujet, son corrigé
   (`.key.json`), son vocabulaire (`.vocab.json`) et, recommandé, le fichier de zones, contrôlé contre le PDF.
   Thessalia lit les zones et les points dans le PDF et les affiche : **vérifier les points**.
-- **Réglages** : arrondi de la note, extensions (lecteur d'écriture, Ollama et ses modèles).
+- **Réglages** : arrondi de la note, extensions (lecteur d'écriture, Ollama et ses modèles). Sur Linux, Ollama
+  s'installe dans un terminal : `curl -fsSL https://ollama.com/install.sh | sh` ; les modèles, depuis Réglages.
 
 Le dossier `examens/` contient des **copies et des noms d'élèves** : ne pas le partager (il n'est jamais envoyé
 sur GitHub). Le sujet `examen.yaml` se partage entre collègues, confidentiel jusqu'à l'examen.

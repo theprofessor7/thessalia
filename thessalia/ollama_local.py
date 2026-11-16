@@ -6,7 +6,9 @@ la correction ; internet ne sert qu'à télécharger Ollama et les modèles, une
 
 - Windows : l'installeur officiel (https://ollama.com/download/OllamaSetup.exe) est téléchargé puis lancé en mode
   silencieux ; il s'installe pour l'utilisateur, sans droits d'administrateur, et démarre Ollama.
-- macOS, Linux : la page de téléchargement d'Ollama s'ouvre (installation non automatisée, pas testée ici).
+- Linux : l'installation demande le mot de passe administrateur, donc un terminal : la commande officielle est
+  affichée (`curl -fsSL https://ollama.com/install.sh | sh`), Ollama démarre ensuite tout seul (service).
+- macOS : la page de téléchargement d'Ollama s'ouvre (installation non automatisée).
 - Modèles : téléchargés par Ollama lui-même (api/pull), progression dans le journal de la tâche.
 """
 from __future__ import annotations
@@ -25,6 +27,7 @@ from pathlib import Path
 OLLAMA = "http://127.0.0.1:11434"
 INSTALLEUR_WINDOWS = "https://ollama.com/download/OllamaSetup.exe"
 PAGE = "https://ollama.com/download"
+COMMANDE_LINUX = "curl -fsSL https://ollama.com/install.sh | sh"
 
 # (modèle, rôle, taille approximative) ; l'ordre est celui de l'affichage
 MODELES = [
@@ -42,7 +45,7 @@ def executable():
     if os.name == "nt":
         q = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe"
         return str(q) if q.exists() else None
-    for q in ("/usr/local/bin/ollama", "/Applications/Ollama.app/Contents/Resources/ollama"):
+    for q in ("/usr/local/bin/ollama", "/usr/bin/ollama", "/Applications/Ollama.app/Contents/Resources/ollama"):
         if Path(q).exists():
             return q
     return None
@@ -60,7 +63,7 @@ def modeles_installes():
 def etat():
     installes = modeles_installes()
     return {"installe": executable() is not None or installes is not None, "lance": installes is not None,
-            "windows": os.name == "nt",
+            "windows": os.name == "nt", "linux": sys.platform.startswith("linux"),
             "modeles": [{"nom": n, "role": r, "taille": t, "present": bool(installes) and n in installes}
                         for n, r, t in MODELES]}
 
@@ -85,7 +88,8 @@ def demarrer(log=print):
     drapeaux = {"creationflags": 0x00000008 | 0x00000200} if os.name == "nt" else {"start_new_session": True}
     subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **drapeaux)
     if not _attendre(log, 30):
-        raise SystemExit("Ollama ne démarre pas : le lancer depuis le menu Démarrer, puis réessayer.")
+        raise SystemExit("Ollama ne démarre pas : le lancer depuis le menu des applications"
+                         + (" (ou « ollama serve » dans un terminal)" if os.name != "nt" else "") + ", puis réessayer.")
     log("Ollama est démarré.")
     return True
 
@@ -95,6 +99,9 @@ def installer(log=print):
     if etat()["installe"]:
         log("Ollama est déjà installé.")
         return demarrer(log)
+    if sys.platform.startswith("linux"):
+        raise SystemExit("Sur Linux, Ollama s'installe dans un terminal (mot de passe administrateur demandé) :\n"
+                         f"    {COMMANDE_LINUX}\nPuis revenir ici (recharger la page) pour les modèles.")
     if os.name != "nt":
         webbrowser.open(PAGE)
         raise SystemExit(f"Sur ce système, installer Ollama depuis la page qui vient de s'ouvrir ({PAGE}), "
