@@ -19,7 +19,8 @@ import time
 
 
 def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second="qwen3-vl:4b-instruct",
-        sans_code=False, sans_courtes=False):
+        sans_code=False, sans_courtes=False, sans_reparateur=False):
+    """sans_reparateur + sans_courtes : lecture rapide (transcription du code et pré-cochage par les règles)."""
     from .code_tests import run as precocher
     from .lecteur_code import modeles_ollama, run_local
     from .second_lecteur import run as relire
@@ -29,7 +30,8 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
         print("Ollama ne répond pas (pas installé ou pas lancé : https://ollama.com). Sans modèle local, seul le "
               "pré-cochage par les règles tourne, sur les transcriptions déjà présentes.")
         dispo = []
-    manque = [m for m, utile in ((vision, not sans_code), (reparateur, not sans_code), (second, not sans_courtes))
+    manque = [m for m, utile in ((vision, not sans_code), (reparateur, not (sans_code or sans_reparateur)),
+                                 (second, not sans_courtes))
               if utile and m not in dispo]
     for m in manque:
         print(f"  modèle absent : {m}  →  pour l'installer : ollama pull {m}")
@@ -40,9 +42,10 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
             etapes.append(("transcription du code", lambda: run_local(dossiers, None, None, vision)))
         else:
             print("  → transcription du code sautée")
-        rep = reparateur if reparateur in dispo else None
+        rep = reparateur if reparateur in dispo and not sans_reparateur else None
         if rep is None:
-            print("  → pré-cochage par les règles seules (sans réparateur)")
+            print("  → pré-cochage par les règles seules (sans réparateur"
+                  + (" : lecture rapide)" if sans_reparateur else ")"))
         etapes.append(("pré-cochage par les tests", lambda: precocher(dossiers, rep)))
     if not sans_courtes:
         if second in dispo:

@@ -179,7 +179,8 @@ déjeuner et a retrouvé tout lu en revenant.
 
 #bouton-clair[Lancer la lecture approfondie] va plus loin, en quelques heures (une nuit) : un modèle local
 recopie le *code manuscrit*, Thessalia l'*exécute* avec les tests du sujet et pré-coche les critères du barème.
-Les deux tâches se mettent en pause (⏸) et reprennent là où elles s'étaient arrêtées.
+Les deux tâches se mettent en pause (⏸) et reprennent là où elles s'étaient arrêtées. La case *lecture rapide*
+s'en tient au code (sans le gros modèle réparateur ni la relecture des réponses courtes) : nettement plus court.
 
 #capture("img/ex_lecture_terminee.png", largeur: 60%, legende: [Fin de la lecture : il reste à corriger (étape 5).])
 

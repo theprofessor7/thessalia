@@ -165,6 +165,8 @@
     {% elif approfondie and approfondie.interrompue %}
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer">
       <button class="bouton principal" {{ 'disabled' if not (e.lues and outils.ollama) }}>▶ Reprendre la lecture approfondie</button>
+      <label class="case-rapide" title="Transcription du code et pré-cochage par les règles seulement : sans le réparateur (gros modèle) ni la relecture des réponses courtes. Plusieurs heures de moins sur un PC sans carte graphique.">
+        <input type="checkbox" name="rapide" value="1" {{ 'checked' if approfondie and approfondie.rapide }}> lecture rapide</label>
     </form>
     <p class="interrompue">Lecture approfondie interrompue (Thessalia fermé ou PC éteint) : {{ approfondie.cadres }}
       cadre(s) de code transcrit(s), {{ approfondie.relues }} réponse(s) relue(s). Elle reprend où elle s'était
@@ -174,11 +176,14 @@
       {% set appr_faite = approfondie and approfondie.etat == 'terminée' %}
       <button class="bouton {{ 'fait' if appr_faite }}" {{ 'disabled' if not (e.lues and outils.ollama) }}>
         {{ 'Lecture approfondie faite · relancer' if appr_faite else '▶ Lancer la lecture approfondie' }}</button>
+      <label class="case-rapide" title="Transcription du code et pré-cochage par les règles seulement : sans le réparateur (gros modèle) ni la relecture des réponses courtes. Plusieurs heures de moins sur un PC sans carte graphique.">
+        <input type="checkbox" name="rapide" value="1" {{ 'checked' if approfondie and approfondie.rapide }}> lecture rapide</label>
     </form>
     {% endif %}
     <span class="aide">Le code écrit à la main est transcrit et pré-coché, les réponses courtes relues par un
       second lecteur. Elle tourne en arrière-plan pendant que vous faites autre chose (le PC reste utilisable, un peu
-      plus lent) : quelques heures selon le nombre de copies. Thessalia vous prévient à la fin ; si elle est
+      plus lent) : quelques heures selon le nombre de copies (« lecture rapide » : code seulement, sans le
+      réparateur ni la relecture, nettement plus court). Thessalia vous prévient à la fin ; si elle est
       interrompue, la relancer reprend où elle s'était arrêtée.</span>
     <p class="aide">Modèles locaux : {% set prets = ollama.modeles|selectattr('present')|list %}
       {% if not ollama.installe %}Ollama n'est pas installé.{% elif not ollama.lance %}Ollama est arrêté.{% else %}{{ prets|length }}/{{ ollama.modeles|length }} installés.{% endif %}

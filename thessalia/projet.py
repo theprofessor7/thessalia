@@ -263,16 +263,21 @@ class Projet:
         except SystemExit as e:
             log(f"noms non lus : {e}")
 
-    def preparer(self, log=print):
+    def preparer(self, log=print, rapide=False):
         """Lecture approfondie (code transcrit et pré-coché, réponses courtes relues) avec les modèles Ollama
         présents ; ses messages (print) arrivent dans le journal de la tâche. Son début et sa fin sont notés : une
-        lecture interrompue (pause, Thessalia fermé) se voit à la page de l'examen, qui propose de la reprendre."""
+        lecture interrompue (pause, Thessalia fermé) se voit à la page de l'examen, qui propose de la reprendre.
+        `rapide` : transcription du code et pré-cochage par les règles seulement (sans réparateur ni relecture des
+        réponses courtes) ; quelques heures de moins sur un PC sans carte graphique."""
         from .preparer import run
         dossiers = self.dossiers_lus()
         if not dossiers:
             raise SystemExit("aucune classe lue")
-        self._noter_approfondie(etat="en cours", debut=time.strftime("%Y-%m-%d %H:%M"))
-        run(dossiers)
+        self._noter_approfondie(etat="en cours", debut=time.strftime("%Y-%m-%d %H:%M"), rapide=rapide)
+        if rapide:
+            log("Lecture rapide : transcription du code et pré-cochage par les règles (sans réparateur ni relecture "
+                "des réponses courtes).")
+        run(dossiers, sans_courtes=rapide, sans_reparateur=rapide)
         self._noter_approfondie(etat="terminée", fin=time.strftime("%Y-%m-%d %H:%M"))
 
     def _noter_approfondie(self, **valeurs):

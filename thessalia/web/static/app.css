@@ -458,3 +458,5 @@ a.hors-format { font-size:13px; }
 .import-sujet .formulaire.import { flex-wrap:wrap; align-items:flex-start; }
 .langue-import { border:1px solid var(--trait); border-radius:8px; padding:6px 12px 10px; display:flex; flex-direction:column; gap:6px; }
 .langue-import legend { font-weight:600; padding:0 4px; }
+
+.case-rapide { margin-left:10px; font-size:.92em; cursor:pointer; }
