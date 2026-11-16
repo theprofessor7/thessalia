@@ -167,7 +167,8 @@ function carte(it, surDecision, opts = {}) {
           det.append(el("div", {className: "essai"},
             el("span", {className: "gris", textContent: "saisies " + (e.saisies.join(" · ") || "—") + " → "}),
             el("code", {textContent: (e.sortie || "").trim().slice(-200) || "(rien affiché)"}),
-            e.etat !== "ok" ? el("span", {className: "raison", textContent: " " + e.etat}) : null));
+            e.etat !== "ok" ? el("span", {className: "raison", textContent: " " + e.etat
+              + (e.detail ? " (" + e.detail + ")" : "") + (e.ligne ? " à « " + e.ligne + " »" : "")}) : null));
         }
         c.append(det);
       }

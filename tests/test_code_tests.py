@@ -147,3 +147,19 @@ def test_tourne_compte_les_executions_directes_des_tests():
     assert juste["tourne"] and juste["criteres"] == {"1": True} and juste["essais"]
     faux = precocher_cadre('f = open("exo.txt", "r")\nprint(f.readLines())\nf.close()', "q", {"q": t_q})
     assert not faux["tourne"] and faux["essais"][0]["etat"] == "AttributeError"
+
+
+def test_erreur_reelle_affichee():
+    """Le cadre qui ne tourne pas dit pourquoi, comme Python : type, message et ligne fautive (texte de la ligne)."""
+    from thessalia.code_tests import erreur_execution, executer
+
+    def t_q(code, run):
+        r = executer('open("exo.txt", "w").write("a")\n' + code, [])
+        return {"1": r["etat"] == "ok"}
+
+    syn = precocher_cadre('open("exo.txt", "r") as f\nprint(f.read())\nf.close()', "q", {"q": t_q})
+    assert erreur_execution(syn["essais"]).startswith("ne s'exécute pas : SyntaxError")
+    assert "à « open(\"exo.txt\", \"r\") as f »" in erreur_execution(syn["essais"])
+    nom = precocher_cadre('f = open("exo.txt", "r")\nprint(f.read())\nfichier.close()', "q", {"q": t_q})
+    msg = erreur_execution(nom["essais"])
+    assert "NameError" in msg and "fichier" in msg and "à « fichier.close() »" in msg

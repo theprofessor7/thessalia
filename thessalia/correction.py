@@ -582,7 +582,8 @@ class Classe:
                     tt = it["tests"]
                     it.update(origine="tests", decide=False, choix=sorted(c for c, ok in tt["criteres"].items() if ok))
                     if not tt["tourne"]:
-                        it["raison"] = "ne s'exécute pas, même après réparation des fautes tolérées : infraction lourde ?"
+                        from .code_tests import erreur_execution
+                        it["raison"] = erreur_execution(tt.get("essais") or []) + " (même après réparation des fautes tolérées)"
                     elif tt["complet"]:
                         it["raison"] = None
                 elif (lus.get(key) or {}).get("criteres_proposes") is not None:

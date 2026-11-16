@@ -44,6 +44,7 @@ def fausse_saisie(invite=""):
     n[0] += 1
     return saisies[n[0] - 1]
 builtins.input = fausse_saisie
+detail = ligne = None
 try:
     exec(compile(open(sys.argv[1], encoding="utf-8").read(), "copie", "exec"), {"__name__": "__main__"})
     etat = "ok"
@@ -51,8 +52,23 @@ except SystemExit:
     etat = "ok"
 except BaseException as e:
     etat = type(e).__name__
+    detail, ligne = str(getattr(e, "msg", "") or e)[:160], None
+    try:
+        if isinstance(e, SyntaxError):
+            ligne = e.text
+        else:
+            tb, num = e.__traceback__, None
+            while tb is not None:
+                if tb.tb_frame.f_code.co_filename == "copie":
+                    num = tb.tb_lineno
+                tb = tb.tb_next
+            if num:
+                ligne = open(sys.argv[1], encoding="utf-8").read().splitlines()[num - 1]
+    except Exception:
+        pass
+    ligne = ligne.strip()[:120] if ligne else None
 sys.stdout.flush()
-print("\n@@FIN@@" + json.dumps({"etat": etat, "saisies": n[0]}))
+print("\n@@FIN@@" + json.dumps({"etat": etat, "saisies": n[0], "detail": detail, "ligne": ligne}))
 '''
 
 
@@ -508,8 +524,18 @@ def tester(code, f, tests):
         faites = _executions
     finally:
         _executions = avant
-    essais = [{"saisies": s, "etat": r["etat"], "sortie": r["sortie"][-400:]} for s, r in faites]
+    essais = [{"saisies": s, "etat": r["etat"], "sortie": r["sortie"][-400:]}
+              | {k: r[k] for k in ("detail", "ligne") if r.get(k)} for s, r in faites]
     return {c: bool(ok) for c, ok in res.items()}, essais
+
+
+def erreur_execution(essais):
+    """Pourquoi le code ne s'exécute pas, tel que Python le dit : « SyntaxError (invalid syntax) à « open(…) as f » »."""
+    e = next((x for x in essais if x["etat"] not in ("ok", "EOFError")), None)
+    if e is None:
+        return "ne s'exécute pas"
+    return (f"ne s'exécute pas : {e['etat']}" + (f" ({e['detail']})" if e.get("detail") else "")
+            + (f" à « {e['ligne']} »" if e.get("ligne") else ""))
 
 
 def tourne(essais):
@@ -568,8 +594,11 @@ def run(dossiers, modele=None, force=False):
                 continue
             prev = old.get(it["cle"])
             # résultat déjà calculé sur la même lecture : gardé, sauf s'il n'a aucun essai (calculé avant que les
-            # exécutions faites directement par les tests du sujet soient comptées : « ne tourne pas » à tort)
-            if prev and prev.get("lecture") == code and prev.get("essais") and (
+            # exécutions faites directement par les tests du sujet soient comptées : « ne tourne pas » à tort) ou
+            # si un échec n'a pas son explication (calculé avant que l'erreur réelle soit notée)
+            explique = all(e.get("detail") or e["etat"] in ("ok", "EOFError", "trop long", "plantage")
+                           for e in (prev or {}).get("essais") or [])
+            if prev and prev.get("lecture") == code and prev.get("essais") and explique and (
                     prev.get("tourne") or not modele or "refus_modele" in prev
                     or prev.get("reparation", "").startswith("modèle")):
                 out[it["cle"]] = prev
@@ -583,7 +612,7 @@ def run(dossiers, modele=None, force=False):
                 fc.parent.mkdir(parents=True, exist_ok=True)
                 fc.write_text(json.dumps(cache, ensure_ascii=False, indent=1), encoding="utf-8")
             print(f"  {it['cle']} : {sum(r['criteres'].values())}/{len(r['criteres'])} critères pré-cochés"
-                  f"{'' if r['tourne'] else ' · ne tourne pas (infraction lourde ?)'}", flush=True)
+                  f"{'' if r['tourne'] else ' · ' + erreur_execution(r['essais'])}", flush=True)
             p.write_text(json.dumps(out | {k: v for k, v in old.items() if k not in out}, ensure_ascii=False, indent=1),
                          encoding="utf-8")
         p.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
