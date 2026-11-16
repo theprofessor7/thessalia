@@ -524,9 +524,12 @@ def precocher_cadre(code, f, tests, modele=None, cache=None):
 def run(dossiers, modele=None, force=False):
     from .correction import Classe, Decisions, Memory, stockage_examen
     from .serve import _classes
+    from . import avancement
     exams = {}
-    for d in _classes(dossiers):
-        c = Classe(d, exams, Decisions(), memory=Memory())
+    classes = [Classe(d, exams, Decisions(), memory=Memory()) for d in _classes(dossiers)]
+    total, k = sum(len(c.code_items()) for c in classes), 0       # une seule jauge pour toutes les classes
+    for c in classes:
+        d = c.dir
         tests = charger_tests(c.exam_id, (stockage_examen(d) or {}).get("keys_dir", "keys"))
         if not tests:
             print(f"{c.name} : pas de tests pour le sujet {c.exam_id} (keys/*.tests.py), rien à faire")
@@ -537,9 +540,9 @@ def run(dossiers, modele=None, force=False):
         old = json.loads(p.read_text(encoding="utf-8")) if p.exists() and not force else {}
         out, n, coches = {}, 0, 0
         cadres = c.code_items()
-        for k_it, it in enumerate(cadres, 1):
-            from . import avancement
-            avancement.signaler(k_it, len(cadres), f"{c.name} · pré-cochage par les tests : {k_it}/{len(cadres)} cadres")
+        for it in cadres:
+            k += 1
+            avancement.signaler(k, total, f"pré-cochage par les tests : {k}/{total} cadres ({c.name})")
             code = it.get("transcription")
             if not code:
                 continue

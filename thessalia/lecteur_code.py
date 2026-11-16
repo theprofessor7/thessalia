@@ -223,33 +223,46 @@ def run(dossiers, champs=None, limite=None, local=None, refaire=False):
     return run_en_ligne(dossiers, champs, limite)
 
 
+def _duree(secondes):
+    """« 45 min », « 2 h 10 » : durée restante lisible."""
+    m = max(1, round(secondes / 60))
+    return f"{m} min" if m < 60 else f"{m // 60} h {m % 60:02d}"
+
+
 def run_local(dossiers, champs, limite, modele, refaire=False):
     """Transcription par un modèle local (Ollama). `refaire` : relit aussi les cadres déjà transcrits par la
     machine (une transcription corrigée par l'enseignant est dans ses décisions et prime toujours)."""
     from .correction import CODE_VIDE, Classe, Decisions
     from .serve import _classes
 
+    from . import avancement
     lec = _Local(modele)
     exams, faits, t0 = {}, 0, time.time()
+    plans = []
+    for d in _classes(dossiers):
+        c = Classe(d, exams, Decisions())
+        bar = c.exam.bareme.get("champs", {})
+        sortie = d / LECTURES
+        deja = load_json(sortie) if sortie.exists() else {}
+        enc = c._encre()
+        a_faire = []
+        for cid in c.copy_ids:
+            for fid in (champs or bar):
+                cle = f"c{int(cid.split('_')[-1]):02d}_{fid}"
+                info = c.doc(cid).get("fields", {}).get(fid) or {}
+                e = enc.get(cid, {}).get(fid)
+                if fid not in bar or not info.get("crop") or (e is not None and e < CODE_VIDE):
+                    continue
+                if cle in deja and not refaire:
+                    continue
+                a_faire.append((fid, cle, info))
+        plans.append((d, bar, sortie, deja, a_faire, sum(1 for k in deja if k.startswith("c"))))
+    # une seule jauge pour toutes les classes (elle ne repart pas de zéro à chaque classe)
+    total = sum(len(p[4]) for p in plans)
+    if total:
+        avancement.attendre(f"transcription du code : {total} cadres, premier cadre en cours (chargement du modèle)…")
     try:
-        for d in _classes(dossiers):
-            c = Classe(d, exams, Decisions())
-            bar = c.exam.bareme.get("champs", {})
-            sortie = d / LECTURES
-            deja = load_json(sortie) if sortie.exists() else {}
-            enc = c._encre()
-            a_faire = []
-            for cid in c.copy_ids:
-                for fid in (champs or bar):
-                    cle = f"c{int(cid.split('_')[-1]):02d}_{fid}"
-                    info = c.doc(cid).get("fields", {}).get(fid) or {}
-                    e = enc.get(cid, {}).get(fid)
-                    if fid not in bar or not info.get("crop") or (e is not None and e < CODE_VIDE):
-                        continue
-                    if cle in deja and not refaire:
-                        continue
-                    a_faire.append((fid, cle, info))
-            avant = sum(1 for k in deja if k.startswith("c"))
+        for d, bar, sortie, deja, a_faire, avant in plans:
             print(f"{d.name} : {len(a_faire)} cadres à lire avec {modele} (local)"
                   + (f", {avant} déjà transcrits" if avant else ""), flush=True)
             for n, (fid, cle, info) in enumerate(a_faire, 1):
@@ -271,10 +284,8 @@ def run_local(dossiers, champs, limite, modele, refaire=False):
                 sortie.write_text(json.dumps(deja, indent=1, ensure_ascii=False), encoding="utf-8")
                 faits += 1
                 v = (time.time() - t0) / faits
-                from . import avancement
-                avancement.signaler(avant + n, avant + len(a_faire), f"{d.name} · transcription du code : "
-                                    f"{avant + n}/{avant + len(a_faire)} cadres · reste environ "
-                                    f"{max(1, round(v * (len(a_faire) - n) / 60))} min")
+                avancement.signaler(faits, total, f"transcription du code : {faits}/{total} cadres ({d.name}) · "
+                                    f"reste environ {_duree(v * (total - faits))}")
                 print(f"  {n}/{len(a_faire)} {cle} ({time.time() - t1:.0f} s ; "
                       f"reste ~{v * (len(a_faire) - n) / 60:.0f} min)", flush=True)
     finally:

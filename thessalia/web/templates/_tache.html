@@ -10,9 +10,9 @@
     {% elif tache.etat == 'en pause' %}
     <form method="post" action="/tache/reprendre" class="enligne lecture-pause"><button class="bouton principal rond-pause" title="Reprendre où la tâche s'était arrêtée">▶ Reprendre</button></form>
     {% endif %}</h2>
-  <div class="jauge {{ 'indeterminee' if not pg }} {{ 'figee' if tache.etat == 'en pause' }}" id="jauge" {{ 'hidden' if not (en_cours or (tache.etat == 'en pause' and pg)) }}>
-    <div class="jauge-fond"><div class="jauge-barre" id="jauge-barre" style="width:{{ pg.pc if pg else 30 }}%"></div></div>
-    <span class="jauge-pc" id="jauge-pc">{{ (pg.pc ~ ' %') if pg }}</span>
+  <div class="jauge {{ 'indeterminee' if not pg or pg.pc is none }} {{ 'figee' if tache.etat == 'en pause' }}" id="jauge" {{ 'hidden' if not (en_cours or (tache.etat == 'en pause' and pg)) }}>
+    <div class="jauge-fond"><div class="jauge-barre" id="jauge-barre" style="width:{{ pg.pc if pg and pg.pc is not none else 30 }}%"></div></div>
+    <span class="jauge-pc" id="jauge-pc">{{ (pg.pc ~ ' %') if pg and pg.pc is not none }}</span>
     <span class="gris" id="jauge-texte">{{ pg.texte if pg }}</span>
   </div>
   <p class="etape-en-cours" id="etape">{{ tache.journal[-1] if tache.journal }}</p>

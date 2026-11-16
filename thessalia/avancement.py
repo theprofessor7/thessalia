@@ -7,14 +7,27 @@ branché : `signaler` ne fait rien et seuls les messages habituels s'affichent.
 from __future__ import annotations
 
 _jauge = None
+_prefixe = ""
 
 
 def brancher(fn):
-    """fn(pc, texte) : jauge de la tâche en cours ; None pour débrancher."""
-    global _jauge
-    _jauge = fn
+    """fn(pc, texte) : jauge de la tâche en cours (pc None : jauge qui défile) ; None pour débrancher."""
+    global _jauge, _prefixe
+    _jauge, _prefixe = fn, ""
+
+
+def etape(prefixe=""):
+    """Préfixe des textes de la jauge (« étape 1/3 · ») : une tâche en plusieurs étapes dit où elle en est."""
+    global _prefixe
+    _prefixe = prefixe
+
+
+def attendre(texte=""):
+    """Travail en cours sans mesure encore (chargement d'un modèle, premier élément) : la jauge défile."""
+    if _jauge is not None:
+        _jauge(None, _prefixe + texte)
 
 
 def signaler(fait, total, texte=""):
     if _jauge is not None and total:
-        _jauge(100 * fait // total, texte)
+        _jauge(100 * fait // total, _prefixe + texte)

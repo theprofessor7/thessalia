@@ -26,12 +26,11 @@ const suivre = async () => {
   $('journal').textContent = t.journal.join('\n');
   $('etape').textContent = t.journal.length ? t.journal[t.journal.length - 1] : '';
   $('tache-etat').textContent = t.etat;
-  if (t.progression) {
-    $('jauge').classList.remove('indeterminee');
-    $('jauge-barre').style.width = t.progression.pc + '%';
-    $('jauge-pc').textContent = t.progression.pc + ' %';
-    $('jauge-texte').textContent = t.progression.texte;
-  }
+  const pg = t.progression, chiffree = pg && pg.pc !== null && pg.pc !== undefined;
+  $('jauge').classList.toggle('indeterminee', !chiffree);     // pas encore de mesure : la jauge défile
+  $('jauge-barre').style.width = (chiffree ? pg.pc : 30) + '%';
+  $('jauge-pc').textContent = chiffree ? pg.pc + ' %' : '';
+  $('jauge-texte').textContent = pg ? pg.texte : '';
   if (t.etat === 'en cours') { setTimeout(suivre, 1000); return; }
   if (t.etat === 'en pause') { location.reload(); return; }
   notifier(t);

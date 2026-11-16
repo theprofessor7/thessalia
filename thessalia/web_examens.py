@@ -48,8 +48,9 @@ class Taches:
             if t["pause"]:
                 raise Pause()
 
-        def progression(pc, texte=""):    # jauge de la page ; None : étape sans avancement chiffré (jauge qui défile)
-            t["progression"] = None if pc is None else {"pc": max(0, min(100, int(pc))), "texte": texte}
+        def progression(pc, texte=""):    # jauge de la page ; pc None : étape sans avancement chiffré (jauge qui défile)
+            t["progression"] = ({"pc": None, "texte": texte} if texte else None) if pc is None \
+                else {"pc": max(0, min(100, int(pc))), "texte": texte}
             if t["pause"]:
                 raise Pause()
         log.progression = progression

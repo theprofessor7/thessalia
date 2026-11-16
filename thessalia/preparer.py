@@ -52,7 +52,8 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
     from . import avancement
     for i, (nom, f) in enumerate(etapes, 1):
         print(f"\n=== {i}/{len(etapes)} {nom} ({(time.time() - t0) / 60:.0f} min écoulées)", flush=True)
-        avancement.signaler(0, 1, f"étape {i}/{len(etapes)} : {nom}…")
+        avancement.etape(f"étape {i}/{len(etapes)} · ")
+        avancement.attendre(f"{nom} : démarrage…")
         try:
             f()
         except SystemExit as e:          # une étape impossible n'empêche pas les suivantes

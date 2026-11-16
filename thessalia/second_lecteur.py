@@ -49,16 +49,23 @@ def run(dossiers, modele=MODELE, refaire=False, limite=None):
     from .lecteur_code import _Local
     from .serve import _classes
 
+    from .lecteur_code import _duree
     lec = _Local(modele)
     exams, faits, t0 = {}, 0, time.time()
+    plans = []
+    for d in _classes(dossiers):
+        c = Classe(d, exams, Decisions(), memory=Memory())
+        p = d / SECOND
+        deja = json.loads(p.read_text(encoding="utf-8")) if p.exists() and not refaire else {}
+        todo = [it for it in c.short_items(use_memory=False)
+                if it["lecture"] == "review" and it["origine"] not in ("enseignant", "vérité")
+                and it["img"] and it["cle"] not in deja]
+        plans.append((d, c, p, deja, todo))
+    total = sum(len(x[4]) for x in plans)       # une seule jauge pour toutes les classes
+    if total:
+        avancement.attendre(f"relecture des réponses courtes : {total} réponses, première en cours (chargement du modèle)…")
     try:
-        for d in _classes(dossiers):
-            c = Classe(d, exams, Decisions(), memory=Memory())
-            p = d / SECOND
-            deja = json.loads(p.read_text(encoding="utf-8")) if p.exists() and not refaire else {}
-            todo = [it for it in c.short_items(use_memory=False)
-                    if it["lecture"] == "review" and it["origine"] not in ("enseignant", "vérité")
-                    and it["img"] and it["cle"] not in deja]
+        for d, c, p, deja, todo in plans:
             avant = len(deja)
             print(f"{d.name} : {len(todo)} réponses en revue à relire avec {modele} (local)"
                   + (f", {avant} déjà relues" if avant else ""), flush=True)
@@ -85,8 +92,8 @@ def run(dossiers, modele=MODELE, refaire=False, limite=None):
                 p.write_text(json.dumps(deja, ensure_ascii=False, indent=1), encoding="utf-8")
                 faits += 1
                 v = (time.time() - t0) / faits
-                avancement.signaler(avant + n, avant + len(todo), f"{d.name} · relecture des réponses courtes : "
-                                    f"{avant + n}/{avant + len(todo)} · reste environ {max(1, round(v * (len(todo) - n) / 60))} min")
+                avancement.signaler(faits, total, f"relecture des réponses courtes : {faits}/{total} ({d.name}) · "
+                                    f"reste environ {_duree(v * (total - faits))}")
                 if n % 5 == 0 or n == len(todo):
                     v = (time.time() - t0) / faits
                     print(f"  {n}/{len(todo)} ({v:.0f} s par réponse, {n_sur} confirmées ; "
