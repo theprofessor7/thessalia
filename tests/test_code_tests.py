@@ -132,3 +132,18 @@ def test_nombre_cherche_dans_la_bonne_ligne():
     assert _mode("nombre:1", juste, ref, (set(), set()))           # sans mot commun : n'importe quelle ligne
     moy = {"etat": "ok", "saisies": 1, "sortie": "Moyenne : 7.50\n"}
     assert not _mode("nombre:1", {"etat": "ok", "saisies": 1, "sortie": "Moyenne : 7.5\n"}, moy, (set(), set()))
+
+
+def test_tourne_compte_les_executions_directes_des_tests():
+    """Tests d'un sujet qui préparent un fichier puis appellent `executer` eux-mêmes (Midterm 2026) : un code juste
+    tourne. Avant la correction, aucun essai n'était compté et tout cadre était « ne tourne pas »."""
+    from thessalia.code_tests import executer
+
+    def t_q(code, run):
+        r = executer('open("exo.txt", "w").write("a")\n' + code, [])
+        return {"1": r["etat"] == "ok" and r["sortie"].strip() == "a"}
+
+    juste = precocher_cadre('f = open("exo.txt", "r")\nprint(f.read())\nf.close()', "q", {"q": t_q})
+    assert juste["tourne"] and juste["criteres"] == {"1": True} and juste["essais"]
+    faux = precocher_cadre('f = open("exo.txt", "r")\nprint(f.readLines())\nf.close()', "q", {"q": t_q})
+    assert not faux["tourne"] and faux["essais"][0]["etat"] == "AttributeError"

@@ -56,8 +56,20 @@ print("\n@@FIN@@" + json.dumps({"etat": etat, "saisies": n[0]}))
 '''
 
 
+# exécutions faites pendant les tests d'un cadre (cf. `tester`) : certains tests de sujet appellent `executer`
+# eux-mêmes (fichier préparé avant le code de l'élève, Midterm 2026) au lieu de passer par `run`
+_executions = None
+
+
 def executer(code, saisies):
     """Exécute `code` dans un processus Python isolé ; renvoie {etat, sortie, saisies (nombre lues)}."""
+    r = _executer(code, saisies)
+    if _executions is not None:
+        _executions.append((saisies, r))
+    return r
+
+
+def _executer(code, saisies):
     with tempfile.TemporaryDirectory() as tmp:
         f = Path(tmp) / "copie.py"
         f.write_text(code, encoding="utf-8")
@@ -478,7 +490,10 @@ def lisible(code):
 
 
 def tester(code, f, tests):
-    """Lance les tests du champ `f` sur `code` (déjà réparé). Chaque exécution n'est faite qu'une fois."""
+    """Lance les tests du champ `f` sur `code` (déjà réparé). Chaque exécution n'est faite qu'une fois. Les essais
+    rendus sont TOUTES les exécutions faites pendant les tests, par `run` ou par un appel direct à `executer`
+    (sinon un code qui tourne serait déclaré « ne tourne pas »)."""
+    global _executions
     vus = {}
 
     def run(saisies):
@@ -487,8 +502,13 @@ def tester(code, f, tests):
             vus[k] = executer(code, saisies)
         return vus[k]
 
-    res = tests[f](code, run)
-    essais = [{"saisies": json.loads(k), "etat": r["etat"], "sortie": r["sortie"][-400:]} for k, r in vus.items()]
+    avant, _executions = _executions, []
+    try:
+        res = tests[f](code, run)
+        faites = _executions
+    finally:
+        _executions = avant
+    essais = [{"saisies": s, "etat": r["etat"], "sortie": r["sortie"][-400:]} for s, r in faites]
     return {c: bool(ok) for c, ok in res.items()}, essais
 
 
@@ -547,8 +567,11 @@ def run(dossiers, modele=None, force=False):
             if not code:
                 continue
             prev = old.get(it["cle"])
-            if prev and prev.get("lecture") == code and (prev.get("tourne") or not modele or "refus_modele" in prev
-                                                         or prev.get("reparation", "").startswith("modèle")):
+            # résultat déjà calculé sur la même lecture : gardé, sauf s'il n'a aucun essai (calculé avant que les
+            # exécutions faites directement par les tests du sujet soient comptées : « ne tourne pas » à tort)
+            if prev and prev.get("lecture") == code and prev.get("essais") and (
+                    prev.get("tourne") or not modele or "refus_modele" in prev
+                    or prev.get("reparation", "").startswith("modèle")):
                 out[it["cle"]] = prev
                 continue
             r = precocher_cadre(code, it["champ"], tests, modele, cache)
