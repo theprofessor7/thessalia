@@ -20,7 +20,7 @@ import time
 
 def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second="qwen3-vl:4b-instruct",
         sans_code=False, sans_courtes=False, sans_reparateur=False):
-    """sans_reparateur + sans_courtes : lecture rapide (transcription du code et pré-cochage par les règles)."""
+    """sans_reparateur + sans_courtes : « code seulement » (transcription du code et pré-cochage par les règles)."""
     from .code_tests import run as precocher
     from .lecteur_code import modeles_ollama, run_local
     from .second_lecteur import run as relire
@@ -45,7 +45,7 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
         rep = reparateur if reparateur in dispo and not sans_reparateur else None
         if rep is None:
             print("  → pré-cochage par les règles seules (sans réparateur"
-                  + (" : lecture rapide)" if sans_reparateur else ")"))
+                  + (" : code seulement)" if sans_reparateur else ")"))
         etapes.append(("pré-cochage par les tests", lambda: precocher(dossiers, rep)))
     if not sans_courtes:
         if second in dispo:

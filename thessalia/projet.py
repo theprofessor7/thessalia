@@ -275,7 +275,7 @@ class Projet:
             raise SystemExit("aucune classe lue")
         self._noter_approfondie(etat="en cours", debut=time.strftime("%Y-%m-%d %H:%M"), rapide=rapide)
         if rapide:
-            log("Lecture rapide : transcription du code et pré-cochage par les règles (sans réparateur ni relecture "
+            log("Code seulement : transcription du code et pré-cochage par les règles (sans réparateur ni relecture "
                 "des réponses courtes).")
         run(dossiers, sans_courtes=rapide, sans_reparateur=rapide)
         self._noter_approfondie(etat="terminée", fin=time.strftime("%Y-%m-%d %H:%M"))

@@ -458,7 +458,7 @@ def enregistrer(app, racine: Path, charger, memoire=None):
     def preparer(nom):
         p = projet(nom)
         rapide = request.form.get("rapide") == "1"
-        return lancer(nom, "Lecture approfondie rapide (code)" if rapide else "Lecture approfondie (code, relecture)",
+        return lancer(nom, "Lecture approfondie : code seulement" if rapide else "Lecture approfondie (code, relecture)",
                       lambda log: p.preparer(log=log, rapide=rapide), apres_lecture(nom), reprenable=True)
 
     @app.post("/examens/<nom>/liste")

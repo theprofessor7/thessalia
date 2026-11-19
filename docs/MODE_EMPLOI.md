@@ -45,8 +45,9 @@ sujet distribué**, PDF, **Déposer et lire**. Le nom range la classe dans son g
 
 - **Lire les réponses courtes** : l'écriture des élèves et leurs noms, quelques minutes par classe.
 - **Lecture approfondie** : le code manuscrit transcrit, exécuté avec les tests du sujet, critères pré-cochés ;
-  quelques heures (une nuit). Pause ⏸ et reprise ▶. Case **lecture rapide** : le code seulement, sans le
-  réparateur ni la relecture des réponses courtes, nettement plus court.
+  quelques heures (une nuit). Pause ⏸ et reprise ▶. Case **code seulement (rapide)** : transcrit et
+  pré-coche le code, sans relire les réponses courtes (elles restent en revue) ni réparer les petites fautes avant
+  d'exécuter ; nettement plus court.
 
 Sujet nouveau : tout vous est présenté ; après 30 lectures vérifiées sans erreur, **Sujet validé** laisse la
 machine accepter seule ses lectures sûres.
