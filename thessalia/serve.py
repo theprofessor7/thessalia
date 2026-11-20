@@ -241,9 +241,26 @@ def create_app(paths, db_path=DB_PATH, examens=None, compte=None):
     @app.route("/g/<g>/noms")
     def noms_page(g):
         """Identification : chaque copie du groupe, vignettes Nom/Prénom, élève proposé ou confirmé."""
+        from .identite import fichier_liste, lire_convoques, lire_liste
         rows, eleves, pris = identification(g)
         data = {"groupe": g, "eleves": eleves, "copies": rows, "lus": any(r["propositions"] for r in rows)}
-        return render_template("noms.html", data=data, groupe=g,
+        # sans liste, chaque nom serait refusé un par un (« n'est sur aucune liste ») : on le dit d'emblée
+        manque_liste = None
+        if not eleves:
+            cs = group(g)
+            if not any(lire_convoques(c.name, c.lists_dir) for c in cs):
+                try:
+                    fichier = fichier_liste(cs[0].lists_dir)
+                except ValueError as e:
+                    manque_liste = str(e)
+                else:
+                    if fichier is None:
+                        manque_liste = "aucune liste des élèves n'est déposée pour cet examen"
+                    else:
+                        groupes = sorted(lire_liste(lists_dir=cs[0].lists_dir))
+                        manque_liste = (f"la liste des élèves ({fichier.name}) n'a aucun élève du groupe {g} "
+                                        f"(groupes lus dans sa colonne Classe : {', '.join(groupes) or 'aucun'})")
+        return render_template("noms.html", data=data, groupe=g, manque_liste=manque_liste,
                                absents=[e for e in eleves if e not in pris], n_conf=sum(bool(r["confirme"]) for r in rows))
 
     @app.route("/g/<g>/repartition")
@@ -267,6 +284,9 @@ def create_app(paths, db_path=DB_PATH, examens=None, compte=None):
             liste = lire_liste(lists_dir=c.lists_dir)
             if e not in (lire_convoques(c.name, c.lists_dir) or liste.get(c.group, [])):
                 autre = next((g for g, v in liste.items() if e in v), None)
+                if not liste and not lire_convoques(c.name, c.lists_dir):
+                    return jsonify({"erreur": "aucune liste des élèves : la déposer sur la page de l'examen, "
+                                              "étape 6"}), 409
                 if autre is None:
                     return jsonify({"erreur": f"« {e} » n'est sur aucune liste (vérifier l'orthographe : NOM Prénom)"}), 409
                 if not d.get("autre_groupe"):   # élève qui a composé avec un autre groupe : confirmation demandée

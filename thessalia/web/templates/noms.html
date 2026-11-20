@@ -4,6 +4,13 @@
 {% block outils %}<a class="bouton" href="/g/{{ groupe }}/copies">Copies et notes</a>{% endblock %}
 {% block contenu %}
 <h1>Identifier les copies · groupe {{ groupe }}</h1>
+{% if manque_liste %}
+<div class="message erreur liste-manquante"><b>Impossible de confirmer les noms : {{ manque_liste }}.</b>
+  Chaque nom est vérifié contre la liste (orthographe, un élève par copie).
+  Déposez-la sur la page de l'examen, étape 6, « Déposer la liste des élèves de cet examen » : un Excel (.xlsx)
+  avec les colonnes NOM, Prénom, Classe, où Classe est le groupe ({{ groupe }} pour cette classe).
+  {% if examen_ouvert %}<br><a class="bouton principal" href="/examens/{{ examen_ouvert }}#etape-6">Déposer la liste des élèves →</a>{% endif %}</div>
+{% endif %}
 <p class="aide"><b id="nconf">{{ n_conf }}</b>/{{ data.copies|length }} copies confirmées · {{ data.eleves|length }} élèves sur la liste.
   Le nom pré-rempli est une <b>proposition</b> de la machine (lecture de la vignette) : vérifiez-le sur l'image.
   <kbd>Entrée</kbd> confirmer et passer à la suivante · tapez quelques lettres pour chercher dans la liste ·

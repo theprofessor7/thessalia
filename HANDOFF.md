@@ -21,6 +21,11 @@ Avant le déploiement chez les collègues, le code a été nettoyé.
   `ocr-light` / `sujets` (WeasyPrint) retirés.
 - La note brute (sur 12,25 au Midterm) est voulue : une autre partie de l'examen ramène la note sur 20.
 
+**À faire (idées notées, rien de commencé)** :
+- Bouton **« Mettre à jour Thessalia »** sur l'accueil : `git pull` sans ligne de commande, puis inviter à relancer
+  Thessalia (et l'installeur si les dépendances ont changé). Aujourd'hui les collègues font `git pull` à la main
+  (mode d'emploi §1).
+
 Les sections suivantes sont le **journal** du projet : elles citent des commandes qui n'existent plus ; leurs
 mesures et décisions restent valables.
 

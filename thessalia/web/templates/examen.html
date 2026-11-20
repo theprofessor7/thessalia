@@ -217,7 +217,7 @@
     {% if liste and liste.erreur %}<p class="erreur">{{ liste.erreur }}</p>
     {% elif liste %}<p>Liste des élèves : {{ liste.nom }}{{ '' if liste.propre else ' (liste commune, data/listes)' }}.</p>
     {% else %}<p class="attente">Pas de liste des élèves : les copies ne peuvent pas être attribuées ni les absents comptés.</p>{% endif %}
-    <details><summary>{{ 'Remplacer' if liste and liste.propre else 'Déposer' }} la liste des élèves de cet examen</summary>
+    <details {{ 'open' if not liste }}><summary>{{ 'Remplacer' if liste and liste.propre else 'Déposer' }} la liste des élèves de cet examen</summary>
       <form class="formulaire" method="post" action="/examens/{{ e.nom }}/liste" enctype="multipart/form-data">
         <label>Liste (.xlsx, colonnes NOM, Prénom, Classe) <input type="file" name="liste" accept=".xlsx" required></label>
         <button class="bouton">Enregistrer</button>

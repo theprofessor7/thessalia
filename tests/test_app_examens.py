@@ -26,6 +26,7 @@ def _attendre(client, max_s=300):
 def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     racine = tmp_path / "examens"
     racine.mkdir()
+    monkeypatch.setattr("thessalia.identite.LISTS_DIR", tmp_path / "pas_de_liste_commune")   # comme chez un collègue
     app = create_app([], tmp_path / "decisions.sqlite", examens=racine)
     c = app.test_client()
     assert c.get("/").headers["Location"].endswith("/examens")
@@ -72,6 +73,11 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     assert "sujets à produire" not in c.get("/examens").get_data(as_text=True)   # corriger ne « change » pas le sujet
     assert (racine / "essai" / "verite" / "supA_1.appris.json").exists()
 
+    # sans liste, la page des noms le dit d'emblée et renvoie au dépôt (au lieu de refuser chaque nom)
+    page = c.get("/g/A/noms").get_data(as_text=True)
+    assert "aucune liste des élèves" in page and "/examens/essai#etape-6" in page
+    assert c.post("/api/identite", json={"classe": "supA_1", "copie": "copy_001", "etudiant": "MARTIN Alice"}).status_code == 409
+
     # liste des élèves de l'examen, puis notes exportées dans l'examen (journal de la tâche, téléchargement)
     from thessalia.excel import ecrire_xlsx
     from thessalia.identite import _xlsx_rows
@@ -81,6 +87,7 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
                content_type="multipart/form-data")
     assert "2%20%C3%A9l%C3%A8ves" in r.headers["Location"]
     assert "liste_eleves.xlsx" in c.get("/examens/essai").get_data(as_text=True)
+    assert "liste-manquante" not in c.get("/g/A/noms").get_data(as_text=True)
     c.post("/examens/essai/notes")
     t = _attendre(c)
     assert t["etat"] == "terminé", t["journal"]
