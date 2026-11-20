@@ -6,7 +6,7 @@ Feuilles :
   Notes     une ligne par copie identifiée : groupe (celui de la liste), élève, classe où il a composé,
             QCM, réponses courtes, code, total sur 20, réponses encore en attente,
             note arrondie au demi-point supérieur (15,083 → 15,5 ; 15 reste 15)
-  Absents   élèves de la liste sans copie
+  Absents   élèves de la liste sans copie (groupes de l'examen seulement)
   À vérifier  copies sans élève attribué, ou avec des réponses en attente (jamais une note silencieusement fausse)
 Si le fichier de sortie existe déjà, il est d'abord copié en `<nom>.avant-AAAAMMJJ-HHMM.xlsx` (jamais écrasé sans trace).
 Le fichier contient des noms d'élèves : il reste dans le dossier de l'examen (hors dépôt), jamais dans un partage public.
@@ -172,7 +172,9 @@ def run(dossiers, sortie="sorties/notes/notes.xlsx", db=None, log=print, arrondi
                              "exporter chaque session dans son propre classeur")
         attendus = set().union(*convoques)
     else:
-        attendus = set(groupe_de)
+        # seulement les groupes de cet examen : une liste de toute la promo ne rend pas absents les autres groupes
+        corriges = {group_of(c.name) for c in classes}
+        attendus = {e for g in corriges for e in liste.get(g, [])}
     absents = sorted(([g, e] for g, es in liste.items() for e in es if e in attendus and e not in pris),
                      key=lambda l: (rang(l[0]), l[1]))
     copie = sauvegarder(sortie)

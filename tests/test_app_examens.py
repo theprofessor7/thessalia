@@ -82,10 +82,11 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     from thessalia.excel import ecrire_xlsx
     from thessalia.identite import _xlsx_rows
     ecrire_xlsx(tmp_path / "liste.xlsx", [("Liste", [["NOM", "Prénom", "Classe"], ["MARTIN", "Alice", "supA_1"],
-                                                     ["DURAND", "Paul", "supA_1"]], [10, 10, 10])])
+                                                     ["DURAND", "Paul", "supA_1"],
+                                                     ["BERNARD", "Zoé", "supB"]], [10, 10, 10])])   # autre groupe : pas absente
     r = c.post("/examens/essai/liste", data={"liste": ((tmp_path / "liste.xlsx").open("rb"), "liste.xlsx")},
                content_type="multipart/form-data")
-    assert "2%20%C3%A9l%C3%A8ves" in r.headers["Location"]
+    assert "3%20%C3%A9l%C3%A8ves" in r.headers["Location"]
     assert "liste_eleves.xlsx" in c.get("/examens/essai").get_data(as_text=True)
     assert "liste-manquante" not in c.get("/g/A/noms").get_data(as_text=True)
     c.post("/examens/essai/notes")
