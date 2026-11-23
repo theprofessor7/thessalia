@@ -269,7 +269,7 @@ def test_corbeille(tmp_path):
 
 
 def test_nom_de_l_examen_tire_du_fichier(tmp_path):
-    """Nom du dossier laissé vide : celui du fichier .yaml (accents et espaces retirés)."""
+    """Nom de l'examen laissé vide : celui du fichier .yaml (accents et espaces retirés)."""
     import io
 
     from thessalia.projet import nom_depuis_fichier

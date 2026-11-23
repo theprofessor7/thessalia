@@ -54,7 +54,7 @@ les PDF produits, les copies scannées et leur lecture. Tout reste sur cette mac
 <h2>Nouvel examen</h2>
 <form class="formulaire" method="post" action="/examens/nouveau" enctype="multipart/form-data" id="nouvel-examen">
   <label>Source du sujet <input type="file" name="source" accept=".yaml,.yml" required></label>
-  <label>Nom du dossier <input name="nom" pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="nom du fichier .yaml"></label>
+  <label>Nom de l'examen <span class="gris">(nouveau dossier créé dans examens ; proposé d'après le fichier)</span> <input name="nom" pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="midterm_2026"></label>
   <label>Images (logo…) <input type="file" name="images" multiple accept="image/*"></label>
   <button class="bouton principal">Créer l'examen</button>
 </form>
@@ -69,7 +69,7 @@ chaque erreur dit sa ligne et quoi corriger.</p>
     générateur est contrôlé contre le PDF : recommandé. Thessalia lit les zones et les points dans le PDF et vous
     montre le résultat : vérifiez les points.</p>
   <form class="formulaire import" method="post" action="/examens/importer" enctype="multipart/form-data">
-    <label>Nom du dossier <input name="nom" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="midterm_2026"></label>
+    <label>Nom de l'examen <span class="gris">(nouveau dossier créé dans examens)</span> <input name="nom" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="midterm_2026"></label>
     <label>Titre <input name="titre" placeholder="Midterm 2026 — partie écrite"></label>
     {% for lg, nom_lg in [('fr', 'Français'), ('en', 'Anglais')] %}
     <fieldset class="langue-import">
