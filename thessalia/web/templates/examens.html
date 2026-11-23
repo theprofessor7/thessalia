@@ -52,9 +52,9 @@ les PDF produits, les copies scannées et leur lecture. Tout reste sur cette mac
 {% endif %}
 
 <h2>Nouvel examen</h2>
-<form class="formulaire" method="post" action="/examens/nouveau" enctype="multipart/form-data">
-  <label>Nom du dossier <input name="nom" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="midterm_2026"></label>
+<form class="formulaire" method="post" action="/examens/nouveau" enctype="multipart/form-data" id="nouvel-examen">
   <label>Source du sujet <input type="file" name="source" accept=".yaml,.yml" required></label>
+  <label>Nom du dossier <input name="nom" pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="nom du fichier .yaml"></label>
   <label>Images (logo…) <input type="file" name="images" multiple accept="image/*"></label>
   <button class="bouton principal">Créer l'examen</button>
 </form>
@@ -85,4 +85,19 @@ chaque erreur dit sa ligne et quoi corriger.</p>
     <button class="bouton principal">Importer le sujet</button>
   </form>
 </details>
+{% endblock %}
+{% block scripts %}
+<script>
+// nom du dossier proposé d'après le fichier .yaml choisi (tant qu'on ne l'a pas tapé soi-même)
+(() => {
+  const f = document.getElementById("nouvel-examen");
+  const nom = f.querySelector("input[name=nom]"), src = f.querySelector("input[name=source]");
+  nom.addEventListener("input", () => { nom.dataset.tape = nom.value ? "1" : ""; });
+  src.addEventListener("change", () => {
+    if (nom.dataset.tape || !src.files.length) return;
+    nom.value = src.files[0].name.replace(/\.[^.]*$/, "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Za-z0-9_.-]+/g, "_").replace(/^[_.-]+|[_.-]+$/g, "").slice(0, 60);
+  });
+})();
+</script>
 {% endblock %}

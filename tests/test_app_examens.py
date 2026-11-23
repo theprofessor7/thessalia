@@ -266,3 +266,17 @@ def test_corbeille(tmp_path):
     c.post("/examens/corbeille/restaurer", data={"dossier": dossier})
     assert (racine / "essai" / "examen.yaml").exists() and not any((racine / ".corbeille").iterdir())
     assert c.post("/examens/corbeille/restaurer", data={"dossier": "../../x"}).status_code == 302   # refusé, sans dégât
+
+
+def test_nom_de_l_examen_tire_du_fichier(tmp_path):
+    """Nom du dossier laissé vide : celui du fichier .yaml (accents et espaces retirés)."""
+    import io
+
+    from thessalia.projet import nom_depuis_fichier
+    from thessalia.serve import create_app
+    assert nom_depuis_fichier("Midterm bis écrit.yaml") == "Midterm_bis_ecrit"
+    assert nom_depuis_fichier("  .yaml") == "examen"
+    c = create_app([], examens=tmp_path).test_client()
+    r = c.post("/examens/nouveau", data={"nom": "", "source": (io.BytesIO(SUJET.encode()), "quiz_chaines.yaml")},
+               content_type="multipart/form-data")
+    assert r.headers["Location"] == "/examens/quiz_chaines" and (tmp_path / "quiz_chaines" / "examen.yaml").exists()

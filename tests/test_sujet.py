@@ -165,3 +165,14 @@ def test_mise_en_page_gabarit_et_zones(tmp_path):
         assert fin in textes[-1] and not any(fin.split(" · ")[0] in t for t in textes[:-1])   # au pied de la dernière page
     assert (tmp_path / "out" / "ESSAI_FR.bareme.json").exists()
     assert json.loads((tmp_path / "out" / "ESSAI_EN.key.json").read_text(encoding="utf-8"))["traduction_de"] == "ESSAI_FR"
+
+
+def test_image_deposee_mais_pas_declaree_signalee(tmp_path):
+    """Logo déposé sans « logo: » dans la source : ignoré à la production, donc signalé sur la page de l'examen."""
+    from thessalia.projet import creer
+
+    p = creer("essai", SUJET.encode(), racine=tmp_path, fichiers={"logo_ecole.png": b"\x89PNG"})
+    assert p.images_inutilisees() == ["logo_ecole.png"]
+    source = SUJET.replace("  points: 2\n", "  points: 2\n  logo: logo_ecole.png\n", 1)
+    (p.dir / "examen.yaml").write_text(source, encoding="utf-8")
+    assert p.images_inutilisees() == []

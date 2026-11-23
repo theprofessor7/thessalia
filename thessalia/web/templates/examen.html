@@ -41,6 +41,11 @@
       <p>{{ e.id }} · {{ e.questions }} questions · {{ e.points|round(2) }} points · langues {{ e.langues|join(', ')|upper }} :
         <span class="ok">contrôle réussi</span></p>
     {% endif %}
+    {% for im in images_inutilisees %}
+      <p class="attente images-inutilisees">Image déposée mais utilisée nulle part : <b>{{ im }}</b>, elle n'apparaîtra pas
+        sur le sujet. Pour un logo, ajoutez dans la source, sous « examen: », la ligne <code>logo: {{ im }}</code>, puis
+        produisez à nouveau.</p>
+    {% endfor %}
     <details><summary>Remplacer la source</summary>
       <form class="formulaire" method="post" action="/examens/{{ e.nom }}/source" enctype="multipart/form-data">
         <label>Source <input type="file" name="source" accept=".yaml,.yml" required></label>

@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from . import ollama_local
-from .projet import (Projet, corbeille, creer, importer_fichiers, mettre_a_la_corbeille, nom_valide, outils,
+from .projet import (Projet, corbeille, creer, importer_fichiers, mettre_a_la_corbeille, nom_depuis_fichier, nom_valide, outils,
                      projets, restaurer)
 
 
@@ -264,10 +264,10 @@ def enregistrer(app, racine: Path, charger, memoire=None):
 
     @app.post("/examens/nouveau")
     def nouvel_examen():
-        nom = (request.form.get("nom") or "").strip()
         src = request.files.get("source")
         if not src or not src.filename:
             return redirect(_vers("/examens", "Choisissez le fichier examen.yaml."))
+        nom = (request.form.get("nom") or "").strip() or nom_depuis_fichier(src.filename)   # vide : nom du fichier
         images = {f.filename: f.read() for f in request.files.getlist("images") if f and f.filename}
         try:
             creer(nom, src.read(), racine, images)
@@ -289,7 +289,7 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         return render_template("examen.html", e=e, approfondie=appr, pdfs=[f.name for f in p.pdfs()], tache=t, etapes=etapes,
                                courante=courante,
                                ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=out,
-                               liste=p.liste(), reglages=p.reglages(), noms=p.controle_noms(), ollama=ollama_local.etat(), validation=p.mesure_lecture() if resume_lues(p) else {},
+                               liste=p.liste(), reglages=p.reglages(), noms=p.controle_noms(), images_inutilisees=p.images_inutilisees(), ollama=ollama_local.etat(), validation=p.mesure_lecture() if resume_lues(p) else {},
                                notes=time.strftime("%d/%m/%Y %H:%M", time.localtime(notes.stat().st_mtime))
                                if notes.exists() else None)
 

@@ -53,6 +53,14 @@ def nom_valide(nom: str) -> bool:
     return bool(RE_NOM.match(nom or "")) and ".." not in nom
 
 
+def nom_depuis_fichier(fichier: str) -> str:
+    """Nom d'examen tiré du nom de la source : « Midterm bis écrit.yaml » -> « Midterm_bis_ecrit »."""
+    import unicodedata
+    base = unicodedata.normalize("NFKD", Path(fichier or "").stem).encode("ascii", "ignore").decode()
+    base = re.sub(r"[^A-Za-z0-9_.-]+", "_", base).strip("_.-")[:60]
+    return base or "examen"
+
+
 def _douteux_ancien(dossier):
     """Classe lue avant que results.json note l'alerte : « GABARIT DOUTEUX » en tête de review.csv."""
     import re
@@ -104,6 +112,14 @@ class Projet:
             return examen(self.source), None
         except ErreurSujet as e:
             return None, e.erreurs
+
+    def images_inutilisees(self):
+        """Images déposées avec la source mais jamais nommées dedans (ex. logo sans « logo: ») : ignorées à la production."""
+        if self.importe is not None or self.source is None:
+            return []
+        texte = self.source.read_text(encoding="utf-8", errors="replace")
+        return sorted(f.name for f in self.dir.iterdir()
+                      if f.is_file() and f.suffix.lower() in SOURCES - {".yaml", ".yml"} and f.name not in texte)
 
     def produit_a_jour(self) -> bool:
         """Les PDF et corrigés produits sont-ils plus récents que la source (et ses images) ?"""

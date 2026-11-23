@@ -25,6 +25,9 @@ Avant le déploiement chez les collègues, le code a été nettoyé.
 - Bouton **« Mettre à jour Thessalia »** sur l'accueil : `git pull` sans ligne de commande, puis inviter à relancer
   Thessalia (et l'installeur si les dépendances ont changé). Aujourd'hui les collègues font `git pull` à la main
   (mode d'emploi §1).
+- **Mode aperçu d'un sujet** : à chaque enregistrement de l'`examen.yaml`, les PDF se reproduisent seuls et une page
+  du navigateur montre les pages du sujet côte à côte, rafraîchie d'elle-même, erreurs de la source en rouge.
+  Aujourd'hui : modifier `examens/<nom>/examen.yaml`, recharger la page de l'examen, « Produire les PDF ».
 
 Les sections suivantes sont le **journal** du projet : elles citent des commandes qui n'existent plus ; leurs
 mesures et décisions restent valables.
