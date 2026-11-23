@@ -79,7 +79,7 @@ PREAMBULE = r"""
   v(1.5mm)
   body
 })
-#let exercice(titre) = block(breakable: false, above: 7mm, below: 2mm, width: 100%, {
+#let exercice(titre) = block(breakable: false, sticky: true, above: 7mm, below: 2mm, width: 100%, {   // jamais seul en bas de page
   filet; v(-1mm); text(size: 13pt, weight: "bold", fill: ACCENT, titre); v(-1mm); filet })
 #let contexte(body) = block(fill: luma(248), stroke: (left: 2pt + luma(170)), inset: 8pt, width: 100%, body)
 #let note(body) = text(size: 9pt, fill: GRIS, body)
@@ -187,6 +187,11 @@ class _Rendu:
         return "#code_trous[" + "#linebreak()".join(lignes) + "]"
 
 
+def _nombre(x, langue):
+    """1.75 -> « 1,75 » en français, « 1.75 » en anglais (sans zéros inutiles)."""
+    return f"{x:g}".replace(".", ",") if langue == "fr" else f"{x:g}"
+
+
 def _pts(x, langue):
     s = f"{x:.2f}"
     return s.replace(".", ",") if langue == "fr" else s
@@ -262,7 +267,7 @@ def _questions_typst(ex, langue):
     m, out = MOTS[langue], []
     for i, exo in enumerate(ex.exercices, 1):
         pe = exo.points if exo.points is not None else sum(q.points for q in exo.questions)
-        titre = f"{m['exercice']} {i} — {exo.titre[langue]} ({pe:g} {m['points']})"
+        titre = f"{m['exercice']} {i} — {exo.titre[langue]} ({_nombre(pe, langue)} {m['points']})"
         out.append(f"#exercice({ts(titre)})")
         if exo.contexte:
             out.append(f"#contexte[{_Rendu().blocs(exo.contexte[langue])}]")
@@ -323,7 +328,7 @@ def typst_corrige(ex: Examen, langue: str) -> str:
     for i, exo in enumerate(ex.exercices, 1):
         pe = exo.points if exo.points is not None else sum(q.points for q in exo.questions)
         recap.append((f"{m['exercice']} {i} — {exo.titre[langue]}", pe))
-        titre = f"{m['exercice']} {i} — {exo.titre[langue]} ({pe:g} {m['points']})"
+        titre = f"{m['exercice']} {i} — {exo.titre[langue]} ({_nombre(pe, langue)} {m['points']})"
         out.append(f"#exercice({ts(titre)})")
         for q in exo.questions:
             if q.type in ("texte", "brut"):
