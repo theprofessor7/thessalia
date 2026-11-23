@@ -157,9 +157,15 @@ class _Rendu:
             elif re.match(r"^\s*[-*] ", l) or re.match(r"^\s*\d+\. ", l):
                 vider()
                 enum = bool(re.match(r"^\s*\d+\. ", l))
-                items = []
-                while i < len(lignes) and re.match(r"^\s*(\d+\.|[-*]) ", lignes[i]):
-                    items.append(re.sub(r"^\s*(\d+\.|[-*]) ", "", lignes[i]))
+                items, retrait = [], len(l) - len(l.lstrip())
+                while i < len(lignes):
+                    li = lignes[i]
+                    if re.match(r"^\s*(\d+\.|[-*]) ", li):
+                        items.append(re.sub(r"^\s*(\d+\.|[-*]) ", "", li))
+                    elif li.strip() and len(li) - len(li.lstrip()) > retrait and not li.strip().startswith("```"):
+                        items[-1] += " " + li.strip()        # suite de l'élément, plus indentée : même élément
+                    else:
+                        break
                     i += 1
                 out.append(("#enum(" if enum else "#list(") + ", ".join(f"[{self.inline(x)}]" for x in items)
                            + (", tight: false)" if enum else ", tight: false)"))

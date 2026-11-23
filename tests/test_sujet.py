@@ -176,3 +176,13 @@ def test_image_deposee_mais_pas_declaree_signalee(tmp_path):
     source = SUJET.replace("  points: 2\n", "  points: 2\n  logo: logo_ecole.png\n", 1)
     (p.dir / "examen.yaml").write_text(source, encoding="utf-8")
     assert p.images_inutilisees() == []
+
+
+def test_element_de_liste_sur_plusieurs_lignes():
+    """Ligne de suite plus indentée : même élément (la numérotation ne repart pas à 1, rien n'est coupé)."""
+    from thessalia.sujet.mise_en_page import _Rendu
+
+    t = "1. Écrivez une fonction\n   sur deux lignes.\n2. Deuxième\n   aussi.\nAprès la liste.\n\n- puce\n  suite\n- autre"
+    rendu = _Rendu().blocs(t)
+    assert '#enum([#"Écrivez une fonction sur deux lignes."], [#"Deuxième aussi."]' in rendu
+    assert '#"Après la liste."' in rendu and '#list([#"puce suite"], [#"autre"]' in rendu
