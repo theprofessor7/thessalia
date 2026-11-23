@@ -122,6 +122,15 @@ def test_tests_tires_du_corrige():
     assert all(precocher_cadre(bar["champs"]["q16"]["corrige"], "q16", tests)["criteres"].values())
 
 
+def test_contient_en_texte_seul_est_un_element():
+    """`contient: 'for'` (texte seul) : un élément, pas la liste de ses lettres."""
+    from thessalia.code_tests import tests_du_bareme, precocher_cadre
+    bar = {"champs": {"q1": {"corrige": "for c in 'ab':\n    print(c)",
+                             "criteres": [{"id": "1", "contient": "for|while"}, {"id": "2", "contient": "print(c)"}]}}}
+    tests = tests_du_bareme(bar)
+    assert precocher_cadre("while False:\n    pass\nprint('fin')", "q1", tests)["criteres"] == {"1": True, "2": False}
+
+
 def test_nombre_cherche_dans_la_bonne_ligne():
     from thessalia.code_tests import _mode
     ref = {"etat": "ok", "saisies": 3, "sortie": "Plus grande valeur : -2\nValeurs paires : 2\n"}

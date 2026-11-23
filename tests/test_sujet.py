@@ -88,10 +88,36 @@ def test_lecture_sans_conversion():
      "mettez chaque texte entre guillemets"),
     ("{fr: 'Affichage : [[v]]', en: 'Output: [[v]]'}", "{fr: 'Affichage : [[v]]', en: 'Output: ...'}",
      "les blancs ne sont pas les mêmes"),
+    ("enonce: Quelle valeur ?", "enonce: Que vaut l''expression ?", "« l''e… » : apostrophe doublée"),
+    ("enonce: Quelle valeur ?", "enonce: |\n          Une ligne.\n          Cochez d''une croix.",
+     "ligne 29 : « d''u… » : apostrophe doublée"),
 ])
 def test_refus_lisibles(avant, apres, attendu):
     assert avant in SUJET
     assert attendu in _erreurs(SUJET.replace(avant, apres, 1))
+
+
+def test_apostrophe_doublee_entre_guillemets_simples_acceptee():
+    ex = examen_texte(SUJET.replace("enonce: Quelle valeur ?", "enonce: 'Que vaut l''expression ?'"))
+    assert ex.questions()[2].enonce["fr"] == "Que vaut l'expression ?"
+
+
+def test_corrige_du_code_qui_rate_son_bareme_refuse_a_la_production(tmp_path):
+    """Un critère que le corrigé ne remplit pas : refusé dès « Produire les PDF », pas le jour de la correction."""
+    from thessalia.sujet import produire_tout
+
+    src = tmp_path / "essai.yaml"
+    src.write_text(SUJET.replace("  points: 2\n", "  points: 3\n", 1) + """\
+      - type: code
+        points: 1
+        enonce: {fr: 'Affichez 3.', en: 'Print 3.'}
+        cadre: {lignes: 3}
+        corrige: print(3)
+        criteres:
+          - {texte: boucle, points: 1, contient: ['while']}
+""", encoding="utf-8")
+    with pytest.raises(SystemExit, match="(?s)REFUSÉ.*critère 1"):
+        produire_tout(examen_texte(src.read_text(encoding="utf-8")), src, tmp_path / "out")
 
 
 def test_confronter_au_gabarit():

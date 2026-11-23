@@ -6,9 +6,13 @@ Une clé écrite deux fois et une tabulation sont refusées ici ; le reste est c
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
+
+# « d''une », « l''encre » : apostrophe doublée hors guillemets simples, YAML la garde telle quelle
+APOSTROPHE_DOUBLE = re.compile(r"(?<=[^\W\d_])''(?=[^\W\d_])")
 
 
 class ErreurSujet(Exception):
@@ -78,6 +82,12 @@ def _convertir(n, texte, erreurs):
     if isinstance(n, yaml.ScalarNode):
         t = Texte(n.value)
         t.ligne, t.guillemets = ligne, n.style == '"'
+        m = APOSTROPHE_DOUBLE.search(n.value) if n.style != "'" else None
+        if m:
+            mot = re.search(r"\S*$", n.value[:m.start()]).group(0) + n.value[m.start():m.end() + 1]
+            nl = ligne + n.value.count("\n", 0, m.start()) + (n.style in ("|", ">"))   # bloc : texte dès la ligne suivante
+            erreurs.append(f"ligne {nl} : « {mot}… » : apostrophe doublée, elle s'imprimerait telle quelle ; "
+                           "écrivez-en une seule (on ne la double qu'à l'intérieur de guillemets simples '…')")
         if n.style is None:
             reste = texte[n.end_mark.index:].split("\n", 1)[0]
             if reste.lstrip().startswith("#"):

@@ -38,6 +38,13 @@ def produire_tout(ex, source, dossier, gabarits=None, corriges=None, log=print):
         if err:
             raise SystemExit(f"{langue} : REFUSÉ\n" + "\n".join("  - " + m for m in err))
         key, vocab, bareme = fichiers(ex, langue, base, source.name, premier)
+        if bareme is not None:
+            # le corrigé du code doit obtenir tous ses critères testés : refusé ici, pas le jour de la correction
+            from ..code_tests import _tests_du_bareme
+            try:
+                _tests_du_bareme(bareme)
+            except ValueError as e:
+                raise SystemExit(f"{langue} : REFUSÉ\n  - {e}") from None
         for suffixe, contenu in ((".key.json", key), (".vocab.json", vocab), (".bareme.json", bareme)):
             if contenu is not None:
                 texte = json.dumps(contenu, ensure_ascii=False, indent=1) + "\n"

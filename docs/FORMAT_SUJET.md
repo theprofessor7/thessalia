@@ -54,6 +54,8 @@ Pièges de YAML rencontrés en convertissant le Midterm, tous refusés avec un m
 - entre accolades `{fr: …, en: …}`, une virgule, un « ? » ou un « : » coupent le texte ;
 - un « # » dans un texte sans guillemets : YAML coupe le texte et prend la suite pour un commentaire.
 Dans le doute : **tout texte entre guillemets**.
+- `d''une` dans un texte sans guillemets, entre accolades ou dans un bloc `|` : YAML garde les deux apostrophes et
+  elles s'imprimeraient. On ne double l'apostrophe qu'entre guillemets simples (`'d''une'`) ; ailleurs, `d'une`.
 
 Les guillemets : `'…'` (simples) gardent le texte tel quel, y compris `\n`. **Préférer les guillemets simples** pour
 les réponses. Les guillemets doubles `"…"` transforment `\n` en retour à la ligne, ce qui est refusé.
@@ -247,7 +249,7 @@ La règle globale reste celle de l'enseignant (`notes.py`) : juste 100 %, forme 
   criteres:
     - texte: {fr: trio open / write / close, en: open / write / close}
       points: 0.25
-      contient: 'open|write|close'
+      contient: ['open', 'write', 'close']   # les trois ; 'open|write' : l'un ou l'autre
       verifie: termine          # le programme va au bout sans erreur
     - texte: {fr: 'mode "w" et argument "a"', en: '"w" mode and "a" argument'}
       points: 0.25
@@ -255,9 +257,11 @@ La règle globale reste celle de l'enseignant (`notes.py`) : juste 100 %, forme 
 ```
 
 Les critères reprennent le barème actuel (`code_tests.tests_du_bareme`) : `essais` (saisies), `contient`
-(« | » pour l'un ou l'autre), `verifie` (`sortie`, `termine`, `saisies`, `lignes`, `texte[:k]`, `nombre:k`) ;
+(liste de morceaux que le code doit tous contenir, « | » pour l'un ou l'autre ; pas d'expression régulière ; espaces,
+casse et accents ignorés), `verifie` (`sortie`, `termine`, `saisies`, `lignes`, `texte[:k]`, `nombre:k`) ;
 nouveaux pour les fichiers : `avant` et `verifie: fichier:<nom>`. Le corrigé doit passer tous ses critères,
-sinon le fichier est refusé. Cas trop particuliers : `tests_python: tests/q28.py` (fonction Python, comme
+sinon « Produire les PDF » refuse le sujet. Ne pas exiger une écriture précise quand plusieurs sont justes :
+le résultat se vérifie par les `essais`. Cas trop particuliers : `tests_python: tests/q28.py` (fonction Python, comme
 `keys/*.tests.py` aujourd'hui).
 
 ### 5.5 `redaction` — réponse en phrases

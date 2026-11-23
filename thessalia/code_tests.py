@@ -465,7 +465,9 @@ def _test_corrige(ch):
         for c in ch["criteres"]:
             if "essais" not in c and "contient" not in c:
                 continue
-            ok = all(any(_sans_espace(alt) in plat for alt in str(x).split("|")) for x in c.get("contient", []))
+            vals = c.get("contient", [])
+            vals = [vals] if isinstance(vals, str) else vals      # un seul texte : un élément, pas lettre à lettre
+            ok = all(any(_sans_espace(alt) in plat for alt in str(x).split("|")) for x in vals)
             modes = c.get("verifie", "sortie")
             modes = [modes] if isinstance(modes, str) else modes
             for e in c.get("essais", []):
