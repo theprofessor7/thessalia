@@ -88,6 +88,7 @@ def test_lecture_sans_conversion():
      "mettez chaque texte entre guillemets"),
     ("{fr: 'Affichage : [[v]]', en: 'Output: [[v]]'}", "{fr: 'Affichage : [[v]]', en: 'Output: ...'}",
      "les blancs ne sont pas les mêmes"),
+    ("'[[n:court]]'", "'`n = [[n:court]]`'", "[[n]] dans un bloc de code"),
     ("enonce: Quelle valeur ?", "enonce: Que vaut l''expression ?", "« l''e… » : apostrophe doublée"),
     ("enonce: Quelle valeur ?", "enonce: |\n          Une ligne.\n          Cochez d''une croix.",
      "ligne 29 : « d''u… » : apostrophe doublée"),
@@ -158,5 +159,9 @@ def test_mise_en_page_gabarit_et_zones(tmp_path):
         ids = sorted(f["id"] for p in gab["pages"] for f in p["fields"])
         assert ids == ["identity.nom", "identity.prenom", "q1.1", "q1.2", "q2", "q3", "q4.1", "q4.2", "q5"]  # Nom, Prénom par défaut
         assert (tmp_path / "out" / f"corrige_ESSAI_{lg}.pdf").exists()
+        import pymupdf
+        textes = [pg.get_text() for pg in pymupdf.open(tmp_path / "out" / f"sujet_ESSAI_{lg}.pdf")]
+        fin = "Fin de l'épreuve · Page" if lg == "FR" else "End of the test · Page"
+        assert fin in textes[-1] and not any(fin.split(" · ")[0] in t for t in textes[:-1])   # au pied de la dernière page
     assert (tmp_path / "out" / "ESSAI_FR.bareme.json").exists()
     assert json.loads((tmp_path / "out" / "ESSAI_EN.key.json").read_text(encoding="utf-8"))["traduction_de"] == "ESSAI_FR"

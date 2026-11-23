@@ -192,15 +192,18 @@ def _pts(x, langue):
     return s.replace(".", ",") if langue == "fr" else s
 
 
-def _page(ex, langue, entete=True):
+def _page(ex, langue, entete=True, fin=False):
     m = MOTS[langue]
+    # « Fin de l'épreuve » au pied de la dernière page : jamais une page de plus pour cette seule ligne
+    fin = (f'(if counter(page).get().first() == counter(page).final().first() {{ {ts(m["fin"] + " · ")} }} else {{ "" }}) + '
+           if fin else "")
     head = (f'header: context {{ if counter(page).get().first() > 1 {{ align(right, pad(right: 10mm, text(size: 8.5pt, fill: GRIS, '
             f'{ts(m["entete"])}))) }} }},') if entete else ""
     return (f'#set page(paper: "a4", margin: (left: 22mm, right: 22mm, top: 25mm, bottom: 24mm), '
             f'background: reperes, header-ascent: 55%, {head} footer: context {{ '
             f'place(left + horizon, text(font: "DejaVu Sans Mono", size: 7pt, fill: GRIS, {ts(ex.id + " · p")} + '
             f'numbering("01", counter(page).get().first()) + "/" + numbering("01", counter(page).final().first()))); '
-            f'align(center, text(size: 9pt, fill: GRIS, "Page " + str(counter(page).get().first()) + " / " + '
+            f'align(center, text(size: 9pt, fill: GRIS, {fin}"Page " + str(counter(page).get().first()) + " / " + '
             f'str(counter(page).final().first()))) }})\n'
             f'#set text(font: "Libertinus Serif", size: 10.5pt, lang: "{langue}")\n'
             f'#set par(leading: 0.75em, spacing: 1.1em)\n')
@@ -265,7 +268,6 @@ def _questions_typst(ex, langue):
             out.append(f"#contexte[{_Rendu().blocs(exo.contexte[langue])}]")
         for q in exo.questions:
             out.append(_question(q, langue))
-    out.append(f"#v(8mm)#align(center, text(size: 9pt, fill: GRIS, {ts(m['fin'])}))")
     return "\n\n".join(out)
 
 
@@ -303,7 +305,7 @@ def _question(q, langue):
 
 
 def typst_sujet(ex: Examen, langue: str) -> str:
-    return (PREAMBULE + _page(ex, langue) + _couverture(ex, langue) + "\n#pagebreak()\n"
+    return (PREAMBULE + _page(ex, langue, fin=True) + _couverture(ex, langue) + "\n#pagebreak()\n"
             + _questions_typst(ex, langue) + "\n")
 
 

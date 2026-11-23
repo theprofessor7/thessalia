@@ -195,7 +195,8 @@ Un blanc se place n'importe où dans le texte avec `[[nom]]`, ou `[[nom:taille]]
     a: {attendu: '23', nature: nombre}
     b: {attendu: '15', nature: nombre}
 
-# c) dans un code à compléter (police à chasse fixe, encadré comme un bloc de code)
+# c) dans un code à compléter (police à chasse fixe, encadré comme un bloc de code ; plusieurs lignes : « code: | »).
+#    Un blanc dans un bloc ``` de l'énoncé, ou entre `…`, s'imprimerait tel quel : refusé.
 - type: blancs
   points: 1.00
   enonce: {fr: "On veut afficher exactement `café : 12.50 €`. Complétez le f-string :", en: "…"}

@@ -18,6 +18,12 @@ TAILLES = ("court", "moyen", "long")
 TOLERANCES = ("guillemets", "guillemets_forme", "espaces_virgules", "espace_ponctuation", "liste_incomplete")
 VF = {"fr": ("V", "F"), "en": ("T", "F")}          # libellés des cases Vrai / Faux par langue
 RE_BLANC = re.compile(r"\[\[([A-Za-z_]\w*)(?::(\w+))?\]\]")
+RE_BLOC_CODE = re.compile(r"```.*?(?:```|$)|`[^`\n]+`", re.S)   # bloc ``` ou `…` : texte imprimé tel quel
+
+
+def blancs_dans_code(t: str):
+    """Blancs [[nom]] écrits dans un bloc ``` ou entre `…` : ils s'imprimeraient tels quels, sans zone."""
+    return [m.group(1) for b in RE_BLOC_CODE.finditer(t or "") for m in RE_BLANC.finditer(b.group(0))]
 
 CLES_EXAMEN = {"id", "langues", "matiere", "titre", "sous_titre", "duree", "version", "session", "points",
                "identite", "numero_etudiant", "consignes", "logo"}
@@ -315,6 +321,12 @@ class _Controle:
         ordre = {}
         for l in self.langues:
             ordre[l] = [(m.group(1), m.group(2) or "moyen") for t in morceaux + lignes for m in RE_BLANC.finditer(t.get(l, ""))]
+        dans_code = list(dict.fromkeys(n for l in self.langues for t in [out.enonce or {}] + lignes
+                                       for n in blancs_dans_code(t.get(l, ""))))
+        if dans_code:
+            self.e(q, f"{ou} : {', '.join(f'[[{n}]]' for n in dans_code)} dans un bloc de code (```) ou entre `…` : "
+                      f"imprimé tel quel, sans ligne à remplir ; pour un code à compléter, mettez le code "
+                      f"dans « code: | » (docs/FORMAT_SUJET.md § 5.3 c)")
         ref = ordre[self.langues[0]]
         for l in self.langues[1:]:
             if [n for n, _ in ordre[l]] != [n for n, _ in ref]:
