@@ -6,6 +6,12 @@ def test_groups_wanted_by_teacher():
     assert [group_of(n) for n in names] == ["A", "A", "C", "D", "D", "NA", "NA", "NB"]
 
 
+def test_groupe_apres_un_prefixe():
+    """Classe nommée par un collègue « mid_term_sup_D » : groupe D ; jamais après une espace (démissionnaire)."""
+    assert [group_of(n) for n in ("mid_term_sup_D", "midterm_supD_2", "groupe-supNA_1")] == ["D", "D", "NA"]
+    assert [group_of(n) for n in ("DEM SUPE", "DEM SUP H", "REPORT", "BIS")] == ["DEM SUPE", "DEM SUP H", "REPORT", "BIS"]
+
+
 def test_decisions_roundtrip(tmp_path):
     d = Decisions(tmp_path / "c.sqlite")
     d.set("supD", "c01_q3.1", "faux")

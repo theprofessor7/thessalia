@@ -108,8 +108,10 @@ def stockage_examen(results_dir):
 
 
 def group_of(name: str) -> str:
-    """supA_3 -> A, supc_1 -> C, supNA_2 -> NA, sup_nb_4 -> NB, supD -> D (regroupement voulu par l'enseignant)."""
-    m = re.match(r"sup_?([a-z]+?)(?:_|\d|$)", name, re.I)
+    """supA_3 -> A, supc_1 -> C, supNA_2 -> NA, sup_nb_4 -> NB, supD -> D (regroupement voulu par l'enseignant) ;
+    aussi après un « _ » ou un « - » : mid_term_sup_D -> D. Jamais après une espace (« DEM SUPE » : démissionnaire)."""
+    m = (re.match(r"sup_?([a-z]+?)(?:_|\d|$)", name, re.I)
+         or re.search(r"(?<=[_-])sup_?([a-z]+?)(?:_|\d|$)", name, re.I))
     if not m:
         return name
     g = m.group(1).upper()
