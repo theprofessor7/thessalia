@@ -167,6 +167,8 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     # contrôle des noms avant l'export : copies sans élève, puis une copie à risque (nom proche d'un absent)
     page = c.get("/examens/essai").get_data(as_text=True)
     assert "2 sans élève" in page and "Exporter quand même" in page
+    assert "Identifier les copies · groupe A (2 sans élève)" in page and "Ajouter une autre classe" in page
+    assert c.post("/examens/essai/identifier/A").headers["Location"] == "/g/A/noms"
     ecrire_xlsx(tmp_path / "liste.xlsx", [("Liste", [["NOM", "Prénom", "Classe"], ["MARTIN", "Alice", "supA_1"],
                                                      ["MARTINS", "Léa", "supA_1"], ["DURAND", "Paul", "supA_1"]], [10, 10, 10])])
     c.post("/examens/essai/liste", data={"liste": ((tmp_path / "liste.xlsx").open("rb"), "liste.xlsx")},
@@ -174,7 +176,7 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     for copie, eleve in (("copy_001", "MARTIN Alice"), ("copy_002", "DURAND Paul")):
         assert c.post("/api/identite", json={"classe": "supA_1", "copie": copie, "etudiant": eleve}).status_code == 200
     page = c.get("/examens/essai").get_data(as_text=True)
-    assert "2 à risque" in page and "sans élève</span>" not in page and "Exporter quand même" in page   # DURAND : voisin de l'absente
+    assert "2 à risque" in page and "sans élève</span>" not in page and "Identifier les copies · groupe" not in page and "Exporter quand même" in page   # DURAND : voisin de l'absente
     assert c.post("/examens/essai/verif-noms").headers["Location"] == "/verif-noms"
     page = c.get("/verif-noms").get_data(as_text=True)
     assert page.index("MARTIN Alice") < page.index("DURAND Paul") and "nom proche de MARTINS Léa" in page

@@ -104,6 +104,9 @@
       {% endfor %}
     </table>
     {% endif %}
+    <h3 class="ajouter-classe">{{ 'Ajouter une autre classe' if e.classes else 'Déposer une classe' }}</h3>
+    <p class="aide">Un nouveau nom pour chaque classe, qui commence par « sup » et le groupe de la liste des élèves
+      (supB_1, supB_2…) ; un nom déjà présent dans le tableau remplace cette classe.</p>
     <form class="formulaire" method="post" action="/examens/{{ e.nom }}/deposer" enctype="multipart/form-data">
       <label>Classe <input name="classe" required pattern="[A-Za-z0-9][A-Za-z0-9_.\-]*" placeholder="supA_1"></label>
       <label>Sujet distribué <select name="langue">{% for l in e.langues %}<option value="{{ l }}">{{ l|upper }}</option>{% endfor %}</select></label>
@@ -231,7 +234,13 @@
       {%- if noms.sans %} · <span class="attente">{{ noms.sans }} sans élève</span>{% endif %}
       {%- if noms.risques %} · <span class="{{ 'ok' if noms.verifie else 'attente' }}">{{ noms.risques }} à risque{{ ', vérifiées' if noms.verifie }}</span>{% endif %}
       {%- if not noms.sans and not noms.risques %} · <span class="ok">aucune à risque</span>{% endif %}
-      <form class="enligne" method="post" action="/examens/{{ e.nom }}/verif-noms"><button class="bouton {{ 'principal' if (noms.risques and not noms.verifie) or noms.sans }}">Vérifier les noms</button></form>
+      <form class="enligne" method="post" action="/examens/{{ e.nom }}/verif-noms"><button class="bouton {{ 'principal' if noms.risques and not noms.verifie }}">Vérifier les noms</button></form>
+      {% if noms.sans %}
+      <p class="identifier-groupes">Les notes portent le nom de l'élève attribué à chaque copie : déposer la liste ne suffit pas,
+        chaque copie se confirme sur la page « Identifier les copies ».<br>
+        {% for g, n in noms.sans_par_groupe|dictsort %}<form class="enligne" method="post" action="/examens/{{ e.nom }}/identifier/{{ g }}">
+          <button class="bouton principal">Identifier les copies · groupe {{ g }} ({{ n }} sans élève)</button></form> {% endfor %}</p>
+      {% endif %}
     </div>
     {% endif %}
     {% set alerte = noms and ((noms.risques and not noms.verifie) or noms.sans) %}

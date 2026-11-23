@@ -442,6 +442,17 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         etat["ouvert"] = nom
         return redirect("/verif-noms")
 
+    @app.post("/examens/<nom>/identifier/<groupe>")
+    def identifier(nom, groupe):
+        """Ouvre l'examen dans l'outil de correction, sur la page « Identifier les copies » d'un groupe."""
+        p = projet(nom)
+        try:
+            charger(p.dossiers_lus(), p.stockage())
+        except SystemExit as e:
+            return redirect(_vers(f"/examens/{nom}", e))
+        etat["ouvert"] = nom
+        return redirect(f"/g/{groupe}/noms")
+
     @app.post("/examens/<nom>/noms-verifies")
     def noms_verifies(nom):
         projet(nom).noms_verifies()

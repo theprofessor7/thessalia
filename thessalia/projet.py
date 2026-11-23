@@ -406,18 +406,23 @@ class Projet:
             liste = lire_liste(lists_dir=lists)
         except (ValueError, OSError):
             liste = {}
-        attributions, sans = [], 0
+        from .correction import group_of
+        attributions, sans, par_groupe = [], 0, {}
         for d in dossiers:
             att = lire_attributions(d.name, lists)
             ids = [c["copy_id"] for c in json.loads((d / "results.json").read_text(encoding="utf-8"))["copies"]]
             attributions += [(d.name, cid, e) for cid, e in sorted(att.items())]
-            sans += sum(cid not in att for cid in ids)
+            n = sum(cid not in att for cid in ids)
+            sans += n
+            if n:
+                par_groupe[group_of(d.name)] = par_groupe.get(group_of(d.name), 0) + n
         r = risques(attributions, liste, convoques={d.name: lire_convoques(d.name, lists) for d in dossiers}) if liste else {}
         a_risque = sorted(f"{cl}/{cid}={e}={'|'.join(r[(cl, cid)])}" for cl, cid, e in attributions if r.get((cl, cid)))
         signature = hashlib.sha256(chr(10).join(a_risque).encode()).hexdigest()[:16]
         p = self.dir / "noms_verifies.json"
         vu = json.loads(p.read_text(encoding="utf-8")).get("signature") if p.exists() else None
-        return {"attribuees": len(attributions), "sans": sans, "risques": len(a_risque), "signature": signature,
+        return {"attribuees": len(attributions), "sans": sans, "sans_par_groupe": par_groupe,
+                "risques": len(a_risque), "signature": signature,
                 "verifie": bool(a_risque) and vu == signature}
 
     def noms_verifies(self):
