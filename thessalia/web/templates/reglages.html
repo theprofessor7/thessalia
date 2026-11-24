@@ -7,6 +7,18 @@
 
 {% include "_tache.html" %}
 
+<h2 class="section">Mise à jour</h2>
+{% if maj_impossible %}
+<p class="aide">Mise à jour en un clic indisponible : {{ maj_impossible }}.</p>
+{% else %}
+<form method="post" action="/reglages/mise-a-jour" class="enligne">
+  <button class="bouton principal">Mettre à jour Thessalia</button>
+</form>
+<span class="gris">version du {{ version.date if version else '?' }} ({{ version.commit if version else '?' }})</span>
+<p class="aide">Récupère les correctifs publiés (internet nécessaire) et liste les nouveautés. Vos examens, copies,
+  décisions et réglages ne sont jamais touchés. Ensuite : fermer la fenêtre noire et relancer Thessalia.</p>
+{% endif %}
+
 <h2 class="section">Paramètres</h2>
 <form method="post" action="/reglages/parametres" class="panneau-reglages">
   <input type="hidden" name="arrondi" value="0">

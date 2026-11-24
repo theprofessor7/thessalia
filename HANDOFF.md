@@ -22,9 +22,16 @@ Avant le déploiement chez les collègues, le code a été nettoyé.
 - La note brute (sur 12,25 au Midterm) est voulue : une autre partie de l'examen ramène la note sur 20.
 
 **À faire (idées notées, rien de commencé)** :
-- Bouton **« Mettre à jour Thessalia »** sur l'accueil : `git pull` sans ligne de commande, puis inviter à relancer
-  Thessalia (et l'installeur si les dépendances ont changé). Aujourd'hui les collègues font `git pull` à la main
-  (mode d'emploi §1).
+- ~~Bouton « Mettre à jour Thessalia »~~ : fait le 24 nov. (Réglages, `mise_a_jour.py` ; avance rapide seulement,
+  refus si un fichier suivi est modifié, pip seulement si `pyproject.toml` change, relance à la main). Les collègues
+  font un dernier `git pull` à la main pour l'obtenir.
+- **Transcription par Claude dans l'interface** (prochaine séance, ~3 h) : carte Réglages (installer `anthropic`,
+  coller / vérifier / masquer la clé, plafond, dépense) ; à la lecture approfondie, choix « Sur ce PC » / « Par Claude »
+  avec confirmation chiffrée avant envoi (cadres, coût estimé, plafond restant) ; tous les champs de code du barème.
+  Aujourd'hui : seulement `python -m thessalia transcrire … --champ qN`.
+- **Source modifiée** : en revenant sur l'onglet d'un examen, fenêtre « Le fichier source a été modifié. Reproduire
+  les PDF ? (OK / Annuler) » + bouton « Ouvrir le dossier de l'examen » (on modifie alors ce YAML-là, plus de recopie
+  depuis `sujets/`). Thessalia ne connaît pas le chemin de l'original déposé par le navigateur.
 - **Mode aperçu d'un sujet** : à chaque enregistrement de l'`examen.yaml`, les PDF se reproduisent seuls et une page
   du navigateur montre les pages du sujet côte à côte, rafraîchie d'elle-même, erreurs de la source en rouge.
   Aujourd'hui : modifier `examens/<nom>/examen.yaml`, recharger la page de l'examen, « Produire les PDF ».

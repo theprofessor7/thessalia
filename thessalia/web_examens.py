@@ -390,7 +390,9 @@ def enregistrer(app, racine: Path, charger, memoire=None):
     def reglages_page():
         from . import extensions, reglages as R
         t = taches.courante if taches.courante and taches.courante["projet"] == REG else None
+        from . import mise_a_jour as M
         return render_template("reglages.html", parametres=R.lire(), cartes=extensions.etat(), tache=t,
+                               version=M.version(), maj_impossible=M.possible(),
                                message=request.args.get("m"))
 
     @app.post("/reglages/parametres")
@@ -406,6 +408,11 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         noms = {"installer": "Installer", "demarrer": "Démarrer", "telecharger": "Télécharger", "supprimer": "Supprimer"}
         return lancer(REG, f"{noms.get(action, action)} : {ident}", lambda log: extensions.agir(ident, action, log),
                       retour="/reglages", reprenable=action == "telecharger")
+
+    @app.post("/reglages/mise-a-jour")
+    def reglages_mise_a_jour():
+        from . import mise_a_jour as M
+        return lancer(REG, "Mettre à jour Thessalia", M.mettre_a_jour, retour="/reglages")
 
     # ---------------------------------------------------------------- apprentissage
     APP = "__apprentissage__"

@@ -29,7 +29,9 @@ l'installeur le demande : `sudo apt install python3-venv`).
 dans le menu des applications, ou `./Thessalia.command`). **Laisser la fenêtre
 noire ouverte.**
 
-**Mettre à jour.** Thessalia fermé : `git pull`, relancer l'installeur, puis Thessalia.
+**Mettre à jour.** Page **Réglages** → **Mettre à jour Thessalia** : les nouveautés s'affichent, puis fermer la
+fenêtre noire et relancer Thessalia. Vos examens et corrections ne sont jamais touchés. Sans ce bouton (version
+d'avant le 24 novembre 2026) : Thessalia fermé, `git pull` dans le dossier de Thessalia, puis relancer Thessalia.
 
 **L'accueil** : une carte par examen, et en bas « Nouvel examen » (sujet source) ou « Importer un sujet » (voir
 [Pour aller plus loin](#pour-aller-plus-loin)). **Ouvrir** mène à l'assistant en six étapes ; **Supprimer** range l'examen
