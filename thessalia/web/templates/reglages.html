@@ -56,5 +56,84 @@
   </section>
 {% endfor %}
 </div>
+
+{% set L = en_ligne %}{% set r = L.reglages %}
+{% set pc = [100, (100 * L.depense / r.plafond_dollars)|round|int]|min if r.plafond_dollars else 100 %}
+<h2 class="section" id="en-ligne">Service en ligne</h2>
+<section class="service {{ 'pret' if L.pret }}">
+  <div class="ext-haut">
+    <span class="ext-ico">☁</span>
+    <div><h3>Transcription du code par un service en ligne</h3>
+      <span class="gris">facultatif · payant, avec votre clé · quelques minutes au lieu d'une nuit</span></div>
+    <span class="badge {{ 'ok' if L.pret }}">{{ 'prêt' if L.pret else 'à configurer' }}</span>
+  </div>
+  <p class="service-intro">Seules les images des cadres de code sont envoyées, jamais le nom ni la copie entière.
+    La transcription s'affiche sous l'image ; vous notez toujours vous-même.
+    {% if L.pret %}À lancer depuis l'étape 4 d'un examen.{% endif %}</p>
+
+  <ol class="service-etapes">
+    <li class="{{ 'fait' if r.modele and not (L.cle_service == 'autre' and not r.adresse) and r.prix_entree_par_million > 0 and r.prix_sortie_par_million > 0 }}">
+      <div class="se-titre"><span class="se-num"></span>Service et prix</div>
+      <form method="post" action="/reglages/en-ligne" class="service-champs">
+        <label class="large">Service
+          <select name="service" onchange="this.form.submit()">
+            {% for k, s in L.services.items() %}<option value="{{ k }}" {{ 'selected' if k == L.cle_service }}>{{ s.nom }}</option>{% endfor %}
+          </select></label>
+        <label class="large">Modèle
+          <input name="modele" value="{{ r.modele or '' }}" placeholder="nom exact, voir le site du service"></label>
+        {% if L.cle_service == 'autre' %}
+        <label class="large">Adresse du service
+          <input name="adresse" value="{{ r.adresse or '' }}" placeholder="https://…/v1"></label>
+        {% endif %}
+        <label>Prix envoyés
+          <span class="unite"><input name="prix_entree" value="{{ r.prix_entree_par_million }}" inputmode="decimal"><i>$ / M jetons</i></span></label>
+        <label>Prix reçus
+          <span class="unite"><input name="prix_sortie" value="{{ r.prix_sortie_par_million }}" inputmode="decimal"><i>$ / M jetons</i></span></label>
+        <label>Plafond cumulé
+          <span class="unite"><input name="plafond" value="{{ r.plafond_dollars }}" inputmode="decimal"><i>$</i></span></label>
+        <div class="large"><button class="bouton">Enregistrer</button></div>
+      </form>
+      {% if not L.service.mesure %}<p class="service-alerte">⚠ <b>Non mesuré.</b> Sa lecture du code manuscrit n'a pas
+        été comparée à des corrections : vérifiez ses transcriptions sur quelques copies avant de vous y fier.</p>{% endif %}
+      <p class="aide">Les prix servent au compte de la dépense et au plafond : vérifiez-les sur le site du service, ils changent.</p>
+    </li>
+
+    <li class="{{ 'fait' if L.biblio }}">
+      <div class="se-titre"><span class="se-num"></span>Bibliothèque <code>{{ L.service.biblio }}</code></div>
+      {% if L.biblio %}<p class="ok">Installée sur ce PC.</p>{% else %}
+      <form method="post" action="/reglages/en-ligne/installer"><button class="bouton principal">Installer</button>
+        <span class="gris">quelques Mo, une fois</span></form>{% endif %}
+    </li>
+
+    <li class="{{ 'fait' if L.cle }}">
+      <div class="se-titre"><span class="se-num"></span>Clé</div>
+      {% if L.cle %}
+      <p class="cle-masquee"><code>{{ L.cle }}</code> <span class="gris">{{ L.origine }}</span></p>
+      <div class="ext-actions">
+        <form method="post" action="/reglages/en-ligne/cle" class="enligne"><input type="hidden" name="action" value="verifier">
+          <button class="bouton">Vérifier</button></form>
+        {% if L.cle_fichier %}<form method="post" action="/reglages/en-ligne/cle" class="enligne"
+            onsubmit="return confirm('Supprimer la clé de ce PC ?')"><input type="hidden" name="action" value="supprimer">
+          <button class="bouton danger">Supprimer</button></form>{% endif %}
+      </div>
+      {% else %}
+      <form method="post" action="/reglages/en-ligne/cle" class="cle-saisie"><input type="hidden" name="action" value="enregistrer">
+        <input type="password" name="cle" placeholder="coller la clé ici" autocomplete="off" required>
+        <button class="bouton principal">Enregistrer et vérifier</button></form>
+      {% endif %}
+      <p class="aide">Elle reste sur ce PC, jamais partagée. Créez-la sur le site du service
+        {%- if L.service.console %} (<a href="{{ L.service.console }}" target="_blank" rel="noopener">{{ L.service.console.split('//')[1] }}</a>){% endif %}
+        et fixez-y une <b>limite de dépense mensuelle</b> : c'est la vraie protection.</p>
+    </li>
+  </ol>
+
+  <div class="service-depense">
+    <span>Dépensé</span>
+    <div class="jauge-fond petite"><div class="jauge-barre {{ 'alerte' if pc >= 80 }}" style="width:{{ pc }}%"></div></div>
+    <b>{{ '%.2f'|format(L.depense)|replace('.', ',') }} $</b>
+    <span class="gris">sur {{ '%.2f'|format(r.plafond_dollars)|replace('.', ',') }} $ · {{ L.appels }} envoi{{ 's' if L.appels > 1 }}</span>
+  </div>
+  {% if not L.pret %}<p class="service-manque">Reste à faire : {{ L.manque|join(' · ') }}.</p>{% endif %}
+</section>
 {% endblock %}
 {% block scripts %}{% include "_tache_js.html" %}{% endblock %}

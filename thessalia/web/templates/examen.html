@@ -170,6 +170,13 @@
     <form class="enligne" method="post" action="/tache/pause"><button class="bouton lecture-en-cours" {{ 'disabled' if profonde.pause }}>⏸ {{ 'Pause demandée…' if profonde.pause else 'Mettre en pause la lecture approfondie' }}</button></form>
     {% elif profonde and profonde.etat == 'en pause' %}
     <form class="enligne" method="post" action="/tache/reprendre"><button class="bouton principal">▶ Reprendre la lecture approfondie</button></form>
+    {% elif approfondie and approfondie.interrompue and approfondie.en_ligne %}
+    <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer" data-en-ligne="{{ e.nom }}">
+      <input type="hidden" name="en_ligne" value="1">
+      <button class="bouton principal" {{ 'disabled' if not (e.lues and en_ligne.pret) }}>▶ Reprendre la transcription par {{ en_ligne.service.nom }}</button>
+    </form>
+    <p class="interrompue">Transcription en ligne interrompue : {{ approfondie.cadres }} cadre(s) de code transcrit(s).
+      Elle reprend où elle s'était arrêtée (les cadres déjà transcrits ne sont pas renvoyés ni repayés).</p>
     {% elif approfondie and approfondie.interrompue %}
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer">
       <button class="bouton principal" {{ 'disabled' if not (e.lues and outils.ollama) }}>▶ Reprendre la lecture approfondie</button>
@@ -196,6 +203,24 @@
       second lecteur. Elle tourne en arrière-plan pendant que vous faites autre chose (le PC reste utilisable, un peu
       plus lent) : quelques heures selon le nombre de copies (case « code seulement » : nettement plus court). Thessalia vous prévient à la fin ; si elle est
       interrompue, la relancer reprend où elle s'était arrêtée.</span>
+    {% if not profonde and not (approfondie and approfondie.interrompue) %}
+    <div class="par-service">
+    {% if en_ligne.pret %}
+      <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer" data-en-ligne="{{ e.nom }}">
+        <input type="hidden" name="en_ligne" value="1">
+        <button class="bouton" {{ 'disabled' if not e.lues }}>Transcrire le code par {{ en_ligne.service.nom }} (payant)</button>
+      </form>
+      <p class="aide">Quelques minutes au lieu d'une nuit, avec votre clé : le coût estimé est affiché avant tout envoi
+        (reste {{ '%.2f'|format(en_ligne.reste) }} $ sous le plafond). Seules les images des cadres de code partent,
+        jamais le nom. Le code est ensuite pré-coché par les règles ; les réponses courtes ne sont pas relues.
+        {% if not en_ligne.service.mesure %}<span class="attente">{{ en_ligne.service.nom }} n'est pas mesuré :
+        vérifiez ses premières transcriptions.</span>{% endif %}</p>
+    {% else %}
+      <p class="aide">Ou par un service en ligne payant (Claude, ChatGPT…), en quelques minutes avec votre clé :
+        <a href="/reglages#en-ligne">à configurer dans Réglages</a>.</p>
+    {% endif %}
+    </div>
+    {% endif %}
     <p class="aide">Modèles locaux : {% set prets = ollama.modeles|selectattr('present')|list %}
       {% if not ollama.installe %}Ollama n'est pas installé.{% elif not ollama.lance %}Ollama est arrêté.{% else %}{{ prets|length }}/{{ ollama.modeles|length }} installés.{% endif %}
       <a href="/reglages">Installer ou gérer dans Réglages</a>.</p>
@@ -262,6 +287,31 @@
 {% endblock %}
 {% block scripts %}{% include "_tache_js.html" %}
 <script>
+// Transcription par un service en ligne : coût estimé et plafond restant, confirmés avant tout envoi.
+document.querySelectorAll('form[data-en-ligne]').forEach(f => f.addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const b = f.querySelector('button'), texte = b.textContent;
+  const d = x => x.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  b.disabled = true; b.textContent = 'Estimation du coût…';
+  try {
+    const r = await (await fetch('/examens/' + encodeURIComponent(f.dataset.enLigne) + '/estimation-en-ligne')).json();
+    if (r.erreur) { alert(r.erreur); return; }
+    if (!r.cadres) { alert('Aucun cadre de code à envoyer : tous sont déjà transcrits ou vides.'); return; }
+    let m = r.cadres + ' cadre' + (r.cadres > 1 ? 's' : '') + ' de code à envoyer à ' + r.service + ' (' + r.modele + ').
+'
+          + 'Coût estimé : environ ' + d(r.cout) + ' $.
+Reste sous le plafond : ' + d(r.reste) + ' $.';
+    if (r.cadres_possibles < r.cadres)
+      m += '
+
+Le plafond arrêtera l'envoi avant la fin (vers ' + r.cadres_possibles + ' cadres) : le relever dans Réglages si vous le décidez.';
+    if (confirm(m + '
+
+Envoyer ?')) { f.submit(); return; }
+  } catch (e) { alert('Estimation impossible : ' + e); }
+  b.disabled = false; b.textContent = texte;
+}));
+
 // Assistant : une étape à la fois (l'adresse garde l'étape : #etape-3), flèches ← → du clavier.
 // Sans JavaScript, toutes les étapes restent affichées l'une sous l'autre.
 (() => {

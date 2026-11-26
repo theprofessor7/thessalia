@@ -50,6 +50,13 @@ sujet distribué**, PDF, **Déposer et lire**. Le nom range la classe dans son g
   quelques heures (une nuit). Pause ⏸ et reprise ▶. Case **code seulement (rapide)** : transcrit et
   pré-coche le code, sans relire les réponses courtes (elles restent en revue) ni réparer les petites fautes avant
   d'exécuter ; nettement plus court.
+- **Transcrire le code par un service en ligne** (facultatif, payant, votre clé) : quelques minutes au lieu d'une
+  nuit. Une fois, dans **Réglages → Service en ligne** : choisir le service (Claude, ChatGPT, Mistral…), **Installer**,
+  coller la clé (créée sur le site du service, où l'on fixe aussi une **limite de dépense mensuelle**), **Enregistrer
+  et vérifier**. Ensuite, à l'étape 4 : **Transcrire le code par …** ; le nombre de cadres et le coût estimé
+  s'affichent avant tout envoi (ordre de grandeur avec Claude : 2 à 3 $ pour une classe). Seules les images des
+  cadres de code partent, jamais le nom ; un plafond de dépense (10 $ par défaut, réglable) arrête tout envoi.
+  Seul Claude a été mesuré : avec un autre service, vérifiez ses premières transcriptions.
 
 Sujet nouveau : tout vous est présenté ; après 30 lectures vérifiées sans erreur, **Sujet validé** laisse la
 machine accepter seule ses lectures sûres.
@@ -133,7 +140,7 @@ copie ; une **feuille d'un autre format** entre deux copies devient une **copie 
   « Importer un sujet produit par un autre générateur ». Pour chaque langue : le PDF du sujet, son corrigé
   (`.key.json`), son vocabulaire (`.vocab.json`) et, recommandé, le fichier de zones, contrôlé contre le PDF.
   Thessalia lit les zones et les points dans le PDF et les affiche : **vérifier les points**.
-- **Réglages** : arrondi de la note, extensions (lecteur d'écriture, Ollama et ses modèles). Sur Linux, Ollama
+- **Réglages** : mise à jour, arrondi de la note, extensions (lecteur d'écriture, Ollama et ses modèles), service en ligne. Sur Linux, Ollama
   s'installe dans un terminal : `curl -fsSL https://ollama.com/install.sh | sh` ; les modèles, depuis Réglages.
 
 Le dossier `examens/` contient des **copies et des noms d'élèves** : ne pas le partager (il n'est jamais envoyé

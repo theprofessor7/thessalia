@@ -19,11 +19,16 @@ import time
 
 
 def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second="qwen3-vl:4b-instruct",
-        sans_code=False, sans_courtes=False, sans_reparateur=False):
-    """sans_reparateur + sans_courtes : « code seulement » (transcription du code et pré-cochage par les règles)."""
+        sans_code=False, sans_courtes=False, sans_reparateur=False, en_ligne=False):
+    """sans_reparateur + sans_courtes : « code seulement » (transcription du code et pré-cochage par les règles).
+    `en_ligne` : code seulement, transcrit par le service en ligne des Réglages (option payante, sur clé)."""
     from .code_tests import run as precocher
-    from .lecteur_code import modeles_ollama, run_local
+    from .lecteur_code import modeles_ollama, run_en_ligne, run_local
     from .second_lecteur import run as relire
+
+    if en_ligne:
+        return _enchainer([("transcription du code (service en ligne)", lambda: run_en_ligne(dossiers)),
+                           ("pré-cochage par les tests", lambda: precocher(dossiers, None))])
 
     dispo = modeles_ollama()
     if dispo is None:
@@ -35,7 +40,6 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
               if utile and m not in dispo]
     for m in manque:
         print(f"  modèle absent : {m}  →  pour l'installer : ollama pull {m}")
-    t0 = time.time()
     etapes = []
     if not sans_code:
         if vision in dispo:
@@ -52,7 +56,12 @@ def run(dossiers, vision="qwen3-vl:8b-instruct", reparateur="qwen3:14b", second=
             etapes.append(("second lecteur des réponses courtes", lambda: relire(dossiers, second)))
         else:
             print("  → second lecteur sauté")
+    _enchainer(etapes)
+
+
+def _enchainer(etapes):
     from . import avancement
+    t0 = time.time()
     for i, (nom, f) in enumerate(etapes, 1):
         print(f"\n=== {i}/{len(etapes)} {nom} ({(time.time() - t0) / 60:.0f} min écoulées)", flush=True)
         avancement.etape(f"étape {i}/{len(etapes)} · ")

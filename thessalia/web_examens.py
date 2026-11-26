@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from urllib.parse import quote
 
-from . import ollama_local
+from . import lecteur_code, ollama_local
 from .projet import (Projet, corbeille, creer, importer_fichiers, mettre_a_la_corbeille, nom_depuis_fichier, nom_valide, outils,
                      projets, restaurer)
 
@@ -289,6 +289,7 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         return render_template("examen.html", e=e, approfondie=appr, pdfs=[f.name for f in p.pdfs()], tache=t, etapes=etapes,
                                courante=courante,
                                ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=out,
+                               en_ligne=lecteur_code.etat_en_ligne(),
                                liste=p.liste(), reglages=p.reglages(), noms=p.controle_noms(), images_inutilisees=p.images_inutilisees(), ollama=ollama_local.etat(), validation=p.mesure_lecture() if resume_lues(p) else {},
                                notes=time.strftime("%d/%m/%Y %H:%M", time.localtime(notes.stat().st_mtime))
                                if notes.exists() else None)
@@ -392,6 +393,7 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         t = taches.courante if taches.courante and taches.courante["projet"] == REG else None
         from . import mise_a_jour as M
         return render_template("reglages.html", parametres=R.lire(), cartes=extensions.etat(), tache=t,
+                               en_ligne=lecteur_code.etat_en_ligne(),
                                version=M.version(), maj_impossible=M.possible(),
                                message=request.args.get("m"))
 
@@ -408,6 +410,38 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         noms = {"installer": "Installer", "demarrer": "Démarrer", "telecharger": "Télécharger", "supprimer": "Supprimer"}
         return lancer(REG, f"{noms.get(action, action)} : {ident}", lambda log: extensions.agir(ident, action, log),
                       retour="/reglages", reprenable=action == "telecharger")
+
+    @app.post("/reglages/en-ligne")
+    def reglages_en_ligne():
+        from . import lecteur_code as L
+        f = request.form
+        ancien = L.reglages()["service"]
+        L.enregistrer(service=f.get("service"), modele=f.get("modele"), adresse=f.get("adresse"),
+                      plafond=f.get("plafond"), prix_entree=f.get("prix_entree"), prix_sortie=f.get("prix_sortie"))
+        nouveau = L.reglages()["service"]
+        return redirect(_vers("/reglages", f"Service choisi : {L.SERVICES[nouveau]['nom']}." if nouveau != ancien
+                              else "Service en ligne : réglages enregistrés.") + "#en-ligne")
+
+    @app.post("/reglages/en-ligne/cle")
+    def reglages_en_ligne_cle():
+        from . import lecteur_code as L
+        action = request.form.get("action")
+        if action == "supprimer":
+            L.supprimer_cle()
+            return redirect(_vers("/reglages", "Clé supprimée de ce PC.") + "#en-ligne")
+        if action == "enregistrer":
+            try:
+                L.enregistrer_cle(request.form.get("cle"))
+            except ValueError as e:
+                return redirect(_vers("/reglages", f"Clé non enregistrée : {e}.") + "#en-ligne")
+        ok, m = L.verifier_cle()
+        return redirect(_vers("/reglages", ("Clé enregistrée. " if action == "enregistrer" else "")
+                              + ("Vérification : " if ok else "Attention : ") + m + ".") + "#en-ligne")
+
+    @app.post("/reglages/en-ligne/installer")
+    def reglages_en_ligne_installer():
+        from . import lecteur_code as L
+        return lancer(REG, "Installer la bibliothèque du service en ligne", L.installer_biblio, retour="/reglages")
 
     @app.post("/reglages/mise-a-jour")
     def reglages_mise_a_jour():
@@ -476,8 +510,24 @@ def enregistrer(app, racine: Path, charger, memoire=None):
     def preparer(nom):
         p = projet(nom)
         rapide = request.form.get("rapide") == "1"
+        if request.form.get("en_ligne") == "1":
+            from .lecteur_code import etat_en_ligne
+            et = etat_en_ligne()
+            if not et["pret"]:
+                return redirect(_vers(f"/examens/{nom}", "Service en ligne pas prêt (Réglages) : "
+                                      + ", ".join(et["manque"]), 4))
+            return lancer(nom, f"Lecture approfondie : code par {et['service']['nom']}",
+                          lambda log: p.preparer(log=log, en_ligne=True), apres_lecture(nom), reprenable=True)
         return lancer(nom, "Lecture approfondie : code seulement" if rapide else "Lecture approfondie (code, relecture)",
                       lambda log: p.preparer(log=log, rapide=rapide), apres_lecture(nom), reprenable=True)
+
+    @app.route("/examens/<nom>/estimation-en-ligne")
+    def estimation_en_ligne(nom):
+        from .lecteur_code import estimer
+        p = projet(nom)
+        if not p.dossiers_lus():
+            return jsonify({"erreur": "aucune classe lue"})
+        return jsonify(estimer(p.dossiers_lus()))
 
     @app.post("/examens/<nom>/liste")
     def deposer_liste(nom):

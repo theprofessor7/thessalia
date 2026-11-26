@@ -25,10 +25,11 @@ Avant le déploiement chez les collègues, le code a été nettoyé.
 - ~~Bouton « Mettre à jour Thessalia »~~ : fait le 24 nov. (Réglages, `mise_a_jour.py` ; avance rapide seulement,
   refus si un fichier suivi est modifié, pip seulement si `pyproject.toml` change, relance à la main). Les collègues
   font un dernier `git pull` à la main pour l'obtenir.
-- **Transcription par Claude dans l'interface** (prochaine séance, ~3 h) : carte Réglages (installer `anthropic`,
-  coller / vérifier / masquer la clé, plafond, dépense) ; à la lecture approfondie, choix « Sur ce PC » / « Par Claude »
-  avec confirmation chiffrée avant envoi (cadres, coût estimé, plafond restant) ; tous les champs de code du barème.
-  Aujourd'hui : seulement `python -m thessalia transcrire … --champ qN`.
+- ~~Transcription par un service en ligne dans l'interface~~ : fait le 26 nov. Réglages → « Service en ligne »
+  (Claude mesuré ; ChatGPT, Mistral, autre compatible OpenAI « non mesurés », modèle et prix à saisir ; clé collée,
+  vérifiée par un appel gratuit, affichée masquée ; plafond) ; étape 4, « Transcrire le code par … » avec confirmation
+  chiffrée (`lecteur_code.estimer` : ~0,015 $ par cadre avec Opus 5.5, estimation non encore comparée à une facture
+  réelle). Puis pré-cochage par les règles. Premier essai réel : le collègue qui a sa clé (bêta-testeur).
 - **Source modifiée** : en revenant sur l'onglet d'un examen, fenêtre « Le fichier source a été modifié. Reproduire
   les PDF ? (OK / Annuler) » + bouton « Ouvrir le dossier de l'examen » (on modifie alors ce YAML-là, plus de recopie
   depuis `sujets/`). Thessalia ne connaît pas le chemin de l'original déposé par le navigateur.

@@ -279,21 +279,26 @@ class Projet:
         except SystemExit as e:
             log(f"noms non lus : {e}")
 
-    def preparer(self, log=print, rapide=False):
+    def preparer(self, log=print, rapide=False, en_ligne=False):
         """Lecture approfondie (code transcrit et pré-coché, réponses courtes relues) avec les modèles Ollama
         présents ; ses messages (print) arrivent dans le journal de la tâche. Son début et sa fin sont notés : une
         lecture interrompue (pause, Thessalia fermé) se voit à la page de l'examen, qui propose de la reprendre.
         `rapide` : transcription du code et pré-cochage par les règles seulement (sans réparateur ni relecture des
-        réponses courtes) ; quelques heures de moins sur un PC sans carte graphique."""
+        réponses courtes) ; quelques heures de moins sur un PC sans carte graphique. `en_ligne` : code seulement,
+        transcrit par le service en ligne des Réglages (payant, quelques minutes)."""
         from .preparer import run
         dossiers = self.dossiers_lus()
         if not dossiers:
             raise SystemExit("aucune classe lue")
-        self._noter_approfondie(etat="en cours", debut=time.strftime("%Y-%m-%d %H:%M"), rapide=rapide)
-        if rapide:
+        self._noter_approfondie(etat="en cours", debut=time.strftime("%Y-%m-%d %H:%M"), rapide=rapide or en_ligne,
+                                en_ligne=en_ligne)
+        if en_ligne:
+            log("Code seulement, transcrit par le service en ligne, puis pré-coché par les règles (les réponses "
+                "courtes ne sont pas relues).")
+        elif rapide:
             log("Code seulement : transcription du code et pré-cochage par les règles (sans réparateur ni relecture "
                 "des réponses courtes).")
-        run(dossiers, sans_courtes=rapide, sans_reparateur=rapide)
+        run(dossiers, sans_courtes=rapide, sans_reparateur=rapide, en_ligne=en_ligne)
         self._noter_approfondie(etat="terminée", fin=time.strftime("%Y-%m-%d %H:%M"))
 
     def _noter_approfondie(self, **valeurs):
