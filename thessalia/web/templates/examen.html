@@ -212,13 +212,17 @@
         <button class="bouton" {{ 'disabled' if not e.lues }}>Transcrire le code par {{ en_ligne.service.nom }} (payant)</button>
       </form>
       <p class="aide">Quelques minutes au lieu d'une nuit, avec votre clé : le coût estimé est affiché avant tout envoi
-        (reste {{ '%.2f'|format(en_ligne.reste) }} $ sous le plafond). Seules les images des cadres de code partent,
-        jamais le nom. Le code est ensuite pré-coché par les règles ; les réponses courtes ne sont pas relues.
+        (reste {{ '%.2f'|format(en_ligne.reste) }} $ sous le plafond). Le code est ensuite pré-coché par les règles ;
+        les réponses courtes ne sont pas relues.
         {% if not en_ligne.service.mesure %}<span class="attente">{{ en_ligne.service.nom }} n'est pas mesuré :
         vérifiez ses premières transcriptions.</span>{% endif %}</p>
+      <p class="ps-confidentiel">🔒 <b>Données des élèves protégées</b> : seule l'image de chaque cadre de code est
+        envoyée, sans nom, sans copie entière, sans note.</p>
     {% else %}
       <p><b>Plus rapide : un service en ligne</b> (Claude, ChatGPT…), en quelques minutes au lieu d'une nuit, payant,
         avec votre clé. <a class="bouton" href="/reglages#en-ligne">Configurer dans Réglages →</a></p>
+      <p class="ps-confidentiel">🔒 <b>Données des élèves protégées</b> : seule l'image de chaque cadre de code est
+        envoyée, sans nom, sans copie entière, sans note.</p>
     {% endif %}
     </div></div>
     {% endif %}

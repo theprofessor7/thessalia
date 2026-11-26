@@ -67,8 +67,9 @@
       <span class="gris">facultatif · payant, avec votre clé · quelques minutes au lieu d'une nuit</span></div>
     <span class="badge {{ 'ok' if L.pret }}">{{ 'prêt' if L.pret else 'à configurer' }}</span>
   </div>
-  <p class="service-intro">Seules les images des cadres de code sont envoyées, jamais le nom ni la copie entière.
-    La transcription s'affiche sous l'image ; vous notez toujours vous-même.
+  <p class="service-intro">🔒 <b>Données des élèves protégées</b> : seule l'image de chaque cadre de code est
+    envoyée, sans nom, sans copie entière, sans note. La transcription s'affiche sous l'image ; vous notez toujours
+    vous-même.
     {% if L.pret %}À lancer depuis l'étape 4 d'un examen.{% endif %}</p>
 
   <ol class="service-etapes">

@@ -506,3 +506,4 @@ li.fait .se-num::before { content:"✓"; }
 .par-service.pret { background:var(--justef); border-color:var(--juste); }
 .par-service.pret .ps-ico { background:var(--juste); }
 .par-service .aide { margin:6px 0 0; }
+.par-service p.ps-confidentiel { margin-top:8px; font-size:13px; }
