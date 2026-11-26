@@ -44,7 +44,7 @@ def main(argv=None):
     tr = sub.add_parser("transcrire", help="code manuscrit lu par un service en ligne (option payante, plafonnée) "
                                            "ou --local (Ollama, gratuit)")
     tr.add_argument("dossiers", nargs="+", help="dossiers de classes (examens/<nom>/classes/<classe>)")
-    tr.add_argument("--champ", action="append", help="champ(s) de code : q12, q18… (en local : tous par défaut)")
+    tr.add_argument("--champ", action="append", help="champ(s) de code : q12, q18… (défaut : tous les champs de code du barème)")
     tr.add_argument("--local", nargs="?", const="qwen3-vl:8b-instruct", metavar="MODELE",
                     help="modèle de vision local via Ollama (gratuit, rien ne sort du PC) ; défaut qwen3-vl:8b-instruct")
     tr.add_argument("--refaire", action="store_true", help="local : relire aussi les cadres déjà transcrits par la machine")

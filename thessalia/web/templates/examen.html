@@ -204,7 +204,8 @@
       plus lent) : quelques heures selon le nombre de copies (case « code seulement » : nettement plus court). Thessalia vous prévient à la fin ; si elle est
       interrompue, la relancer reprend où elle s'était arrêtée.</span>
     {% if not profonde and not (approfondie and approfondie.interrompue) %}
-    <div class="par-service">
+    <div class="par-service {{ 'pret' if en_ligne.pret }}">
+    <span class="ps-ico">☁</span><div>
     {% if en_ligne.pret %}
       <form class="enligne" method="post" action="/examens/{{ e.nom }}/preparer" data-en-ligne="{{ e.nom }}">
         <input type="hidden" name="en_ligne" value="1">
@@ -216,10 +217,10 @@
         {% if not en_ligne.service.mesure %}<span class="attente">{{ en_ligne.service.nom }} n'est pas mesuré :
         vérifiez ses premières transcriptions.</span>{% endif %}</p>
     {% else %}
-      <p class="aide">Ou par un service en ligne payant (Claude, ChatGPT…), en quelques minutes avec votre clé :
-        <a href="/reglages#en-ligne">à configurer dans Réglages</a>.</p>
+      <p><b>Plus rapide : un service en ligne</b> (Claude, ChatGPT…), en quelques minutes au lieu d'une nuit, payant,
+        avec votre clé. <a class="bouton" href="/reglages#en-ligne">Configurer dans Réglages →</a></p>
     {% endif %}
-    </div>
+    </div></div>
     {% endif %}
     <p class="aide">Modèles locaux : {% set prets = ollama.modeles|selectattr('present')|list %}
       {% if not ollama.installe %}Ollama n'est pas installé.{% elif not ollama.lance %}Ollama est arrêté.{% else %}{{ prets|length }}/{{ ollama.modeles|length }} installés.{% endif %}
