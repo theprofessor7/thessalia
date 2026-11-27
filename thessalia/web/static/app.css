@@ -213,6 +213,12 @@ body.pinceau-actif .carte:hover { outline: 3px solid var(--accent); }
 .carte.peinte { outline: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--carte)); }
 #bandeau-pinceau { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 50;
   background: var(--accent); color: #fff; padding: 7px 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+/* pinceau rouge : il porte le verdict « faux » (la lecture n'est pas touchée) */
+body.pinceau-verdict .carte { cursor: cell; }
+body.pinceau-verdict .carte:hover { outline-color: var(--faux); }
+body.pinceau-verdict .carte.peinte { outline-color: var(--faux); background: color-mix(in srgb, var(--faux) 12%, var(--carte)); }
+body.pinceau-verdict #bandeau-pinceau { background: var(--faux); }
+.verdict.pinceau-faux { padding-left: 6px; padding-right: 6px; margin-left: -4px; color: var(--faux); }
 /* pré-cochage du code par exécution (precocher) */
 .tests-complet { font-size:12px; color:var(--juste); font-weight:600; }
 .test-ok { font-size:11px; color:var(--juste); }

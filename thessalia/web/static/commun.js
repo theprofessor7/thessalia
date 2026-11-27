@@ -21,18 +21,25 @@ function fmt(x) { return (Math.round(x * 100) / 100).toString().replace(".", ","
 // Pinceau (idée de l'enseignant, 23 octobre 2026) : une lecture prise sur une carte (🖌 ou touche P) s'applique
 // aux vignettes cliquées, ou survolées bouton de la souris enfoncé ; Échap le repose. Même enregistrement qu'un
 // clic sur une autre lecture (verdict recalculé) ; chaque carte reste visible et annulable (↺).
-const PINCEAU = {valeur: null, appui: false, faites: new Set()};
+// Pinceau rouge (27 novembre 2026) : il porte un verdict, « faux », au lieu d'une lecture (🖌 à côté de « ✗ faux »
+// ou touche F) : pour les réponses fausses dont la lecture exacte n'importe pas. La lecture n'est pas touchée, donc
+// rien n'est appris sur l'écriture : le pinceau bleu (lecture) reste l'outil qui entraîne le lecteur.
+const PINCEAU = {valeur: null, verdict: null, appui: false, faites: new Set()};
+const pinceauPris = () => PINCEAU.valeur != null || PINCEAU.verdict != null;
 function afficherPinceau() {
   let b = document.getElementById("bandeau-pinceau");
   if (!b) { b = el("div", {id: "bandeau-pinceau"}); document.body.append(b); }
-  document.body.classList.toggle("pinceau-actif", PINCEAU.valeur != null);
-  b.hidden = PINCEAU.valeur == null;
-  b.textContent = PINCEAU.valeur == null ? "" : "🖌 pinceau : « " + PINCEAU.valeur
-    + " » · cliquez ou glissez (bouton enfoncé) sur les vignettes · Échap pour reposer";
+  document.body.classList.toggle("pinceau-actif", pinceauPris());
+  document.body.classList.toggle("pinceau-verdict", PINCEAU.verdict != null);
+  b.hidden = !pinceauPris();
+  const suite = " · cliquez ou glissez (bouton enfoncé) sur les vignettes · Échap pour reposer";
+  b.textContent = PINCEAU.verdict != null ? "🖌 pinceau : " + LIBELLE[PINCEAU.verdict] + " (la lecture n'est pas touchée)" + suite
+    : PINCEAU.valeur != null ? "🖌 pinceau : « " + PINCEAU.valeur + " »" + suite : "";
 }
-function prendrePinceau(v) { PINCEAU.valeur = v; PINCEAU.faites.clear(); afficherPinceau(); }
-function poserPinceau() { PINCEAU.valeur = null; PINCEAU.appui = false; PINCEAU.faites.clear(); afficherPinceau(); }
-document.addEventListener("keydown", ev => { if (ev.key === "Escape" && PINCEAU.valeur != null) poserPinceau(); });
+function prendrePinceau(v) { PINCEAU.valeur = v; PINCEAU.verdict = null; PINCEAU.faites.clear(); afficherPinceau(); }
+function prendrePinceauVerdict(v) { PINCEAU.verdict = v; PINCEAU.valeur = null; PINCEAU.faites.clear(); afficherPinceau(); }
+function poserPinceau() { PINCEAU.valeur = PINCEAU.verdict = null; PINCEAU.appui = false; PINCEAU.faites.clear(); afficherPinceau(); }
+document.addEventListener("keydown", ev => { if (ev.key === "Escape" && pinceauPris()) poserPinceau(); });
 document.addEventListener("mouseup", () => { PINCEAU.appui = false; PINCEAU.faites.clear(); });
 
 // D'où vient la proposition (ou la décision) affichée sur une carte : étiquette, famille (couleur), explication.
@@ -365,6 +372,12 @@ function carte(it, surDecision, opts = {}) {
                                 title: {juste: "1", forme: "2", faux: "3", vide: "4 : rien d'écrit", illisible: "5 : impossible à lire (0 point)"}[v]});
         b.onclick = () => envoyer({verdict: v});
         ligne.append(b);
+        if (v === "faux") {
+          const pf = el("button", {className: "verdict pinceau-faux", textContent: "🖌", tabIndex: -1,
+                                   title: "prendre « faux » au pinceau rouge (F), puis cliquer ou glisser sur les autres vignettes ; la lecture n'est pas touchée"});
+          pf.onclick = ev => { ev.stopPropagation(); prendrePinceauVerdict("faux"); };
+          ligne.append(pf);
+        }
       }
       if (it.origine === "enseignant") {
         const annul = el("button", {className: "verdict annuler", textContent: "↺", title: "annuler ma décision (Suppr)", tabIndex: -1});
@@ -379,6 +392,7 @@ function carte(it, surDecision, opts = {}) {
       c.vide = () => envoyer({verdict: "vide"});
       c.lu = lu;
       c.peindreAvec = v => envoyer({texte: v});
+      c.peindreVerdict = v => envoyer({verdict: v});
     }
     peindre();
   };
@@ -435,6 +449,7 @@ function carte(it, surDecision, opts = {}) {
     else if (!it.qcm && TOUCHE[ev.key]) { ev.preventDefault(); envoyer({verdict: TOUCHE[ev.key]}, true); }
     else if (!it.qcm && (ev.key === "t" || ev.key === "T")) { ev.preventDefault(); saisir(); }
     else if (!it.qcm && (ev.key === "p" || ev.key === "P") && c.lu != null && c.lu !== "") { ev.preventDefault(); prendrePinceau(c.lu); }
+    else if (!it.qcm && (ev.key === "f" || ev.key === "F")) { ev.preventDefault(); prendrePinceauVerdict("faux"); }
     else if (!it.qcm && (ev.key === "l" || ev.key === "L") && it.proposition != null) { ev.preventDefault(); envoyer({texte: it.proposition}); }
     else if (!it.qcm && ["6", "7", "8"].includes(ev.key) && (c.alternatives || [])[+ev.key - 6] != null) {
       ev.preventDefault(); envoyer({texte: c.alternatives[+ev.key - 6]});
@@ -444,14 +459,14 @@ function carte(it, surDecision, opts = {}) {
     else if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); bouger(c, ev.key === "ArrowDown" ? 1 : -1); }
   });
   const appliquerPinceau = () => {
-    if (PINCEAU.valeur == null || it.qcm || it.code || !c.peindreAvec || PINCEAU.faites.has(c)) return;
+    if (!pinceauPris() || it.qcm || it.code || !c.peindreAvec || PINCEAU.faites.has(c)) return;
     PINCEAU.faites.add(c);
     c.classList.add("peinte");
     setTimeout(() => c.classList.remove("peinte"), 600);
-    c.peindreAvec(PINCEAU.valeur);
+    if (PINCEAU.verdict != null) c.peindreVerdict(PINCEAU.verdict); else c.peindreAvec(PINCEAU.valeur);
   };
   c.addEventListener("mousedown", ev => {
-    if (PINCEAU.valeur == null || ev.button !== 0 || ev.target.closest("button, a, input")) return;
+    if (!pinceauPris() || ev.button !== 0 || ev.target.closest("button, a, input")) return;
     ev.preventDefault();
     PINCEAU.appui = true;
     appliquerPinceau();

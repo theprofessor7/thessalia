@@ -41,6 +41,10 @@ Avant le déploiement chez les collègues, le code a été nettoyé.
   mis en cache) ; jauge globale + ligne par classe (copies complètes, reste à décider) ; bouton « ▶ Continuer la
   correction (N à décider) » / « Correction finie · revoir des décisions ». Étape 6 : export pas bloqué mais
   « Exporter les notes partielles » + encart et confirmation tant que la correction n'est pas finie.
+- Fait le 27 nov. (idée de l'enseignant) : **pinceau rouge** « faux » (🖌 à côté de « ✗ faux », touche F), à côté
+  du pinceau bleu des lectures (inchangé) : il pose le verdict sans toucher la lecture, donc n'apprend rien au
+  lecteur. Idée suivante notée : « pot de peinture » (tout le reste de la page en faux), seulement avec
+  confirmation chiffrée et annulation groupée.
 - **Mode aperçu d'un sujet** : à chaque enregistrement de l'`examen.yaml`, les PDF se reproduisent seuls et une page
   du navigateur montre les pages du sujet côte à côte, rafraîchie d'elle-même, erreurs de la source en rouge.
   Aujourd'hui : modifier `examens/<nom>/examen.yaml`, recharger la page de l'examen, « Produire les PDF ».

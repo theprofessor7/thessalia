@@ -361,3 +361,6 @@ def test_scripts_des_pages_valides(tmp_path):
             f.write_text(js, encoding="utf-8")
             r = subprocess.run(["node", "--check", str(f)], capture_output=True, text=True)
             assert r.returncode == 0, f"{url}, script {i} : {r.stderr}"
+    for js in (Path(__file__).parent.parent / "thessalia" / "web" / "static").glob("*.js"):
+        r = subprocess.run(["node", "--check", str(js)], capture_output=True, text=True)
+        assert r.returncode == 0, f"{js.name} : {r.stderr}"
