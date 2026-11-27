@@ -302,17 +302,11 @@ document.querySelectorAll('form[data-en-ligne]').forEach(f => f.addEventListener
     const r = await (await fetch('/examens/' + encodeURIComponent(f.dataset.enLigne) + '/estimation-en-ligne')).json();
     if (r.erreur) { alert(r.erreur); return; }
     if (!r.cadres) { alert('Aucun cadre de code à envoyer : tous sont déjà transcrits ou vides.'); return; }
-    let m = r.cadres + ' cadre' + (r.cadres > 1 ? 's' : '') + ' de code à envoyer à ' + r.service + ' (' + r.modele + ').
-'
-          + 'Coût estimé : environ ' + d(r.cout) + ' $.
-Reste sous le plafond : ' + d(r.reste) + ' $.';
+    let m = r.cadres + ' cadre' + (r.cadres > 1 ? 's' : '') + ' de code à envoyer à ' + r.service + ' (' + r.modele + ').\n'
+          + 'Coût estimé : environ ' + d(r.cout) + ' $.\nReste sous le plafond : ' + d(r.reste) + ' $.';
     if (r.cadres_possibles < r.cadres)
-      m += '
-
-Le plafond arrêtera l'envoi avant la fin (vers ' + r.cadres_possibles + ' cadres) : le relever dans Réglages si vous le décidez.';
-    if (confirm(m + '
-
-Envoyer ?')) { f.submit(); return; }
+      m += "\n\nLe plafond arrêtera l'envoi avant la fin (vers " + r.cadres_possibles + ' cadres) : le relever dans Réglages si vous le décidez.';
+    if (confirm(m + '\n\nEnvoyer ?')) { f.submit(); return; }
   } catch (e) { alert('Estimation impossible : ' + e); }
   b.disabled = false; b.textContent = texte;
 }));
