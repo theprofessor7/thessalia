@@ -16,6 +16,17 @@ from .projet import (Projet, corbeille, creer, importer_fichiers, mettre_a_la_co
                      projets, restaurer)
 
 
+def ouvrir_dossier(dossier: Path):
+    """Ouvre le dossier dans l'explorateur de fichiers du PC (l'application tourne sur le PC de l'enseignant)."""
+    import os
+    import subprocess
+    import sys
+    if sys.platform == "win32":
+        os.startfile(dossier)                                       # noqa: S606 (dossier de l'examen, chemin connu)
+    else:
+        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(dossier)])
+
+
 class Pause(BaseException):
     """Pause demandée par l'enseignant : levée au prochain message de la tâche. BaseException, pour traverser les
     `except Exception` des modules (une copie qui échoue ne doit pas avaler la pause)."""
@@ -137,7 +148,7 @@ ETAPE_DES_TACHES = (("Produire", 2), ("Lire les copies", 3), ("Lire les réponse
                     ("Lecture approfondie", 4), ("Exporter", 6))
 
 
-def etapes_examen(e, tache, ouvert, notes, trocr, approfondie=None):
+def etapes_examen(e, tache, ouvert, notes, trocr, approfondie=None, correction=None):
     """Assistant de la page d'examen : état de chaque étape et celle où ouvrir la page.
     Une étape n'est grisée que si un VRAI prérequis manque (pas de dépôt sans PDF produits, pas de correction ni
     d'export sans classe lue) ; une étape faite reste toujours accessible (le parcours n'est pas linéaire : une
@@ -154,8 +165,9 @@ def etapes_examen(e, tache, ouvert, notes, trocr, approfondie=None):
          # une lecture approfondie interrompue (Thessalia fermé, pause) garde l'étape « à faire » : on y revient
          "faite": bool(lues) and e["courtes"] == lues and not (approfondie or {}).get("interrompue"),
          "bloque": sans_classe},
-        {"n": 5, "titre": "Correction", "faite": bool(ouvert), "bloque": sans_classe},
-        {"n": 6, "titre": "Notes", "faite": bool(notes), "bloque": sans_classe},
+        # correction faite = toutes les classes déposées lues et toutes leurs réponses décidées (pas « ouverte une fois »)
+        {"n": 5, "titre": "Correction", "faite": correction["fini"] if correction else bool(ouvert), "bloque": sans_classe},
+        {"n": 6, "titre": "Notes", "faite": bool(notes) and (correction is None or correction["fini"]), "bloque": sans_classe},
     ]
     courante = None
     if tache:
@@ -285,9 +297,11 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         if appr:
             appr["en_tache"] = bool(t and t["titre"].startswith("Lecture approfondie") and t["etat"] in ("en cours", "en pause"))
             appr["interrompue"] = appr["etat"] == "en cours" and not appr["en_tache"]
-        etapes, courante = etapes_examen(e, t, etat["ouvert"] == nom, notes.exists(), out["trocr"], appr)
+        correction = p.avancement_correction()
+        etapes, courante = etapes_examen(e, t, etat["ouvert"] == nom, notes.exists(), out["trocr"], appr, correction)
         return render_template("examen.html", e=e, approfondie=appr, pdfs=[f.name for f in p.pdfs()], tache=t, etapes=etapes,
-                               courante=courante,
+                               courante=courante, signature=p.signature_source(), correction=correction,
+                               source_nom=p.source.name if p.source else None,
                                ouvert=etat["ouvert"] == nom, message=request.args.get("m"), outils=out,
                                en_ligne=lecteur_code.etat_en_ligne(),
                                liste=p.liste(), reglages=p.reglages(), noms=p.controle_noms(), images_inutilisees=p.images_inutilisees(), ollama=ollama_local.etat(), validation=p.mesure_lecture() if resume_lues(p) else {},
@@ -306,6 +320,22 @@ def enregistrer(app, racine: Path, charger, memoire=None):
         for f in request.files.getlist("images"):
             if f and f.filename and nom_valide(f.filename):
                 (p.dir / f.filename).write_bytes(f.read())
+        return redirect(f"/examens/{nom}")
+
+    @app.route("/examens/<nom>/source-etat")
+    def source_etat(nom):
+        """Interrogé par la page quand on revient sur son onglet : la source a-t-elle changé depuis l'affichage ?"""
+        p = projet(nom)
+        _, err = p.controle()
+        return jsonify(signature=p.signature_source(), a_jour=p.produit_a_jour(), erreurs=len(err or []))
+
+    @app.post("/examens/<nom>/ouvrir-dossier")
+    def ouvrir_dossier_examen(nom):
+        p = projet(nom)
+        try:
+            ouvrir_dossier(p.dir.resolve())
+        except OSError as e:
+            return redirect(_vers(f"/examens/{nom}", f"Dossier impossible à ouvrir ({e}) : il est ici, {p.dir.resolve()}"))
         return redirect(f"/examens/{nom}")
 
     def lancer(nom, titre, fn, apres=None, retour=None, reprenable=False):

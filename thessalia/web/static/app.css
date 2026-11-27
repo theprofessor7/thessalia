@@ -507,3 +507,19 @@ li.fait .se-num::before { content:"✓"; }
 .par-service.pret .ps-ico { background:var(--juste); }
 .par-service .aide { margin:6px 0 0; }
 .par-service p.ps-confidentiel { margin-top:8px; font-size:13px; }
+
+/* page d'un examen : source modifiée hors de Thessalia depuis la dernière production des PDF */
+.source-modifiee { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:10px 0 14px; padding:10px 14px;
+                   background:var(--doutef); border-left:5px solid var(--doute); border-radius:10px; max-width:980px; }
+.source-modifiee span { flex:1; min-width:260px; }
+
+/* étape 5 : avancement de la correction ; étape 6 : export partiel signalé */
+.avancement-correction { margin:6px 0 14px; padding:12px 14px; border:1px solid var(--trait); border-left:5px solid var(--doute);
+                         border-radius:10px; background:var(--carte); max-width:980px; }
+.avancement-correction.fini { border-left-color:var(--juste); }
+.ac-total { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.ac-total .jauge-fond { flex:1; min-width:160px; }
+.ac-classes { margin-top:10px; }
+.ac-classes .jauge-fond { min-width:120px; }
+.export-partiel { margin:10px 0; padding:10px 14px; border-radius:10px; background:var(--doutef);
+                  border-left:5px solid var(--doute); max-width:980px; }

@@ -26,6 +26,7 @@ from .sujet.source import ErreurSujet
 
 RACINE = Path("examens")
 SOURCES = {".yaml", ".yml", ".png", ".jpg", ".jpeg", ".svg", ".gif"}    # fichiers dont dépendent les PDF produits
+_AVANCEMENT = {}    # dossier d'examen -> (signature des fichiers, avancement de la correction) : recalcul ~0,5 s évité
 VALIDATION_MIN = 30     # lectures vérifiées par l'enseignant, sans aucun écart, avant de valider un sujet
 RE_NOM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,60}$")
 
@@ -121,6 +122,13 @@ class Projet:
         return sorted(f.name for f in self.dir.iterdir()
                       if f.is_file() and f.suffix.lower() in SOURCES - {".yaml", ".yml"} and f.name not in texte)
 
+    def signature_source(self) -> float:
+        """Date de la dernière modification de la source ou de ses images (0 si aucune) : la page de l'examen la
+        compare à celle de son affichage pour proposer de reproduire les PDF."""
+        # seulement la source et ses images (pas decisions.sqlite, modifié à chaque correction)
+        return max((p.stat().st_mtime for p in self.dir.iterdir() if p.is_file() and p.suffix.lower() in SOURCES),
+                   default=0.0)
+
     def produit_a_jour(self) -> bool:
         """Les PDF et corrigés produits sont-ils plus récents que la source (et ses images) ?"""
         if self.importe is not None:
@@ -128,10 +136,7 @@ class Projet:
         if self.source is None or not self.corriges.is_dir():
             return False
         faits = [p.stat().st_mtime for p in self.corriges.glob("*.key.json")]
-        # seulement la source et ses images (pas decisions.sqlite, modifié à chaque correction)
-        sources = [p.stat().st_mtime for p in self.dir.iterdir()
-                   if p.is_file() and p.suffix.lower() in SOURCES]
-        return bool(faits) and min(faits) >= max(sources)
+        return bool(faits) and min(faits) >= self.signature_source()
 
     def produire(self, log=print):
         from .sujet import produire_tout
@@ -213,6 +218,43 @@ class Projet:
 
     def dossiers_lus(self):
         return [self.classes_dir / c["classe"] for c in self.classes() if c["lue"]]
+
+    def avancement_correction(self):
+        """Où en est la correction, classe par classe (mêmes règles que l'outil de correction et l'export : mémoire
+        des verdicts comprise). Une classe déposée mais pas lue compte comme pas commencée. None sans classe.
+        {classes: [{classe, lue, copies, a_decider, total, completes, commencee}], a_decider, total, decidees,
+         pas_lues, fini}"""
+        from .correction import Classe, Decisions, Memory
+        lignes = self.classes()
+        if not lignes:
+            return None
+        st = self.stockage()
+        lus = [self.classes_dir / c["classe"] for c in lignes if c["lue"]]
+        cle = (tuple((p.name, (p / "results.json").stat().st_mtime) for p in lus),
+               st["db"].stat().st_mtime if st["db"].exists() else 0, len(lignes),
+               max((f.stat().st_mtime for f in self.corriges.glob("*")), default=0) if self.corriges.is_dir() else 0)
+        if _AVANCEMENT.get(self.dir) and _AVANCEMENT[self.dir][0] == cle:
+            return _AVANCEMENT[self.dir][1]
+        par_classe = {}
+        if lus:
+            dec, memoire = Decisions(st["db"]), Memory()
+            cs = [Classe(d, {}, dec, memory=memoire, truth_dir=st["truth_dir"], lists_dir=st["lists_dir"]) for d in lus]
+            memoire.rebuild(cs)
+            for c in cs:
+                items = c.all_items()
+                par_classe[c.name] = {"copies": len(c.copy_ids), "a_decider": sum(not i["decide"] for i in items),
+                                      "total": len(items), "completes": sum(r["en_attente"] == 0 for r in c.notes()),
+                                      "commencee": bool(dec.of(c.name))}
+        out = [{"classe": c["classe"], "lue": c["lue"],
+                **par_classe.get(c["classe"], {"copies": 0, "a_decider": 0, "total": 0, "completes": 0, "commencee": False})}
+               for c in lignes]
+        a_decider, total = sum(c["a_decider"] for c in out), sum(c["total"] for c in out)
+        pas_lues = [c["classe"] for c in out if not c["lue"]]
+        r = {"classes": out, "a_decider": a_decider, "total": total, "decidees": total - a_decider,
+             "pas_lues": pas_lues, "fini": bool(lus) and not pas_lues and a_decider == 0,
+             "commencee": any(c["commencee"] for c in out)}
+        _AVANCEMENT[self.dir] = (cle, r)
+        return r
 
     APPRIS_MIN = 2      # une lecture tapée sur au moins 2 copies : erreur d'élève, pas une écriture isolée
 

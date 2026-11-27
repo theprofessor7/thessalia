@@ -30,9 +30,17 @@ Avant le déploiement chez les collègues, le code a été nettoyé.
   vérifiée par un appel gratuit, affichée masquée ; plafond) ; étape 4, « Transcrire le code par … » avec confirmation
   chiffrée (`lecteur_code.estimer` : ~0,015 $ par cadre avec Opus 5.5, estimation non encore comparée à une facture
   réelle). Puis pré-cochage par les règles. Premier essai réel : le collègue qui a sa clé (bêta-testeur).
-- **Source modifiée** : en revenant sur l'onglet d'un examen, fenêtre « Le fichier source a été modifié. Reproduire
-  les PDF ? (OK / Annuler) » + bouton « Ouvrir le dossier de l'examen » (on modifie alors ce YAML-là, plus de recopie
-  depuis `sujets/`). Thessalia ne connaît pas le chemin de l'original déposé par le navigateur.
+- ~~Source modifiée~~ : fait le 27 nov. En revenant sur l'onglet d'un examen dont la source (ou une image) a changé
+  après la production, fenêtre « Le fichier source a été modifié. Reproduire les PDF ? » (Annuler : bandeau en haut
+  de la page) ; source refusée : alerte puis erreurs à l'étape 1. Bouton « Ouvrir le dossier de l'examen » (étape 1) :
+  on modifie ce YAML-là, plus de recopie depuis `sujets/`. Au passage, corrigé : le script de la page d'un examen ne
+  se compilait plus depuis le 26 (retours à la ligne dans des chaînes) → ni confirmation du coût en ligne, ni
+  assistant étape par étape ; test `test_scripts_des_pages_valides` (node) ajouté.
+- Fait le 27 nov. (demande de l'enseignant, « où on en est ») : étape 5 « faite » seulement quand toutes les classes
+  déposées sont lues et toutes les réponses décidées (`Projet.avancement_correction`, mêmes règles que l'export,
+  mis en cache) ; jauge globale + ligne par classe (copies complètes, reste à décider) ; bouton « ▶ Continuer la
+  correction (N à décider) » / « Correction finie · revoir des décisions ». Étape 6 : export pas bloqué mais
+  « Exporter les notes partielles » + encart et confirmation tant que la correction n'est pas finie.
 - **Mode aperçu d'un sujet** : à chaque enregistrement de l'`examen.yaml`, les PDF se reproduisent seuls et une page
   du navigateur montre les pages du sujet côte à côte, rafraîchie d'elle-même, erreurs de la source en rouge.
   Aujourd'hui : modifier `examens/<nom>/examen.yaml`, recharger la page de l'examen, « Produire les PDF ».

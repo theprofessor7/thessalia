@@ -72,6 +72,13 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     assert compte(racine / "essai" / "decisions.sqlite") == 1 and compte(tmp_path / "decisions.sqlite") == 0
     assert "sujets à produire" not in c.get("/examens").get_data(as_text=True)   # corriger ne « change » pas le sujet
     assert (racine / "essai" / "verite" / "supA_1.appris.json").exists()
+    # avancement : correction commencée, pas finie ; l'étape 5 n'est pas « faite » ; l'export prévient (notes partielles)
+    from thessalia.projet import Projet
+    av = Projet(racine / "essai").avancement_correction()
+    assert av["commencee"] and not av["fini"] and av["a_decider"] > 0 and av["classes"][0]["copies"] == 2
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert "Correction en cours" in page and "Continuer la correction" in page and "Exporter les notes partielles" in page
+    assert "Correction pas finie : notes partielles" in page
 
     # sans liste, la page des noms le dit d'emblée et renvoie au dépôt (au lieu de refuser chaque nom)
     page = c.get("/g/A/noms").get_data(as_text=True)
@@ -182,7 +189,7 @@ def test_examen_de_bout_en_bout(tmp_path, monkeypatch):
     assert page.index("MARTIN Alice") < page.index("DURAND Paul") and "nom proche de MARTINS Léa" in page
     c.post("/examens/essai/noms-verifies")
     page = c.get("/examens/essai").get_data(as_text=True)
-    assert "2 à risque, vérifiées" in page and "Exporter quand même" not in page
+    assert "2 à risque, vérifiées" in page and "à risque non vérifiée" not in page
 
     # sujet importé (générateur d'un collègue) : PDF, gabarit et corrigé fournis ; rien à produire ; un gabarit
     # construit sur un autre PDF est refusé (il lirait les cases au mauvais endroit, sans erreur visible)
@@ -250,6 +257,18 @@ def test_assistant_lecture_approfondie_interrompue():
     assert etapes_examen(e, None, False, False, True, {"etat": "terminée", "interrompue": False})[1] == 5
 
 
+def test_etapes_correction_finie_ou_non():
+    """Étape 5 « faite » seulement quand tout est décidé et toutes les classes lues, pas dès l'ouverture de l'outil ;
+    étape 6 « faite » seulement si l'export a eu lieu sur une correction finie."""
+    from thessalia.web_examens import etapes_examen
+    e = {"erreurs": [], "produit": True, "classes": [{"classe": "supA"}, {"classe": "supH"}], "lues": 2, "courtes": 2}
+    en_cours = {"fini": False}
+    etapes, courante = etapes_examen(e, None, True, True, True, None, en_cours)
+    assert not etapes[4]["faite"] and not etapes[5]["faite"] and courante == 5
+    etapes, courante = etapes_examen(e, None, True, True, True, None, {"fini": True})
+    assert etapes[4]["faite"] and etapes[5]["faite"]
+
+
 def test_corbeille(tmp_path):
     """Supprimer un examen le met à la corbeille (rien d'effacé) ; il se restaure ; la corbeille n'est pas un examen."""
     from thessalia.serve import create_app
@@ -280,3 +299,65 @@ def test_nom_de_l_examen_tire_du_fichier(tmp_path):
     r = c.post("/examens/nouveau", data={"nom": "", "source": (io.BytesIO(SUJET.encode()), "quiz_chaines.yaml")},
                content_type="multipart/form-data")
     assert r.headers["Location"] == "/examens/quiz_chaines" and (tmp_path / "quiz_chaines" / "examen.yaml").exists()
+
+
+def _faux_produit(racine):
+    """Un examen dont les PDF ont été produits (fichiers factices), puis la source retouchée hors de Thessalia."""
+    import os
+    d = racine / "essai"
+    (d / "produit" / "corriges").mkdir(parents=True)
+    (d / "examen.yaml").write_text(SUJET, encoding="utf-8")
+    (d / "produit" / "sujet_ESSAI_FR.pdf").write_bytes(b"%PDF")
+    cle = d / "produit" / "corriges" / "ESSAI_FR.key.json"
+    cle.write_text("{}", encoding="utf-8")
+    t = time.time()
+    os.utime(d / "examen.yaml", (t - 100, t - 100))
+    os.utime(cle, (t - 50, t - 50))                     # produit après la source : à jour
+    return d
+
+
+def test_source_modifiee(tmp_path, monkeypatch):
+    """Source retouchée dans un éditeur après la production : bandeau « Reproduire les PDF », signature changée
+    pour la page (qui propose alors de reproduire), bouton « Ouvrir le dossier de l'examen »."""
+    import os
+    racine = tmp_path / "examens"
+    d = _faux_produit(racine)
+    c = create_app([], tmp_path / "d.sqlite", examens=racine).test_client()
+    avant = c.get("/examens/essai/source-etat").get_json()
+    assert avant["a_jour"] and avant["erreurs"] == 0
+    assert 'id="source-modifiee"' not in c.get("/examens/essai").get_data(as_text=True)
+
+    os.utime(d / "examen.yaml")                         # enregistré à l'instant dans l'éditeur
+    apres = c.get("/examens/essai/source-etat").get_json()
+    assert apres["signature"] > avant["signature"] and not apres["a_jour"]
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert 'id="source-modifiee"' in page and "Reproduire les PDF" in page
+
+    (d / "examen.yaml").write_text(SUJET.replace("bonne: a", "bonne: z"), encoding="utf-8")   # retouche fautive
+    assert c.get("/examens/essai/source-etat").get_json()["erreurs"] >= 1
+    page = c.get("/examens/essai").get_data(as_text=True)
+    assert "Il est refusé" in page and 'id="source-modifiee"' in page
+
+    ouverts = []
+    monkeypatch.setattr("thessalia.web_examens.ouvrir_dossier", ouverts.append)
+    assert c.post("/examens/essai/ouvrir-dossier").status_code == 302 and ouverts == [d.resolve()]
+
+
+def test_scripts_des_pages_valides(tmp_path):
+    """Les scripts de la page d'un examen se compilent (un retour à la ligne dans une chaîne casse tout le bloc :
+    plus de confirmation du coût, plus d'assistant étape par étape)."""
+    import re
+    import shutil
+    import subprocess
+    if not shutil.which("node"):
+        pytest.skip("node absent")
+    racine = tmp_path / "examens"
+    _faux_produit(racine)
+    c = create_app([], tmp_path / "d.sqlite", examens=racine).test_client()
+    for url in ("/examens/essai", "/examens", "/reglages"):
+        page = c.get(url).get_data(as_text=True)
+        for i, js in enumerate(re.findall(r"<script>(.*?)</script>", page, re.S)):
+            f = tmp_path / f"bloc{i}.js"
+            f.write_text(js, encoding="utf-8")
+            r = subprocess.run(["node", "--check", str(f)], capture_output=True, text=True)
+            assert r.returncode == 0, f"{url}, script {i} : {r.stderr}"

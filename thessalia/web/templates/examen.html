@@ -5,6 +5,15 @@
 <h1>{{ e.titre or e.nom }}</h1>
 {% if message %}<p class="message">{{ message }}</p>{% endif %}
 
+{% if not e.importe and pdfs and not e.produit %}
+<div class="source-modifiee" id="source-modifiee">
+  <span>✎ <b>Le fichier source a été modifié</b> depuis la dernière production des PDF.
+    {% if e.erreurs %}Il est refusé : voir les erreurs à l'<a href="#etape-1">étape 1</a>.{% else %}Les PDF à imprimer sont anciens.{% endif %}</span>
+  {% if not e.erreurs %}<form method="post" action="/examens/{{ e.nom }}/produire" class="enligne">
+    <button class="bouton principal">Reproduire les PDF</button></form>{% endif %}
+</div>
+{% endif %}
+
 {% include "_tache.html" %}
 
 <nav class="etapes-points" aria-label="Étapes de l'examen">
@@ -46,6 +55,10 @@
         sur le sujet. Pour un logo, ajoutez dans la source, sous « examen: », la ligne <code>logo: {{ im }}</code>, puis
         produisez à nouveau.</p>
     {% endfor %}
+    <form method="post" action="/examens/{{ e.nom }}/ouvrir-dossier" class="enligne">
+      <button class="bouton">Ouvrir le dossier de l'examen</button></form>
+    <span class="gris">pour modifier <code>{{ source_nom or 'examen.yaml' }}</code> sur place : en revenant ici, Thessalia
+      propose de reproduire les PDF.</span>
     <details><summary>Remplacer la source</summary>
       <form class="formulaire" method="post" action="/examens/{{ e.nom }}/source" enctype="multipart/form-data">
         <label>Source <input type="file" name="source" accept=".yaml,.yml" required></label>
@@ -238,11 +251,42 @@
       {% if x.faite %}<span class="badge ok">fait</span>{% endif %}</h2>
     {% if x.bloque %}<p class="bloque">Pas encore : {{ x.bloque }}.</p>{% endif %}
 
+    {% set C = correction %}
+    {% if C and C.total %}
+    {% set pc = (100 * C.decidees / C.total)|round(0, 'floor')|int %}
+    <div class="avancement-correction {{ 'fini' if C.fini }}">
+      <div class="ac-total">
+        <b>{{ 'Correction finie' if C.fini else 'Correction en cours' }}</b>
+        <div class="jauge-fond"><div class="jauge-barre" style="width:{{ pc }}%"></div></div>
+        <span>{{ C.decidees }} / {{ C.total }} réponses décidées ({{ pc }} %)</span>
+      </div>
+      <table class="tableau ac-classes">
+        <tr><th>Classe</th><th class="n">Copies complètes</th><th class="n">Reste à décider</th><th></th></tr>
+        {% for c in C.classes %}
+        <tr><td>{{ c.classe }}</td>
+          {% if c.lue %}
+          <td class="n">{{ c.completes }} / {{ c.copies }}</td>
+          <td class="n">{% if c.a_decider %}<b>{{ c.a_decider }}</b>{% else %}<span class="ok">0</span>{% endif %}</td>
+          <td><div class="jauge-fond petite"><div class="jauge-barre" style="width:{{ ((100 * (c.total - c.a_decider) / c.total) if c.total else 100)|round(0, 'floor')|int }}%"></div></div></td>
+          {% else %}
+          <td colspan="3"><span class="attente">pas encore lue (étape 3)</span></td>
+          {% endif %}</tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
     <form method="post" action="/examens/{{ e.nom }}/corriger">
-      <button class="bouton principal" {{ 'disabled' if not e.lues }}>{{ 'Reprendre la correction' if ouvert else 'Corriger les copies lues' }}</button>
+      {% if C and C.fini %}
+      <button class="bouton fait" {{ 'disabled' if not e.lues }}>Correction finie · revoir des décisions</button>
+      {% elif C and (C.commencee or ouvert) %}
+      <button class="bouton principal" {{ 'disabled' if not e.lues }}>▶ Continuer la correction ({{ C.a_decider }} réponse{{ 's' if C.a_decider > 1 }} à décider)</button>
+      {% else %}
+      <button class="bouton principal" {{ 'disabled' if not e.lues }}>Corriger les copies lues</button>
+      {% endif %}
     </form>
     <p class="aide">Ouvre l'outil de correction sur les classes de cet examen : vue par question, vue par copie,
-      identification des copies.</p>
+      identification des copies. La correction est finie quand toutes les classes déposées sont lues et que chaque
+      réponse est décidée (par vous, ou d'office par la machine).</p>
     {% include "_pas_nav.html" %}
   </section>
   {% set x = etapes[5] %}
@@ -278,10 +322,24 @@
       {% endif %}
     </div>
     {% endif %}
-    {% set alerte = noms and ((noms.risques and not noms.verifie) or noms.sans) %}
+    {% set C = correction %}
+    {% set manques_correction = (([C.a_decider ~ ' réponse(s) encore à décider'] if C.a_decider else [])
+                                + ([C.pas_lues|length ~ ' classe(s) pas encore lue(s) : ' ~ C.pas_lues|join(', ')] if C.pas_lues else []))
+                                if C and not C.fini else [] %}
+    {% if manques_correction %}
+    <p class="export-partiel">⚠ <b>Correction pas finie</b> : {{ manques_correction|join(' · ') }}. Un export maintenant
+      donne des notes <b>partielles</b> : les copies incomplètes sont listées dans la feuille « À vérifier »
+      {%- if C.pas_lues %}, les élèves des classes pas lues n'ont pas de note{% endif %}.
+      <a href="#etape-5">Finir la correction (étape 5)</a>.</p>
+    {% endif %}
+    {% set manques = manques_correction
+                     + ([noms.sans ~ ' copie(s) sans élève'] if noms and noms.sans else [])
+                     + ([noms.risques ~ ' copie(s) à risque non vérifiée(s)'] if noms and noms.risques and not noms.verifie else []) %}
+    {% set avertissement = ('Correction pas finie : notes partielles.\n\n' if manques_correction else '') ~ manques|join('\n') ~ '\n\nExporter quand même ?' %}
     <form class="enligne" method="post" action="/examens/{{ e.nom }}/notes"
-          {% if alerte %}{% set manques = ([noms.sans ~ ' copie(s) sans élève'] if noms.sans else []) + ([noms.risques ~ ' copie(s) à risque non vérifiée(s)'] if noms.risques and not noms.verifie else []) %}onsubmit="return confirm('{{ manques|join(' et ') }}. Exporter quand même ?')"{% endif %}>
-      <button class="bouton {{ 'fait' if notes else 'principal' }}" {{ 'disabled' if not e.lues }}>{{ 'Notes exportées · exporter à nouveau' if notes else 'Exporter les notes' }}</button>
+          {% if manques %}onsubmit='return confirm({{ avertissement|tojson }})'{% endif %}>
+      <button class="bouton {{ '' if manques_correction else ('fait' if notes else 'principal') }}" {{ 'disabled' if not e.lues }}>
+        {{- ('Exporter les notes partielles' if manques_correction else ('Notes exportées · exporter à nouveau' if notes else 'Exporter les notes')) -}}</button>
     </form>
     {% if notes %}<a href="/examens/{{ e.nom }}/notes.xlsx">notes_{{ e.nom }}.xlsx</a> <span class="gris">({{ notes }})</span>{% endif %}
     <p class="aide">Notes sur 20 (plafonnées à 20), absents, et une feuille « À vérifier » (copies sans élève, réponses encore en
@@ -292,6 +350,30 @@
 {% endblock %}
 {% block scripts %}{% include "_tache_js.html" %}
 <script>
+// Source modifiée hors de Thessalia (éditeur de texte) : en revenant sur l'onglet, proposer de reproduire les PDF,
+// comme un éditeur propose de recharger un fichier modifié. Annuler : la page se recharge et garde le bandeau.
+(() => {
+  let signature = {{ signature|tojson }};
+  const nom = {{ e.nom|tojson }};
+  if ({{ e.importe|tojson }}) return;
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) return;
+    let r;
+    try { r = await (await fetch('/examens/' + encodeURIComponent(nom) + '/source-etat')).json(); } catch (e) { return; }
+    if (r.signature === signature) return;
+    signature = r.signature;
+    if (r.erreurs) {
+      alert('Le fichier source a été modifié, mais il est refusé (' + r.erreurs + ' erreur' + (r.erreurs > 1 ? 's' : '')
+            + ') : la page se recharge pour les afficher.');
+    } else if (!r.a_jour && confirm('Le fichier source a été modifié.\n\nReproduire les PDF ?')) {
+      const f = document.createElement('form');
+      f.method = 'post'; f.action = '/examens/' + encodeURIComponent(nom) + '/produire';
+      document.body.appendChild(f); f.submit(); return;
+    }
+    location.reload();
+  });
+})();
+
 // Transcription par un service en ligne : coût estimé et plafond restant, confirmés avant tout envoi.
 document.querySelectorAll('form[data-en-ligne]').forEach(f => f.addEventListener('submit', async ev => {
   ev.preventDefault();
